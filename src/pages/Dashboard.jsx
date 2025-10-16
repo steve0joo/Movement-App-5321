@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import SyncIndicator from '../components/SyncIndicator';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -20,6 +21,7 @@ export default function Dashboard() {
       <header className="dashboard-header">
         <h1>Movement App</h1>
         <div className="user-info">
+          <SyncIndicator />
           <span>{currentUser?.email}</span>
           <button onClick={handleLogout} className="btn-logout">
             Log Out
