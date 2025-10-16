@@ -4,7 +4,7 @@ import SyncIndicator from '../components/SyncIndicator';
 import './Dashboard.css';
 
 export default function Dashboard() {
-  const { logout, currentUser } = useAuth();
+  const { logout, currentUser, role } = useAuth();
   const navigate = useNavigate();
 
   async function handleLogout() {
@@ -59,6 +59,17 @@ export default function Dashboard() {
               <h3>Follow-ups</h3>
               <p>Track next steps</p>
             </button>
+
+            {role === 'admin' && (
+              <button
+                className="action-card admin-card"
+                onClick={() => navigate('/admin/users')}
+              >
+                <span className="action-icon">👤</span>
+                <h3>Manage Users</h3>
+                <p>Add/remove route leaders</p>
+              </button>
+            )}
           </div>
         </div>
 

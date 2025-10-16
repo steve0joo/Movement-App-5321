@@ -4,6 +4,7 @@ import { SyncProvider } from './context/SyncContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import AdminUserPage from './pages/AdminUserPage';
 import './App.css';
 
 function App() {
@@ -18,6 +19,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute>
+                  <AdminUserPage />
                 </ProtectedRoute>
               }
             />

@@ -6,8 +6,8 @@ import {
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
-import { db } from '../services/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { createUserProfile, getUserProfile } from '../services/userService';
+
 const AuthContext = createContext();
 
 export function useAuth() {
@@ -24,14 +24,13 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // Sign up
-  async function signup(email, password) {
+  // Role: 'volunteer' | 'leader' | 'admin'
+  async function signup(email, password, userRole = 'volunteer') {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    //doc(db, collection Name, document Id)
-    //we're defaulting new users to 'leader', otherwise they're probably admins
-    await setDoc(doc(db, 'users', cred.user.uid), {
+    // Create user profile in Firestore using userService
+    await createUserProfile(cred.user.uid, {
       email,
-      role: 'leader',
-      active: true,
+      role: userRole,
     });
     return cred;
   }
@@ -48,15 +47,15 @@ export function AuthProvider({ children }) {
 
   // Listen for auth state changes
   useEffect(() => {
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        //will read the user document in firestore
-        const read = await getDoc(doc(db, 'users', user.uid));
-        //stores the read into setRole. role will be either admin of leader depending on whats in firestore
-        setRole(read.exists() ? read.data().role : null);
-      } else { //if no user is signed in, setrole == null
+        // Get user profile from Firestore using userService
+        const userProfile = await getUserProfile(user.uid);
+        // Set role: 'volunteer' | 'leader' | 'admin'
+        setRole(userProfile?.role || null);
+      } else {
+        // No user signed in
         setRole(null);
       }
       setLoading(false);
