@@ -26,3 +26,5 @@ dist-ssr
 # Claude Code
 CLAUDE.md
 PROGRESS.md
+
+.env.local
