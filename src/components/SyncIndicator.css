@@ -1,0 +1,75 @@
+.sync-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.sync-icon {
+  font-size: 1rem;
+  display: inline-block;
+}
+
+.sync-text {
+  white-space: nowrap;
+}
+
+/* Synced state - green */
+.sync-indicator.synced {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.sync-indicator.synced .sync-icon {
+  color: #10b981;
+}
+
+/* Syncing state - blue with animation */
+.sync-indicator.syncing {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.sync-indicator.syncing .sync-icon {
+  color: #3b82f6;
+  animation: spin 1s linear infinite;
+}
+
+/* Offline state - orange/yellow */
+.sync-indicator.offline {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.sync-indicator.offline .sync-icon {
+  color: #f59e0b;
+}
+
+/* Spin animation for syncing icon */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .sync-text {
+    display: none;
+  }
+
+  .sync-indicator {
+    padding: 0.5rem;
+  }
+
+  .sync-icon {
+    font-size: 1.1rem;
+  }
+}
