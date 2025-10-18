@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { SyncProvider } from './context/SyncContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import SyncPrompt from './components/SyncPrompt';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminUserPage from './pages/AdminUserPage';
@@ -14,6 +15,7 @@ function App() {
     <Router>
       <AuthProvider>
         <SyncProvider>
+          <SyncPrompt />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route

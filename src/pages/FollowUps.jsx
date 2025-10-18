@@ -9,6 +9,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { isOfflineModeActive, getOfflineFollowUps, deleteOfflineItem } from "../utils/offlineStorage";
 import FollowUpForm from "./FollowUpForm";
 import "./FollowUps.css";
 
@@ -87,6 +88,24 @@ export default function FollowUps() {
   const undoTimerRef = useRef(null);
 
   useEffect(() => {
+    const offlineMode = isOfflineModeActive();
+
+    if (offlineMode) {
+      // Load offline data
+      const offlineData = getOfflineFollowUps();
+      if (offlineData.length > 0) {
+        setPeople(offlineData.map(item => ({
+          ...item,
+          urgency: typeof item.urgency === "number" ? item.urgency : 0,
+        })));
+      } else {
+        setPeople(FALLBACK);
+      }
+      setLoading(false);
+      return; // No cleanup needed for offline mode
+    }
+
+    // Online mode - load from Firestore
     const qRef = query(
       collection(db, "followUps"),
       orderBy("lastActivity", "desc")
@@ -152,7 +171,11 @@ export default function FollowUps() {
     const timer = setTimeout(async () => {
       try {
         if (item.__fromFirestore) {
+          // Delete from Firestore
           await deleteDoc(doc(db, "followUps", item.id));
+        } else if (item.isOffline) {
+          // Delete from offline storage
+          deleteOfflineItem(item.id, 'followup');
         }
       } catch (e) {
         console.error("Delete failed", e);

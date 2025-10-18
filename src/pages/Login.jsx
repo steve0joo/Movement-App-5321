@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
+import { enableOfflineMode, setOfflineUser } from '../utils/offlineStorage';
 import './Login.css';
 
 export default function Login() {
@@ -84,6 +85,19 @@ export default function Login() {
     setConfirmPassword('');
   }
 
+  function handleContinueOffline() {
+    // Enable offline mode and navigate to dashboard
+    const offlineUser = {
+      displayName: displayName || 'Offline User',
+      email: email || null,
+      role: 'volunteer',
+    };
+
+    setOfflineUser(offlineUser);
+    enableOfflineMode();
+    navigate('/');
+  }
+
   return (
     <div className="login-container">
       <div className="login-card">
@@ -91,9 +105,14 @@ export default function Login() {
         <p className="subtitle">Route Leader Portal</p>
 
         {/* Offline indicator */}
-        {offlineMode && (
+        {offlineMode && mode === 'login' && (
           <div className="offline-notice">
-            📵 You are offline. {mode === 'signup' ? 'Sign up requires internet connection.' : 'Login may work if you have logged in before.'}
+            ❌ You are offline. Login may work if you have logged in before, or you can continue in offline mode to record data locally.
+          </div>
+        )}
+        {offlineMode && mode === 'signup' && (
+          <div className="offline-notice">
+            ❌ You are offline. Sign up requires internet connection.
           </div>
         )}
 
@@ -211,6 +230,25 @@ export default function Login() {
             }
           </button>
         </form>
+
+        {/* Offline mode button */}
+        {offlineMode && mode === 'login' && (
+          <div className="offline-mode-section">
+            <div className="divider">
+              <span>OR</span>
+            </div>
+            <button
+              type="button"
+              className="btn-offline"
+              onClick={handleContinueOffline}
+            >
+              📱 Continue Offline
+            </button>
+            <p className="offline-hint">
+              Record data locally. Sync to database when you're back online.
+            </p>
+          </div>
+        )}
 
         {/* Switch mode link */}
         <div className="auth-switch">

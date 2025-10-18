@@ -188,6 +188,60 @@
   text-decoration: underline;
 }
 
+/* Offline mode section */
+.offline-mode-section {
+  margin-top: 1.5rem;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0 1rem 0;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.divider span {
+  padding: 0 0.75rem;
+  font-weight: 500;
+}
+
+.btn-offline {
+  width: 100%;
+  padding: 0.875rem;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+}
+
+.btn-offline:hover {
+  background: #d97706;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.offline-hint {
+  margin: 0.5rem 0 0 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 480px) {
   .login-card {
