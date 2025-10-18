@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../services/firebase";
+import { db, auth } from "../services/firebase";
 import "./FollowUps.css"; // reuses tokens + adds form styles at bottom
 
 // inline icons
@@ -80,7 +80,8 @@ export default function FollowUpForm({ onClose, onSaved }) {
       age: age ? Number(age) : null,
       followUp, involvement, notes,
       lastActivity: new Date().toISOString(),
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      createdBy: auth.currentUser?.uid || null
     };
 
     try {
@@ -88,7 +89,7 @@ export default function FollowUpForm({ onClose, onSaved }) {
       setError("");
 
       if (navigator.onLine) {
-        await addDoc(collection(db, "followups"), payload);
+        await addDoc(collection(db, "followUps"), payload);
       } else {
         // queue locally to send when back online
         const key = "fu_outbox";

@@ -63,7 +63,7 @@ export default function FollowUps() {
           const key = "fu_outbox";
           const rows = JSON.parse(localStorage.getItem(key) || "[]");
           if (!rows.length) return;
-          Promise.all(rows.map(r => addDoc(collection(db, "followups"), r)))
+          Promise.all(rows.map(r => addDoc(collection(db, "followUps"), r)))
             .then(() => localStorage.removeItem(key))
             .catch(() => {});
         } catch {}
@@ -88,7 +88,7 @@ export default function FollowUps() {
 
   useEffect(() => {
     const qRef = query(
-      collection(db, "followups"),
+      collection(db, "followUps"),
       orderBy("lastActivity", "desc")
     );
 
@@ -152,7 +152,7 @@ export default function FollowUps() {
     const timer = setTimeout(async () => {
       try {
         if (item.__fromFirestore) {
-          await deleteDoc(doc(db, "followups", item.id));
+          await deleteDoc(doc(db, "followUps", item.id));
         }
       } catch (e) {
         console.error("Delete failed", e);
@@ -181,7 +181,7 @@ export default function FollowUps() {
     // restore in Firestore if it existed there
     try {
       if (undoData.item.__fromFirestore) {
-        await setDoc(doc(db, "followups", undoData.item.id), undoData.item);
+        await setDoc(doc(db, "followUps", undoData.item.id), undoData.item);
       }
     } catch (e) {
       console.error("Undo restore failed", e);
