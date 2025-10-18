@@ -9,6 +9,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "../services/firebase";
+import FollowUpForm from "./FollowUpForm";
 import "./FollowUps.css";
 
 /* Inline icons (immune to external icon libs) */
@@ -53,6 +54,25 @@ const FALLBACK = [
 ];
 
 export default function FollowUps() {
+  const [showForm, setShowForm] = useState(false);
+    // try to upload any offline-saved forms when back online
+    useEffect(() => {
+      function tryFlush() {
+        if (!navigator.onLine) return;
+        try {
+          const key = "fu_outbox";
+          const rows = JSON.parse(localStorage.getItem(key) || "[]");
+          if (!rows.length) return;
+          Promise.all(rows.map(r => addDoc(collection(db, "followups"), r)))
+            .then(() => localStorage.removeItem(key))
+            .catch(() => {});
+        } catch {}
+      }
+      tryFlush();
+      window.addEventListener("online", tryFlush);
+      return () => window.removeEventListener("online", tryFlush);
+    }, []);
+  
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState([]);
   const [qText, setQText] = useState("");
@@ -188,11 +208,18 @@ export default function FollowUps() {
         <button
           className="icon-btn add-btn"
           aria-label="add follow-up"
-          onClick={() => {/* TODO: navigate to create page */}}
+          onClick={() => setShowForm(true)}
         >
           <IconPlus className="fu-icon" />
         </button>
       </header>
+
+      {showForm && (
+        <FollowUpForm
+          onClose={() => setShowForm(false)}
+          onSaved={() => setShowForm(false)}
+        />
+      )}
 
       <main className="content">
         <h1 className="fu-title">Follow-up</h1>
