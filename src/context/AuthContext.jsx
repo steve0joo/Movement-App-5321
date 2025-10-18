@@ -25,12 +25,13 @@ export function AuthProvider({ children }) {
 
   // Sign up
   // Role: 'volunteer' | 'leader' | 'admin'
-  async function signup(email, password, userRole = 'volunteer') {
+  async function signup(email, password, userRole = 'volunteer', displayName = null) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     // Create user profile in Firestore using userService
     await createUserProfile(cred.user.uid, {
       email,
       role: userRole,
+      displayName,
     });
     return cred;
   }
