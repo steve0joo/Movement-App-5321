@@ -25,9 +25,9 @@ const PersonDetails = () => {
      
      try {
        console.log('Fetching form data...');
-       //create reference to data collection in firestore (changed back to 'data')
-       const dataCollection = collection(db, 'data');
-       //get the docs from collection (data/form)
+       //create reference to followUps collection in firestore
+       const dataCollection = collection(db, 'followUps');
+       //get the docs from collection (followUps)
        const querySnapshot = await getDocs(dataCollection);
        const forms = [];
        querySnapshot.forEach((doc) => {
@@ -95,7 +95,7 @@ const PersonDetails = () => {
    return data.reduce((acc, person) => {
      if (!person) return acc;
      //either the person is in a building/block or 'Unassigned' if none
-     const block = person['Building/Block'] || 'Unassigned';
+     const block = person.block || person['Building/Block'] || 'Unassigned';
      if (!acc[block]) {
        acc[block] = [];
      }
@@ -155,7 +155,7 @@ const PersonDetails = () => {
                          className={`person-header ${expandedPerson === person.id ? 'expanded' : ''}`}
                          onClick={() => handlePersonClick(person.id)}
                        >
-                         <h3>{person.Name || 'Unnamed Person'}</h3>
+                         <h3>{person.name || person.Name || 'Unnamed Person'}</h3>
                          <span className="expand-icon">{expandedPerson === person.id ? '−' : '+'}</span>
                        </div>
                        {expandedPerson === person.id && (
@@ -164,26 +164,28 @@ const PersonDetails = () => {
                              {/* Basic Information */}
                              <div className="detail-item">
                                <label>Age</label>
-                               <span>{person.Age || 'N/A'}</span>
+                               <span>{person.age || person.Age || 'N/A'}</span>
                              </div>
                              <div className="detail-item">
                                <label>Apt #/ House #</label>
-                               <span>{person['Apt #/ House #'] || 'N/A'}</span>
+                               <span>{person.unit || person['Apt #/ House #'] || 'N/A'}</span>
                              </div>
                              <div className="detail-item">
                                <label>Phone</label>
-                               <span>{person.Phone || 'N/A'}</span>
+                               <span>{person.phone || person.Phone || 'N/A'}</span>
                              </div>
                              <div className="detail-item">
-                               <label>Route Leader</label>
-                               <span>{person['Route Leader'] || 'N/A'}</span>
+                               <label>Team/Route</label>
+                               <span>{person.team || person['Route Leader'] || 'N/A'}</span>
                              </div>
                              <div className="detail-item">
                                <label>Date</label>
                                <span>
-                                 {person.Date && person.Date.seconds 
+                                 {person.date
+                                   ? new Date(person.date).toLocaleDateString()
+                                   : person.Date && person.Date.seconds
                                    ? new Date(person.Date.seconds * 1000).toLocaleDateString()
-                                   : person.Date 
+                                   : person.Date
                                    ? new Date(person.Date).toLocaleDateString()
                                    : 'N/A'
                                  }
@@ -191,15 +193,15 @@ const PersonDetails = () => {
                              </div>
                              <div className="detail-item full-width">
                                <label>Current Involvement</label>
-                               <span className="notes-text">{person['Current Involvement'] || 'No involvement information provided'}</span>
+                               <span className="notes-text">{person.involvement || person['Current Involvement'] || 'No involvement information provided'}</span>
                              </div>
                              <div className="detail-item full-width">
                                <label>Follow-up</label>
-                               <span className="notes-text">{person['Follow-up'] || 'No follow-up information'}</span>
+                               <span className="notes-text">{person.followUp || person['Follow-up'] || 'No follow-up information'}</span>
                              </div>
                              <div className="detail-item full-width">
                                <label>Notes</label>
-                               <span className="notes-text">{person.Notes || 'No notes available'}</span>
+                               <span className="notes-text">{person.notes || person.Notes || 'No notes available'}</span>
                              </div>
                            </div>
                          </div>

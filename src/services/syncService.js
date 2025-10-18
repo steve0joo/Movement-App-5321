@@ -34,8 +34,20 @@ export async function syncOfflineData(userId) {
   // Sync Follow-ups
   for (const followUp of offlineData.followUps) {
     try {
-      // Remove offline-specific fields
-      const { id, isOffline, createdAt, ...cleanData } = followUp;
+      // Map to only the required Firestore fields
+      const cleanData = {
+        name: followUp.name, // Name
+        team: followUp.team, // Team/Route
+        block: followUp.block, // Building/Block
+        unit: followUp.unit, // Apt # / House #
+        age: followUp.age || null, // Age
+        phone: followUp.phone || null, // Phone
+        followUp: followUp.followUp || '', // Follow-up
+        involvement: followUp.involvement || '', // Current Involvement
+        notes: followUp.notes || '', // Notes
+        date: followUp.date, // Date
+        urgency: followUp.urgency !== undefined ? followUp.urgency : 1, // Default to 1 if not set
+      };
 
       await createFollowUp(cleanData, userId);
       results.followUps.successful++;
