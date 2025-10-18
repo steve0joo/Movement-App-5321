@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminUserPage from './pages/AdminUserPage';
 import FollowUps from './pages/FollowUps';
+import FollowUpForm from './pages/FollowUpForm';
 
 import './App.css';
 
@@ -40,6 +41,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+            <Route
+              path="/followups/new"
+              element={
+                <ProtectedRoute>
+                  <FollowUpForm />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </SyncProvider>
