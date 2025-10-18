@@ -30,7 +30,7 @@ export default function Login() {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1>The Movement App</h1>
+        <h1>Movement App</h1>
         <p className="subtitle">Route Leader Portal</p>
 
         {error && <div className="error-message">{error}</div>}

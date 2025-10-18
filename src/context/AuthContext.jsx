@@ -6,6 +6,7 @@ import {
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
+import { createUserProfile, getUserProfile } from '../services/userService';
 
 const AuthContext = createContext();
 
@@ -19,11 +20,19 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Sign up
-  function signup(email, password) {
-    return createUserWithEmailAndPassword(auth, email, password);
+  // Role: 'volunteer' | 'leader' | 'admin'
+  async function signup(email, password, userRole = 'volunteer') {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    // Create user profile in Firestore using userService
+    await createUserProfile(cred.user.uid, {
+      email,
+      role: userRole,
+    });
+    return cred;
   }
 
   // Log in
@@ -38,8 +47,17 @@ export function AuthProvider({ children }) {
 
   // Listen for auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        // Get user profile from Firestore using userService
+        const userProfile = await getUserProfile(user.uid);
+        // Set role: 'volunteer' | 'leader' | 'admin'
+        setRole(userProfile?.role || null);
+      } else {
+        // No user signed in
+        setRole(null);
+      }
       setLoading(false);
     });
 
@@ -48,6 +66,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     currentUser,
+    role,
     signup,
     login,
     logout,
