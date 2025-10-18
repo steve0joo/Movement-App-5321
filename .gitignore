@@ -26,9 +26,3 @@ dist-ssr
 # Claude Code
 CLAUDE.md
 PROGRESS.md
-OFFLINE_SYNC.md
-
-.env.local
-
-# Firebase
-*.rules
