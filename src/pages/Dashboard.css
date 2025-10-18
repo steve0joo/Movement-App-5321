@@ -4,7 +4,7 @@
 }
 
 .dashboard-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A8F8C;
   color: white;
   padding: 1.5rem;
   display: flex;
@@ -40,7 +40,8 @@
 }
 
 .btn-logout:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #E0F1E7;
+  color: #4A8F8C;;
 }
 
 .dashboard-content {

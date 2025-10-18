@@ -19,7 +19,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>Movement App</h1>
+        <h1>The Movement App</h1>
         <div className="user-info">
           <SyncIndicator />
           <span>{currentUser?.email}</span>
@@ -56,8 +56,8 @@ export default function Dashboard() {
               onClick={() => navigate('/followups')}
             >
               <span className="action-icon">✅</span>
-              <h3>Follow-ups</h3>
-              <p>Track next steps</p>
+              <h3>Dashboard</h3>
+              <p>Follow-ups</p>
             </button>
 
             {role === 'admin' && (
