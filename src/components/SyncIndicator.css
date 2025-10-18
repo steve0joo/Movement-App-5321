@@ -20,33 +20,30 @@
 
 /* Synced state - green */
 .sync-indicator.synced {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
+  color: #E0F1E7;
 }
 
 .sync-indicator.synced .sync-icon {
-  color: #10b981;
+  color: #E0F1E7;
 }
 
 /* Syncing state - blue with animation */
 .sync-indicator.syncing {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
+  color: #4E4E57;
 }
 
 .sync-indicator.syncing .sync-icon {
-  color: #3b82f6;
+  color: #4E4E57;
   animation: spin 1s linear infinite;
 }
 
 /* Offline state - orange/yellow */
 .sync-indicator.offline {
-  background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
+  color: #F28668;
 }
 
 .sync-indicator.offline .sync-icon {
-  color: #f59e0b;
+  color: #F28668;
 }
 
 /* Spin animation for syncing icon */

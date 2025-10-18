@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminUserPage from './pages/AdminUserPage';
+import FollowUps from './pages/FollowUps';
+
 import './App.css';
 
 function App() {
@@ -30,6 +32,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+            path="/followups"
+            element={
+              <ProtectedRoute>
+                <FollowUps />
+              </ProtectedRoute>
+            }
+          />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </SyncProvider>
