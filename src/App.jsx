@@ -7,9 +7,8 @@ import Dashboard from './pages/Dashboard';
 import AdminUserPage from './pages/AdminUserPage';
 import FollowUps from './pages/FollowUps';
 import FollowUpForm from './pages/FollowUpForm';
-
+import PersonDetails from './pages/personDetails';
 import './App.css';
-
 function App() {
   return (
     <Router>
@@ -34,18 +33,26 @@ function App() {
               }
             />
             <Route
-            path="/followups"
-            element={
-              <ProtectedRoute>
-                <FollowUps />
-              </ProtectedRoute>
-            }
-          />
+              path="/followups"
+              element={
+                <ProtectedRoute>
+                  <FollowUps />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/followups/new"
               element={
                 <ProtectedRoute>
                   <FollowUpForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/families"
+              element={
+                <ProtectedRoute>
+                  <PersonDetails />
                 </ProtectedRoute>
               }
             />
