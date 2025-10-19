@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
   collection,
   onSnapshot,
@@ -6,11 +8,16 @@ import {
   query,
   deleteDoc,
   doc,
+  addDoc,
   setDoc,
 } from "firebase/firestore";
 import { db } from "../services/firebase";
 import FollowUpForm from "./FollowUpForm";
 import "./FollowUps.css";
+import menuIcon from "../assets/menu-button.png";
+import logoHome from "../assets/logo-home-button.png";
+import editIcon from "../assets/edit-button.png";
+import trashIcon from "../assets/trash-button.png";
 
 /* Inline icons (immune to external icon libs) */
 const IconMenu = (p) => (
@@ -55,23 +62,56 @@ const FALLBACK = [
 
 export default function FollowUps() {
   const [showForm, setShowForm] = useState(false);
-    // try to upload any offline-saved forms when back online
-    useEffect(() => {
-      function tryFlush() {
-        if (!navigator.onLine) return;
-        try {
-          const key = "fu_outbox";
-          const rows = JSON.parse(localStorage.getItem(key) || "[]");
-          if (!rows.length) return;
-          Promise.all(rows.map(r => addDoc(collection(db, "followUps"), r)))
-            .then(() => localStorage.removeItem(key))
-            .catch(() => {});
-        } catch {}
-      }
-      tryFlush();
-      window.addEventListener("online", tryFlush);
-      return () => window.removeEventListener("online", tryFlush);
-    }, []);
+  const navigate = useNavigate();
+  const { role } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // close menu on outside click / Esc
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    function onKey(e) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  function toggleMenu(e) {
+    e?.stopPropagation();
+    setMenuOpen((s) => !s);
+  }
+
+  function handleMenuSelect(item) {
+    setMenuOpen(false);
+    if (item === "Users") navigate("/admin/users");
+    // other items intentionally non-functional for now
+  }
+
+  // try to upload any offline-saved forms when back online
+  useEffect(() => {
+    function tryFlush() {
+      if (!navigator.onLine) return;
+      try {
+        const key = "fu_outbox";
+        const rows = JSON.parse(localStorage.getItem(key) || "[]");
+        if (!rows.length) return;
+        Promise.all(rows.map(r => addDoc(collection(db, "followUps"), r)))
+          .then(() => localStorage.removeItem(key))
+          .catch(() => {});
+      } catch {}
+    }
+    tryFlush();
+    window.addEventListener("online", tryFlush);
+    return () => window.removeEventListener("online", tryFlush);
+  }, []);
   
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState([]);
@@ -193,26 +233,49 @@ export default function FollowUps() {
   return (
     <div className="dash-shell">
       {/* Small spacer to mimic status bar if needed */}
-      <div className="status-spacer" />
+      {/* <div className="status-spacer" /> */}
 
-      {/* Top bar: left menu, center brand, right + */}
+      {/* Top bar: left menu, center brand*/}
       <header className="topbar">
-        <button className="icon-btn" aria-label="menu">
-          <IconMenu className="fu-icon" />
-        </button>
+        <div className="menu-container" ref={menuRef}>
+          <button
+            className="menu-button"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+            aria-label="Open menu"
+            onClick={toggleMenu}
+          >
+            <img src={menuIcon} alt="Menu" style={{ height: 18, display: "block" }} />
+          </button>
 
-        <div className="brand-chip" aria-label="Movement">
-          <span>M</span>
+          {menuOpen && (
+            <div className="menu-dropdown" role="menu" aria-orientation="vertical">
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("New Visit")} role="menuitem">
+                New Visit
+              </button>
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Families")} role="menuitem">
+                Families
+              </button>
+
+              {role === 'admin' && (
+                <button type="button" className="menu-item" onClick={() => handleMenuSelect("Users")} role="menuitem">
+                  Users
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <button
-          className="icon-btn add-btn"
-          aria-label="add follow-up"
-          onClick={() => setShowForm(true)}
+          className="logo-home"
+          onClick={() => navigate("/")}
+          title="Home"
+          aria-label="Go to dashboard"
         >
-          <IconPlus className="fu-icon" />
+          <img src={logoHome} alt="Home" style={{ height: 36, display: "block" }} />
         </button>
-      </header>
+
+       </header>
 
       {showForm && (
         <FollowUpForm
@@ -222,9 +285,19 @@ export default function FollowUps() {
       )}
 
       <main className="content">
-        <h1 className="fu-title">Follow-up</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '28px 0 28px' }}>
+          <h2 style={{ margin: 0 }}>Follow-ups</h2>
+          <button
+            className="add-btn"
+            aria-label="add follow-up"
+            onClick={() => setShowForm(true)}
+            title="Add follow-up"
+            style={{ marginLeft: 12 }}
+          >
+            <IconPlus className="fu-icon" />
+          </button>
+        </div>
 
-        {/* Search */}
         <div className="search-wrap">
           <IconSearch className="fu-icon fu-muted" />
           <input
@@ -330,15 +403,16 @@ export default function FollowUps() {
                     </div>
 
                     <div className="row-actions">
-                      <button className="edit-btn" title="Edit">
-                        <IconEdit className="fu-icon" />
+                      <button className="edit-btn" title="Edit" aria-label={`Edit ${p.name || ''}`}>
+                        <img src={editIcon} alt="Edit" style={{ width: 18, height: 18, display: 'block' }} />
                       </button>
                       <button
                         className="del-btn"
                         title="Delete"
+                        aria-label={`Delete ${p.name || ''}`}
                         onClick={() => handleDelete(p, originalIndex >= 0 ? originalIndex : idxInFiltered)}
                       >
-                        <IconTrash className="fu-icon" />
+                        <img src={trashIcon} alt="Delete" style={{ width: 18, height: 18, display: 'block' }} />
                       </button>
                     </div>
                   </div>

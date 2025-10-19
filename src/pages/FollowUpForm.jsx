@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../services/firebase";
 import "./FollowUps.css"; // reuses tokens + adds form styles at bottom
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import menuIcon from "../assets/menu-button.png";
 
 // inline icons
 const IconBack = (p) => (
@@ -111,20 +114,79 @@ export default function FollowUpForm({ onClose, onSaved }) {
     }
   }
 
+  const navigate = useNavigate();
+  const { role } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // close menu on outside click / Esc
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    function onKey(e) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  function toggleMenu(e) {
+    e?.stopPropagation();
+    setMenuOpen((s) => !s);
+  }
+
+  function handleMenuSelect(item) {
+    setMenuOpen(false);
+    onClose?.();
+    if (item === "Users") navigate("/users");
+    // other items intentionally non-functional for now
+  }
+
   return (
     <div className="fu-form-overlay" role="dialog" aria-modal="true">
       {/* top bar */}
       <header className="fu-form-topbar">
-        <button className="icon-btn" aria-label="menu" type="button">
-          <IconMenu className="fu-icon" />
-        </button>
+        <div className="menu-container" ref={menuRef}>
+          <button
+            className="menu-button"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+            aria-label="Open menu"
+            type="button"
+            onClick={toggleMenu}
+          >
+            <img src={menuIcon} alt="Menu" style={{ height: 18, display: "block" }} />
+          </button>
+
+          {menuOpen && (
+            <div className="menu-dropdown" role="menu" aria-orientation="vertical">
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("New Visit")} role="menuitem">
+                New Visit
+              </button>
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Families")} role="menuitem">
+                Families
+              </button>
+              {role === "admin" && (
+                <button type="button" className="menu-item" onClick={() => handleMenuSelect("Users")} role="menuitem">
+                  Users
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="fu-form-titlewrap">
           <div className="fu-form-title">Form</div>
         </div>
 
         <button className="icon-btn" aria-label="back" type="button" onClick={onClose}>
-          <IconBack className="fu-icon" />
+          <IconBack className="fu-icon" style={{width: 18, height: 18, color: '#374151', display: 'block' }} />
         </button>
       </header>
 
