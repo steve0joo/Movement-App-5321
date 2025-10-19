@@ -19,11 +19,12 @@ export default function AddLeaderPage() {
     confirmPassword: '',
     displayName: '',
     siteId: '',
+    adminPassword: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [adminEmail] = useState(currentUser?.email);
+  const adminEmail = currentUser?.email;
 
   // Redirect if not admin
   if (role !== 'admin') {
@@ -45,14 +46,14 @@ export default function AddLeaderPage() {
     setLoading(true);
 
     // Validation
-    if (!formData.email || !formData.password) {
-      setError('Email and password are required.');
+    if (!formData.email || !formData.password || !formData.adminPassword) {
+      setError('Route Leader\'s email, password, and admin\'s password are required.');
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError('New Route Leader password must be at least 6 characters.');
       setLoading(false);
       return;
     }
@@ -70,16 +71,8 @@ export default function AddLeaderPage() {
     }
 
     try {
-      // Save admin credentials before creating new user
-      const adminPassword = window.prompt(
-        'To create a new user, please re-enter your admin password:'
-      );
-
-      if (!adminPassword) {
-        setError('Admin password required to create new users.');
-        setLoading(false);
-        return;
-      }
+      // First, verify admin password by attempting to re-authenticate
+      await signInWithEmailAndPassword(auth, adminEmail, formData.adminPassword);
 
       // Create Firebase Auth account for new leader
       const userCredential = await createUserWithEmailAndPassword(
@@ -100,7 +93,7 @@ export default function AddLeaderPage() {
       await signOut(auth);
 
       // Re-authenticate the admin
-      await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+      await signInWithEmailAndPassword(auth, adminEmail, formData.adminPassword);
 
       setSuccess(true);
       setFormData({
@@ -109,6 +102,7 @@ export default function AddLeaderPage() {
         confirmPassword: '',
         displayName: '',
         siteId: '',
+        adminPassword: '',
       });
 
       // Redirect after 2 seconds
@@ -117,14 +111,14 @@ export default function AddLeaderPage() {
       }, 2000);
     } catch (err) {
       console.error('Error creating route leader:', err);
-      if (err.code === 'auth/email-already-in-use') {
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Incorrect admin password. Please try again.');
+      } else if (err.code === 'auth/email-already-in-use') {
         setError('This email is already registered.');
       } else if (err.code === 'auth/invalid-email') {
         setError('Invalid email address.');
       } else if (err.code === 'auth/weak-password') {
         setError('Password is too weak.');
-      } else if (err.code === 'auth/wrong-password') {
-        setError('Incorrect admin password. Please try again.');
       } else if (err.code === 'auth/too-many-requests') {
         setError('Too many attempts. Please try again later.');
       } else {
@@ -133,13 +127,8 @@ export default function AddLeaderPage() {
 
       // Try to re-authenticate admin if they got logged out
       try {
-        if (!auth.currentUser && adminEmail) {
-          const adminPassword = window.prompt(
-            'Session expired. Please re-enter your admin password:'
-          );
-          if (adminPassword) {
-            await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-          }
+        if (!auth.currentUser && adminEmail && formData.adminPassword) {
+          await signInWithEmailAndPassword(auth, adminEmail, formData.adminPassword);
         }
       } catch (reAuthErr) {
         console.error('Re-authentication failed:', reAuthErr);
@@ -257,6 +246,29 @@ export default function AddLeaderPage() {
             </div>
           </div>
 
+          <div className="form-section">
+            <h2>Admin Verification</h2>
+
+            <div className="form-group">
+              <label htmlFor="adminPassword">
+                Your Admin Password <span className="required">*</span>
+              </label>
+              <input
+                type="password"
+                id="adminPassword"
+                name="adminPassword"
+                value={formData.adminPassword}
+                onChange={handleChange}
+                placeholder="Enter your admin password"
+                required
+                autoComplete="current-password"
+              />
+              <small>
+                Required to verify your identity before creating a new user
+              </small>
+            </div>
+          </div>
+
           <div className="form-actions">
             <button
               type="button"
@@ -284,11 +296,15 @@ export default function AddLeaderPage() {
               site
             </li>
             <li>
+              Route leaders have elevated permissions compared to regular
+              volunteers
+            </li>
+            <li>
               Route leaders can create, edit, and delete neighborhood records
             </li>
             <li>
-              <strong>Security Note:</strong> You will be asked to re-enter your
-              admin password to create a new user account
+              <strong>Security Note:</strong> Your admin password is required to
+              verify your identity before creating new users
             </li>
           </ul>
         </div>
