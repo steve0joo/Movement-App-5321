@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { createUserWithEmailAndPassword, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  signOut,
+  signInWithEmailAndPassword,
+} from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { createUserProfile } from '../services/userService';
 import './AddLeaderPage.css';
@@ -278,9 +282,6 @@ export default function AddLeaderPage() {
             <li>
               Route leaders can manage volunteers and data for their assigned
               site
-            </li>
-            <li>
-              They have elevated permissions compared to regular volunteers
             </li>
             <li>
               Route leaders can create, edit, and delete neighborhood records
