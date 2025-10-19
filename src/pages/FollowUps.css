@@ -1,190 +1,211 @@
+/* Match font & search styles to AdminUserPage */
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&display=swap');
+
 :root{
-    --bg:#f7f7f7;
-    --card:#ffffff;
-    --ink:#1e1f23;
-    --muted:#7b7f87;
-    --line:#e5e8ec;
-    --accent:#2f8b7c;
-    --radius-xl:22px;
-    --radius-xxl:28px;
-    --shadow:0 1px 1px rgba(0,0,0,.04), 0 4px 18px rgba(0,0,0,.06);
-  }
-  
-  *{box-sizing:border-box}
-  html,body,#root{height:100%}
-  body{
-    margin:0;
-    background:var(--bg);
-    color:var(--ink);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif
+  --bg:#ffffff; 
+  --card:#ffffff;
+  --ink:#1e1f23;
+  --muted:#7b7f87;
+  --line:#e5e8ec;
+  --accent:#2f8b7c;
+  --radius-xl:22px;
+  --radius-xxl:28px;
+  --shadow:0 1px 1px rgba(0,0,0,.04), 0 4px 18px rgba(0,0,0,.06);
 }
-  
-  /* Shell */
-  .dash-shell{
-    width:100%;
-    max-width:1200px;
-    margin:0 auto;
-    min-height:100vh;
-    background:#fff;
-    display:flex;
-    flex-direction:column;
-    padding:0 24px;
-  }
-  @media (max-width:768px){ 
-    .dash-shell{ 
-        padding:0 16px;
-    } 
+
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family: 'Raleway', system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; 
 }
-  
-  .status-spacer{height:8px}
-  
-  /* Topbar */
-  .topbar{
-    position:sticky; 
-    top:0; 
-    z-index:10;
-    display:flex; 
-    align-items:center; 
-    justify-content:space-between;
-    height:56px; 
-    padding:8px 0; 
-    background:#fff;
-    border-bottom:1px solid #f1f3f5;
-  }
 
-  .icon-btn{
-    width:36px;
-    height:36px; 
-    display:grid; 
-    place-items:center;
-    border:none; 
-    background:#f4f6f7; 
-    border-radius:10px; 
-    color:#2a2d31; 
-    cursor:pointer;
-  }
-
-  .add-btn{ 
-    background:#4a8f8c; 
-    color:#fff; }
-  .add-btn:hover{ filter:brightness(0.95);
-  }
-  
-  .fu-icon{ 
-    width:18px !important; 
-    height:18px !important;
-  }
-
-  .fu-muted{ color:var(--muted); }
-  
-  .brand-chip{
-    width:32px;
-    height:32px;
-    border-radius:10px;
-    background:#e6f4ef;
-    color:#2f8b7c;
-    display:grid;
-    place-items:center;
-    font-weight:700;
-    box-shadow:inset 0 0 0 1px rgba(47,139,124,.25);
-  }
-  
-  /* Main */
-  .content{ 
-    max-width:960px;
-    margin:0 auto;
-    width:100%;
-    padding-bottom:72px;
-  }
-
-  .fu-title{ 
-    text-align:left;
-    font-size:42px;
-    margin:24px 0;
-    letter-spacing:.2px;
-  }
-  
-  /* Search */
-  .search-wrap{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    padding:12px 14px;
-    border:1px solid var(--line);
-    border-radius:12px;
-    background:#fff;
-    max-width:600px;
-  }
-
-  .search-input{
-    border:none;
-    outline:none;
-    font-size:16px;
-    flex:1;
-    background:transparent;
-    color:var(--ink);
-  }
-  
-  /* Filters */
-  .filter-btn{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    justify-content:flex-start;
-    padding:10px 12px;
-    margin-top:12px; 
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:12px;
-    color:#2a2d31;
-    cursor:pointer;
-    max-width:240px;
-  }
-
-  .filters-panel{
-    margin-top:10px;
-    border:1px dashed var(--line);
-    border-radius:12px;
-    padding:12px;
-    background:#fcfcfc;
-    max-width:600px;
-  }
-
-  .filter-row{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    margin:8px 0
+/* maybe add back in later */
+/* Shell
+.dash-shell{
+  width:100%;
+  max-width:1200px;
+  margin:0 auto;
+  min-height:100vh;
+  background:#fff;
+  display:flex;
+  flex-direction:column;
+  padding:0 24px;
 }
-  .filter-row label{
-    width:72px;
-    color:var(--muted);
-    font-size:13px
+@media (max-width:768px){
+  .dash-shell{ padding:0 16px; }
+} */
+
+/* .status-spacer{height:4px} */
+
+/* Topbar */
+.topbar{
+  position: relative; /* allows absolute centering of .logo-home */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  padding: 1rem 1rem;
+  background: #ffffff;
+  color: #1f2937;
+  border-bottom: 1px solid #e6e6e6; /* thin gray separator line */
+  box-shadow: none;
 }
-  /* Filters panel inputs and select */
+
+/* menu button & dropdown (single definitions) */
+.menu-container { position: relative; display: inline-block; margin-right: 12px; }
+.menu-button {
+  padding: 2px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.menu-button img { height: 18px; width: auto; display: block; }
+
+.icon-btn{
+  width:36px;
+  height:36px; 
+  place-items:center;
+  border:none; 
+  background:transparent; 
+  border-radius:10px; 
+  color:#000000; 
+  cursor:pointer;
+}
+/* Add button: keep colored background but center + inside */
+.add-btn{
+  background:#4a8f8c;
+  color:#fff;
+  border-radius:10px;
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  border:none;
+  cursor:pointer;
+  padding:0;
+}
+.add-btn .fu-icon{ width:18px !important; height:18px !important; display:block; }
+
+.logo-home{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  z-index:2;
+  background:transparent;
+  border:none;
+  padding:0;
+  display:inline-block;
+  cursor:pointer;
+}
+.logo-home img{ height:30px; display:block; }
+
+/* Main */
+.content{
+  max-width:960px;
+  margin:0 auto;
+  width:100%;
+  padding-bottom:72px;
+}
+
+.fu-title{
+  text-align:left;
+  font-size:42px;
+  margin:24px 0;
+  letter-spacing:.2px;
+}
+
+/* Search - match AdminUserPage .search-row (thin outlined, thinner height) */
+.search-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid #d0d7d9;        /* outline */
+  border-radius:8px;
+  padding:4px 8px;                 
+  background:rgba(255,255,255,0.85);
+  transition: border-color .15s, box-shadow .15s;
+  min-height:36px;
+  margin:12px 0 16px; 
+  max-width:100%;
+}
+.search-wrap:focus-within{
+  border-color:#4A8F8C;
+  box-shadow:0 6px 18px rgba(74,143,140,0.06);
+}
+.search-wrap .fu-icon{ width:18px !important; height:18px !important; color:var(--muted); display:block; }
+.search-input{
+  border:none;
+  outline:none;
+  font-size:0.95rem;               
+  flex:1;
+  padding:6px 8px;
+  background:transparent;
+  color:var(--ink);
+  line-height:1;
+}
+
+/* Filters */
+.filter-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  justify-content:flex-start;
+  padding:8px 10px;
+  margin-top:6px; 
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:12px;
+  color:#2a2d31;
+  cursor:pointer;
+  max-width:240px;
+}
+.filter-btn .fu-icon{ width:18px !important; height:18px !important; color:var(--muted); display:block; }
+.filter-btn span{ line-height:1; }
+
+/* Filters panel */
+.filters-panel{
+  margin-top:10px;
+  border:1px dashed var(--line);
+  border-radius:12px;
+  padding:12px;
+  background:#fcfcfc;
+  max-width:600px;
+}
+
+.filter-row{ display:flex; gap:10px; align-items:center; margin:8px 0 }
+.filter-row label{ width:72px; color:var(--muted); font-size:13px }
+
+/* Inputs in filters */
 .filter-row input,
 .sort-select{
   flex: 1;
   padding: 10px 14px;
   border: 1px solid var(--line);
-  border-radius: 12px;              /* match other inputs */
+  border-radius: 12px;
   font-size: 16px;
-  background-color: #fff;           /* explicit bg (Safari) */
-  color: var(--ink);                /* explicit text color */
-  -webkit-appearance: none;         /* normalize select in Safari */
+  background-color: #fff;
+  color: var(--ink);
+  -webkit-appearance: none;
   appearance: none;
   line-height: 1.25;
 }
 
-/* Style the Sort <select> specifically (adds a chevron and right padding) */
+/* Sort select tweaks */
 .sort-select{
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%236B7280' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  padding-right: 40px;              /* room for chevron */
+  padding-right: 40px;
 }
-
-/* Make focus state consistent with the form fields */
 .sort-select:focus,
 .filter-row input:focus{
   outline: none;
@@ -192,200 +213,52 @@
   box-shadow: 0 0 0 3px rgba(47,139,124,.18);
 }
 
-/* Ensure options render with the right color across browsers */
-.sort-select option{ color: var(--ink); }
+/* Cards */
+.cards{ margin-top:14px; }
+.fu-card{ background:var(--card); border:1px solid var(--line); border-radius:18px; margin:12px 0; box-shadow:0 0 0 1px rgba(0,0,0,.02); }
+.fu-card-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; cursor:pointer; }
+.fu-name{ font-weight:700; font-size:16px; }
+.fu-more-btn{ display:flex; align-items:center; gap:6px; background:transparent; border:none; color:#6b7280; font-size:14px; cursor:pointer; }
+.fu-more-btn:hover{ color:#374151 }
+.fu-chev{ width:16px !important; height:16px !important; transition:transform .15s ease; }
+.fu-chev.rot{ transform:rotate(180deg) }
 
-  
-  /* Cards */
-  .cards{ margin-top:14px; }
-  .fu-card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:18px;
-    margin:12px 0;
-    box-shadow:0 0 0 1px rgba(0,0,0,.02);
-  }
-  .fu-card-head{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:14px 16px;
-    cursor:pointer;
-}
-  .fu-name{
-    font-weight:700;
-    font-size:16px;
-}
-  .fu-more-btn{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    background:transparent;
-    border:none;
-    color:#6b7280;
-    font-size:14px;
-    cursor:pointer;
-}
-  .fu-more-btn:hover{
-    color:#374151
-}
-  .fu-chev{
-    width:16px !important;
-    height:16px !important;
-    transition:transform .15s ease;
-}
-  .fu-chev.rot{
-    transform:rotate(180deg)
-}
-  
-  .fu-card-body{
-    border-top:1px solid var(--line);
-    padding:12px 16px;
-    display:flex;
-    gap:12px;
-    align-items:flex-start;
-}
-  .fu-meta{
-    display:grid;
-    gap:6px;
-    font-size:14px;
-    color:#111;
-    line-height:1.45;
-}
-  .label{
-    color:#6b7280;
-    margin-right:6px;
-}
-  .fu-notes{
-    margin:4px 0 0 0;
-    color:#111;
-}
-  
-  .row-actions{
-    display:flex;
-    gap:8px;
-    margin-left:auto;
-}
-  .edit-btn{
-    border:1px solid var(--line);
-    background:#fff; border-radius:10px;
-    padding:8px; color:#374151;
-    cursor:pointer
-}
-  .del-btn{
-    border:1px solid #f0d2d2;
-    background:#fff;
-    border-radius:10px;
-    padding:8px;
-    color:#b42318;
-    cursor:pointer;
-}
-  
-  .fu-footer{
-    border-top:1px solid var(--line);
-    padding:10px 16px;
-    color:#6b7280;
-    font-size:12px
-}
-  .hollow{
-    background:#fff;
-}
-  
-  /* Undo toast */
-  .undo-toast{
-    position:fixed;
-    left:50%;
-    bottom:24px;
-    transform:translateX(-50%);
-    background:#1f2937;
-    color:#fff;
-    padding:10px 14px;
-    border-radius:999px;
-    box-shadow:var(--shadow);
-    display:flex;
-    gap:12px;
-    align-items:center;
-  }
-  .undo-btn{
-    background:#ffffff;
-    color:#111;
-    border:none;
-    border-radius:999px;
-    padding:6px 10px;
-    font-weight:600;
-    cursor:pointer;
-  }
-  
-  /* Make sure page scroll always works and last card isn’t cut off */
-  html, body { overflow-y:auto; }
-  
-  /* ===== Follow-up Form (desktop overlay) ===== */
+.fu-card-body{ border-top:1px solid var(--line); padding:12px 16px; display:flex; gap:12px; align-items:flex-start; }
+.fu-meta{ display:grid; gap:6px; font-size:14px; color:#111; line-height:1.45; }
+.label{ color:#6b7280; margin-right:6px; }
+.fu-notes{ margin:4px 0 0 0; color:#111; }
 
-.fu-form-overlay{
-  position:fixed; inset:0; background:#fff; z-index:50;
-  display:flex; flex-direction:column;
-}
+.row-actions{ display:flex; gap:8px; margin-left:auto; }
+.edit-btn{ border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px; color:#374151; cursor:pointer; }
+.del-btn{ border:1px solid #f0d2d2; background:#fff; border-radius:10px; padding:8px; color:#b42318; cursor:pointer; }
 
-.fu-form-topbar{
-  height:64px; display:flex; align-items:center; justify-content:space-between;
-  padding:12px 24px; border-bottom:1px solid var(--line); background:#fff;
-}
+.fu-footer{ border-top:1px solid var(--line); padding:10px 16px; color:#6b7280; font-size:12px }
+
+.hollow{ background:#fff; }
+
+/* Undo toast */
+.undo-toast{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#1f2937; color:#fff; padding:10px 14px; border-radius:999px; box-shadow:var(--shadow); display:flex; gap:12px; align-items:center; }
+.undo-btn{ background:#ffffff; color:#111; border:none; border-radius:999px; padding:6px 10px; font-weight:600; cursor:pointer; }
+
+/* Follow-up form and other styles preserved (no change) */
+/* ===== Follow-up Form (desktop overlay) ===== */
+.fu-form-overlay{ position:fixed; inset:0; background:#fff; z-index:50; display:flex; flex-direction:column; }
+.fu-form-topbar{ height:64px; display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-bottom:1px solid var(--line); background:#fff; }
 .fu-form-title{ font-size:36px; font-weight:800; }
-
-.fu-form-main{
-  overflow:auto; -webkit-overflow-scrolling:touch;
-  padding:32px 24px;
-  display:flex; justify-content:center;
-}
-
-.fu-form-card{
-  width:100%; max-width:820px;
-  background:#fff; 
-  border:1px solid var(--line);
-  border-radius:20px;
-  box-shadow:var(--shadow);
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  padding:28px 28px 900px;   /* Ensure enough padding at bottom */
-  margin:12px 0 40px;       /* You can reduce margin-bottom if SAVE is inside */
-}
-
+.fu-form-main{ overflow:auto; -webkit-overflow-scrolling:touch; padding:32px 24px; display:flex; justify-content:center; }
+.fu-form-card{ width:100%; max-width:820px; background:#fff; border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:12px; padding:28px 28px 900px; margin:12px 0 40px; }
 .fu-form-date{ color:#374151; font-size:15px; margin-bottom:6px; }
 .fu-form-date__val{ border-bottom:1px solid #9aa3af; padding:0 4px; min-width:110px; display:inline-block; }
-
 .fu-row-2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; }
 @media (max-width:720px){ .fu-row-2{ grid-template-columns:1fr; } }
-
 .fu-field{ display:flex; flex-direction:column; gap:6px; }
 .fu-label{ font-size:15px; color:#374151; }
-
 input, select, textarea, button { -webkit-appearance:none; appearance:none; font:inherit; }
-
-.fu-input{
-  padding:14px 16px; border:1px solid var(--line); border-radius:12px;
-  background:#fff; font-size:16px; color:var(--ink); outline:none;
-}
+.fu-input{ padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:16px; color:var(--ink); outline:none; }
 .fu-input:focus{ border-color:#69a9a0; box-shadow:0 0 0 3px rgba(47,139,124,.18); }
-.fu-select{
-  background:#e6f4ef;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%23374151' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat; background-position:right 12px center; padding-right:40px;
-}
+.fu-select{ background:#e6f4ef; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%23374151' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:40px; }
 .fu-input--muted{ background:#f3f4f6; }
-
-.fu-textarea{
-  resize:vertical; min-height:140px; max-height:40vh; overflow:auto;
-}
-
-/* Single, centered button in normal flow */
-.fu-save{
-  align-self:center;            /* center the single button */
-  width:160px;
-  margin-top:18px;
-  padding:14px 24px;
-  border:none; border-radius:999px;
-  background:#2f8b7c; color:#fff; font-weight:800; letter-spacing:.5px; font-size:16px;
-  cursor:pointer;
-}
+.fu-textarea{ resize:vertical; min-height:140px; max-height:40vh; overflow:auto; }
+.fu-save{ align-self:center; width:160px; margin-top:18px; padding:14px 24px; border:none; border-radius:999px; background:#2f8b7c; color:#fff; font-weight:800; letter-spacing:.5px; font-size:16px; cursor:pointer; }
 .fu-save:disabled{ opacity:.6; cursor:not-allowed; }
+
