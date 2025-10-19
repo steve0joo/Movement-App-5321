@@ -6,6 +6,7 @@ import SyncPrompt from './components/SyncPrompt';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminUserPage from './pages/AdminUserPage';
+import AddLeaderPage from './pages/AddLeaderPage';
 import FollowUps from './pages/FollowUps';
 import FollowUpForm from './pages/FollowUpForm';
 import PersonDetails from './pages/personDetails';
@@ -31,6 +32,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminUserPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/add-leader"
+              element={
+                <ProtectedRoute>
+                  <AddLeaderPage />
                 </ProtectedRoute>
               }
             />
