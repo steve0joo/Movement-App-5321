@@ -25,7 +25,12 @@ export function AuthProvider({ children }) {
 
   // Sign up
   // Role: 'volunteer' | 'leader' | 'admin'
-  async function signup(email, password, userRole = 'volunteer', displayName = null) {
+  async function signup(
+    email,
+    password,
+    userRole = 'volunteer',
+    displayName = null
+  ) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     // Create user profile in Firestore using userService
     await createUserProfile(cred.user.uid, {
@@ -36,9 +41,23 @@ export function AuthProvider({ children }) {
     return cred;
   }
 
-  // Log in
-  function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password);
+  // Log in with Firestore profile verification
+  async function login(email, password) {
+    // First authenticate with Firebase Auth
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+
+    // Verify user profile exists in Firestore
+    const userProfile = await getUserProfile(cred.user.uid);
+
+    if (!userProfile) {
+      // User authenticated but has no Firestore profile - sign them out
+      await signOut(auth);
+      throw new Error(
+        'User profile not found. Please sign in or contact an administrator.'
+      );
+    }
+
+    return cred;
   }
 
   // Log out
