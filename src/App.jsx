@@ -2,19 +2,21 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { SyncProvider } from './context/SyncContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import SyncPrompt from './components/SyncPrompt';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminUserPage from './pages/AdminUserPage';
+import AddLeaderPage from './pages/AddLeaderPage';
 import FollowUps from './pages/FollowUps';
 import FollowUpForm from './pages/FollowUpForm';
-
+import PersonDetails from './pages/personDetails';
 import './App.css';
-
 function App() {
   return (
     <Router>
       <AuthProvider>
         <SyncProvider>
+          <SyncPrompt />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
@@ -34,18 +36,34 @@ function App() {
               }
             />
             <Route
-            path="/followups"
-            element={
-              <ProtectedRoute>
-                <FollowUps />
-              </ProtectedRoute>
-            }
-          />
+              path="/admin/add-leader"
+              element={
+                <ProtectedRoute>
+                  <AddLeaderPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/followups"
+              element={
+                <ProtectedRoute>
+                  <FollowUps />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/followups/new"
               element={
                 <ProtectedRoute>
                   <FollowUpForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/families"
+              element={
+                <ProtectedRoute>
+                  <PersonDetails />
                 </ProtectedRoute>
               }
             />

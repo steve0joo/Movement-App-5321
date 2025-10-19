@@ -43,9 +43,10 @@ export default function Dashboard() {
             </button>
 
             <button
+              type="button"
               className="action-card"
               onClick={() => navigate('/families')}
-            >
+              >
               <span className="action-icon">👥</span>
               <h3>Families</h3>
               <p>View all families</p>

@@ -27,8 +27,10 @@ dist-ssr
 CLAUDE.md
 PROGRESS.md
 OFFLINE_SYNC.md
+*.md
 
 .env.local
 
 # Firebase
 *.rules
+firebase.json

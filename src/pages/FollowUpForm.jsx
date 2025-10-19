@@ -1,45 +1,66 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../services/firebase";
-import "./FollowUps.css"; // reuses tokens + adds form styles at bottom
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import menuIcon from "../assets/menu-button.png";
+import {
+  isOfflineModeActive,
+  saveOfflineFollowUp,
+} from '../utils/offlineStorage';
+import './FollowUps.css'; // reuses tokens + adds form styles at bottom
 
 // inline icons
 const IconBack = (p) => (
-  <svg viewBox="0 0 24 24" {...p}><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+  <svg viewBox="0 0 24 24" {...p}>
+    <path
+      d="M15 18l-6-6 6-6"
+      stroke="currentColor"
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
 );
 const IconMenu = (p) => (
-  <svg viewBox="0 0 24 24" {...p}><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
+  <svg viewBox="0 0 24 24" {...p}>
+    <path
+      d="M3 6h18M3 12h18M3 18h18"
+      stroke="currentColor"
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+    />
+  </svg>
 );
 
 export default function FollowUpForm({ onClose, onSaved }) {
   // fields
-  const [team, setTeam] = useState("");
-  const [block, setBlock] = useState("");
-  const [unit, setUnit] = useState("");
-  const [name, setName] = useState("");
-  const [age, setAge] = useState("");
-  const [followUp, setFollowUp] = useState("");
-  const [involvement, setInvolvement] = useState("");
-  const [notes, setNotes] = useState("");
+  const [team, setTeam] = useState('');
+  const [block, setBlock] = useState('');
+  const [unit, setUnit] = useState('');
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [followUp, setFollowUp] = useState('');
+  const [involvement, setInvolvement] = useState('');
+  const [notes, setNotes] = useState('');
 
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [wasOfflineQueued, setWasOfflineQueued] = useState(false);
 
   // today’s date (display only)
   const today = useMemo(() => {
     const d = new Date();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
     const yyyy = d.getFullYear();
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
   // offline draft autosave
-  const draftKey = "fu_form_draft";
+  const draftKey = 'fu_form_draft';
   const firstMount = useRef(true);
   const draft = { team, block, unit, name, age, followUp, involvement, notes };
 
@@ -49,14 +70,14 @@ export default function FollowUpForm({ onClose, onSaved }) {
       const raw = localStorage.getItem(draftKey);
       if (raw) {
         const d = JSON.parse(raw);
-        setTeam(d.team ?? "");
-        setBlock(d.block ?? "");
-        setUnit(d.unit ?? "");
-        setName(d.name ?? "");
-        setAge(d.age ?? "");
-        setFollowUp(d.followUp ?? "");
-        setInvolvement(d.involvement ?? "");
-        setNotes(d.notes ?? "");
+        setTeam(d.team ?? '');
+        setBlock(d.block ?? '');
+        setUnit(d.unit ?? '');
+        setName(d.name ?? '');
+        setAge(d.age ?? '');
+        setFollowUp(d.followUp ?? '');
+        setInvolvement(d.involvement ?? '');
+        setNotes(d.notes ?? '');
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,9 +85,14 @@ export default function FollowUpForm({ onClose, onSaved }) {
 
   useEffect(() => {
     // throttle autosave (very light)
-    if (firstMount.current) { firstMount.current = false; return; }
+    if (firstMount.current) {
+      firstMount.current = false;
+      return;
+    }
     const t = setTimeout(() => {
-      try { localStorage.setItem(draftKey, JSON.stringify(draft)); } catch {}
+      try {
+        localStorage.setItem(draftKey, JSON.stringify(draft));
+      } catch {}
     }, 300);
     return () => clearTimeout(t);
   }, [team, block, unit, name, age, followUp, involvement, notes]);
@@ -79,35 +105,47 @@ export default function FollowUpForm({ onClose, onSaved }) {
 
     const payload = {
       date: today,
-      team, block, unit, name,
+      team,
+      block,
+      unit,
+      name,
       age: age ? Number(age) : null,
-      followUp, involvement, notes,
+      followUp,
+      involvement,
+      notes,
       lastActivity: new Date().toISOString(),
       createdAt: serverTimestamp(),
-      createdBy: auth.currentUser?.uid || null
+      createdBy: auth.currentUser?.uid || null,
     };
 
     try {
       setSaving(true);
-      setError("");
+      setError('');
 
-      if (navigator.onLine) {
-        await addDoc(collection(db, "followUps"), payload);
+      // Check if the user is in offline mode
+      const offlineMode = isOfflineModeActive();
+
+      if (offlineMode || !navigator.onLine) {
+        // Save to offline storage
+        const result = saveOfflineFollowUp(payload);
+        if (result.success) {
+          setWasOfflineQueued(true);
+        } else {
+          throw new Error(result.error);
+        }
       } else {
-        // queue locally to send when back online
-        const key = "fu_outbox";
-        const existing = JSON.parse(localStorage.getItem(key) || "[]");
-        existing.push(payload);
-        localStorage.setItem(key, JSON.stringify(existing));
-        setWasOfflineQueued(true);
+        // Online mode - save directly to Firestore
+        await addDoc(collection(db, 'followUps'), payload);
       }
 
       // clear draft
-      try { localStorage.removeItem(draftKey); } catch {}
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {}
       onSaved?.(payload);
       onClose?.();
     } catch (err) {
-      setError("Could not save. Please try again.");
+      setError('Could not save. Please try again.');
       console.error(err);
     } finally {
       setSaving(false);
@@ -200,8 +238,15 @@ export default function FollowUpForm({ onClose, onSaved }) {
           {/* team select */}
           <label className="fu-field">
             <span className="fu-label">Team</span>
-            <select className="fu-input fu-select" required value={team} onChange={(e)=>setTeam(e.target.value)}>
-              <option value="" disabled>team name</option>
+            <select
+              className="fu-input fu-select"
+              required
+              value={team}
+              onChange={(e) => setTeam(e.target.value)}
+            >
+              <option value="" disabled>
+                team name
+              </option>
               <option>Route A</option>
               <option>Route B</option>
               <option>Route C</option>
@@ -212,54 +257,102 @@ export default function FollowUpForm({ onClose, onSaved }) {
           <div className="fu-row-2">
             <label className="fu-field">
               <span className="fu-label">Building / Block:</span>
-              <input className="fu-input" placeholder="A" required value={block} onChange={(e)=>setBlock(e.target.value)} />
+              <input
+                className="fu-input"
+                placeholder="A"
+                required
+                value={block}
+                onChange={(e) => setBlock(e.target.value)}
+              />
             </label>
             <label className="fu-field">
               <span className="fu-label">Apt # / House #:</span>
-              <input className="fu-input" placeholder="2628" required value={unit} onChange={(e)=>setUnit(e.target.value)} />
+              <input
+                className="fu-input"
+                placeholder="2628"
+                required
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+              />
             </label>
           </div>
 
           {/* name */}
           <label className="fu-field">
             <span className="fu-label">Name</span>
-            <input className="fu-input" placeholder="Enter" required value={name} onChange={(e)=>setName(e.target.value)} />
+            <input
+              className="fu-input"
+              placeholder="Enter"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </label>
 
           {/* age */}
           <label className="fu-field">
             <span className="fu-label">Age</span>
-            <input className="fu-input" placeholder="Enter" inputMode="numeric" value={age} onChange={(e)=>setAge(e.target.value.replace(/[^\d]/g,''))} />
+            <input
+              className="fu-input"
+              placeholder="Enter"
+              inputMode="numeric"
+              value={age}
+              onChange={(e) => setAge(e.target.value.replace(/[^\d]/g, ''))}
+            />
           </label>
 
           {/* follow-up */}
           <label className="fu-field">
             <span className="fu-label">Follow-up</span>
-            <input className="fu-input fu-input--muted" placeholder="Enter" value={followUp} onChange={(e)=>setFollowUp(e.target.value)} />
+            <input
+              className="fu-input fu-input--muted"
+              placeholder="Enter"
+              value={followUp}
+              onChange={(e) => setFollowUp(e.target.value)}
+            />
           </label>
 
           {/* involvement */}
           <label className="fu-field">
             <span className="fu-label">Current involvement</span>
-            <input className="fu-input fu-input--muted" placeholder="Enter" value={involvement} onChange={(e)=>setInvolvement(e.target.value)} />
+            <input
+              className="fu-input fu-input--muted"
+              placeholder="Enter"
+              value={involvement}
+              onChange={(e) => setInvolvement(e.target.value)}
+            />
           </label>
 
           {/* notes */}
           <label className="fu-field">
             <span className="fu-label">Notes</span>
-            <textarea className="fu-input fu-textarea fu-input--muted" placeholder="Enter" rows={5} value={notes} onChange={(e)=>setNotes(e.target.value)} />
+            <textarea
+              className="fu-input fu-textarea fu-input--muted"
+              placeholder="Enter"
+              rows={5}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </label>
 
           {error && <div className="fu-error">{error}</div>}
           {!navigator.onLine && (
-            <div className="fu-offline-tip">You’re offline. We’ll queue this to send when you’re back online.</div>
+            <div className="fu-offline-tip">
+              You’re offline. We’ll queue this to send when you’re back online.
+            </div>
           )}
           {wasOfflineQueued && (
-            <div className="fu-queued-tip">Saved to device. It’ll sync when online.</div>
+            <div className="fu-queued-tip">
+              Saved to device. It’ll sync when online.
+            </div>
           )}
 
-          <button className="fu-save" type="submit" disabled={!requiredOk || saving}>
-            {saving ? "Saving..." : "SAVE"}
+          <button
+            className="fu-save"
+            type="submit"
+            disabled={!requiredOk || saving}
+          >
+            {saving ? 'Saving...' : 'SAVE'}
           </button>
         </form>
       </main>
