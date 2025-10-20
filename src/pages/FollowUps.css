@@ -22,21 +22,24 @@ body{
   font-family: 'Raleway', system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; 
 }
 
-/* maybe add back in later */
-/* Shell
-.dash-shell{
-  width:100%;
-  max-width:1200px;
-  margin:0 auto;
-  min-height:100vh;
-  background:#fff;
-  display:flex;
-  flex-direction:column;
-  padding:0 24px;
+/* page shell: ensure white background fills whole page and grows with content */
+/* html, body, #root {
+  height: 100%;
+  background: var(--bg); 
+} */
+
+.dash-shell {
+  width: 100%;
+  /* max-width: 1200px; */
+  margin: 0 auto;
+  min-height: 100vh;        
+  background: var(--bg);      
+  display: flex;
+  flex-direction: column;
 }
 @media (max-width:768px){
-  .dash-shell{ padding:0 16px; }
-} */
+  .dash-shell { padding: 0 16px; }
+}
 
 /* .status-spacer{height:4px} */
 
@@ -114,6 +117,7 @@ body{
   margin:0 auto;
   width:100%;
   padding-bottom:72px;
+  padding: 2rem; 
 }
 
 .fu-title{
@@ -123,7 +127,6 @@ body{
   letter-spacing:.2px;
 }
 
-/* Search - match AdminUserPage .search-row (thin outlined, thinner height) */
 .search-wrap{
   display:flex;
   align-items:center;
@@ -134,7 +137,7 @@ body{
   background:rgba(255,255,255,0.85);
   transition: border-color .15s, box-shadow .15s;
   min-height:36px;
-  margin:12px 0 16px; 
+  margin:12px 0 12px; 
   max-width:100%;
 }
 .search-wrap:focus-within{

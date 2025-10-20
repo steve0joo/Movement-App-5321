@@ -308,7 +308,7 @@ export default function FollowUps() {
       )}
 
       <main className="content">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '28px 0 28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '0px 0 20px' }}>
           <h2 style={{ margin: 0 }}>Follow-ups</h2>
           <button
             className="add-btn"
