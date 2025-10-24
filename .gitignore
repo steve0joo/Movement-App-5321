@@ -32,5 +32,4 @@ OFFLINE_SYNC.md
 .env.local
 
 # Firebase
-*.rules
 firebase.json
