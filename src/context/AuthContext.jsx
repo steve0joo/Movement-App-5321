@@ -76,12 +76,37 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        // Get user profile from Firestore using userService
-        const userProfile = await getUserProfile(user.uid);
-        // Set role: 'volunteer' | 'route_leader' | 'team_admin' | 'super_admin'
-        setRole(userProfile?.role || null);
-        setTeamId(userProfile?.teamId || null);
-        setRouteId(userProfile?.routeId || null);
+        try {
+          // Get user profile from Firestore using userService
+          const userProfile = await getUserProfile(user.uid);
+
+          // Check if profile exists
+          if (!userProfile) {
+            // Auth account exists but no Firestore profile
+            // This can happen if:
+            // 1. User was deleted from Firestore but Auth account remains
+            // 2. Profile creation failed during signup
+            console.warn('User authenticated but no Firestore profile found. Logging out.');
+            await signOut(auth);
+            setRole(null);
+            setTeamId(null);
+            setRouteId(null);
+            setCurrentUser(null);
+          } else {
+            // Set role: 'volunteer' | 'route_leader' | 'team_admin' | 'super_admin'
+            setRole(userProfile.role || null);
+            setTeamId(userProfile.teamId || null);
+            setRouteId(userProfile.routeId || null);
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          // On error, sign out to be safe
+          await signOut(auth);
+          setRole(null);
+          setTeamId(null);
+          setRouteId(null);
+          setCurrentUser(null);
+        }
       } else {
         // No user signed in
         setRole(null);

@@ -21,27 +21,49 @@ export function SyncProvider({ children }) {
   useEffect(() => {
     // Monitor Firestore sync status by listening to snapshot metadata
     // This detects when there are pending writes waiting to sync
-    const unsubscribe = onSnapshot(
-      collection(db, 'neighborhoods'),
-      { includeMetadataChanges: true },
-      (snapshot) => {
-        // Check if there are pending writes
-        const pending = snapshot.metadata.hasPendingWrites;
-        setHasPendingWrites(pending);
 
-        // Update sync status based on network and pending writes
-        if (!isOnline) {
-          setSyncStatus('offline');
-        } else if (pending) {
-          setSyncStatus('syncing');
-        } else {
-          setSyncStatus('synced');
+    // Only monitor if user is authenticated (to avoid permission errors)
+    // We monitor a collection that all authenticated users can read
+    let unsubscribe = () => {};
+
+    // Skip monitoring if offline to avoid errors
+    if (!isOnline) {
+      setSyncStatus('offline');
+      return;
+    }
+
+    try {
+      unsubscribe = onSnapshot(
+        collection(db, 'teams'), // Monitor teams collection (all users can read their team)
+        { includeMetadataChanges: true },
+        (snapshot) => {
+          // Check if there are pending writes
+          const pending = snapshot.metadata.hasPendingWrites;
+          setHasPendingWrites(pending);
+
+          // Update sync status based on network and pending writes
+          if (!isOnline) {
+            setSyncStatus('offline');
+          } else if (pending) {
+            setSyncStatus('syncing');
+          } else {
+            setSyncStatus('synced');
+          }
+        },
+        (error) => {
+          // Handle permission errors gracefully
+          if (error.code === 'permission-denied') {
+            console.warn('Sync monitoring: No permission to read collection. User may not be logged in.');
+            setSyncStatus('offline');
+          } else {
+            console.error('Sync monitoring error:', error);
+          }
         }
-      },
-      (error) => {
-        console.error('Sync monitoring error:', error);
-      }
-    );
+      );
+    } catch (error) {
+      console.error('Failed to set up sync monitoring:', error);
+      setSyncStatus('offline');
+    }
 
     return () => unsubscribe();
   }, [isOnline]);

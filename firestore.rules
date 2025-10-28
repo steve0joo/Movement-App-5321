@@ -141,23 +141,46 @@ service cloud.firestore {
       // Route leaders can read users in their team
       allow read: if isRouteLeader() && belongsToTeam(resource.data.teamId);
 
-      // Super admins can create, update, and delete any user
-      allow create, update, delete: if isSuperAdmin();
+      // ===== CREATE RULES =====
 
-      // Team admins can create, update, and delete users in their team (but not super_admins)
+      // Users can create their own profile during signup (userId must match auth.uid)
+      allow create: if request.auth != null &&
+                      request.auth.uid == userId &&
+                      request.resource.data.email == request.auth.token.email;
+
+      // Super admins can create any user
+      allow create: if isSuperAdmin();
+
+      // Team admins can create users in their team (but not super_admins)
       allow create: if isTeamAdmin() &&
                       belongsToTeam(request.resource.data.teamId) &&
                       request.resource.data.role != 'super_admin';
 
-      allow update, delete: if isTeamAdmin() &&
-                             belongsToTeam(resource.data.teamId) &&
-                             resource.data.role != 'super_admin' &&
-                             request.resource.data.role != 'super_admin';
+      // ===== UPDATE RULES =====
 
       // Users can update their own profile (except role and teamId)
       allow update: if request.auth.uid == userId &&
                       request.resource.data.role == resource.data.role &&
                       request.resource.data.teamId == resource.data.teamId;
+
+      // Super admins can update any user
+      allow update: if isSuperAdmin();
+
+      // Team admins can update users in their team (but not super_admins)
+      allow update: if isTeamAdmin() &&
+                      belongsToTeam(resource.data.teamId) &&
+                      resource.data.role != 'super_admin' &&
+                      request.resource.data.role != 'super_admin';
+
+      // ===== DELETE RULES =====
+
+      // Super admins can delete any user
+      allow delete: if isSuperAdmin();
+
+      // Team admins can delete users in their team (but not super_admins)
+      allow delete: if isTeamAdmin() &&
+                      belongsToTeam(resource.data.teamId) &&
+                      resource.data.role != 'super_admin';
     }
 
 

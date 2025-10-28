@@ -9,6 +9,7 @@ import {
   where,
   serverTimestamp,
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from './firebase';
 
 const USERS_COLLECTION = 'users';
@@ -104,15 +105,38 @@ export async function getUsersByRole(role) {
 }
 
 /**
- * Delete route leader (admin function)
- * Note: This only deletes the Firestore profile
- * Firebase Auth account should be deleted separately via Admin SDK
+ * Delete user (admin function)
+ * Deletes both Firebase Auth account & Firestore profile via Cloud Function
+ *
+ * NOTE: Requires Cloud Function deployed at functions/index.js
+ * If Cloud Function not available, falls back to Firestore-only deletion
  */
 export async function deleteUserProfile(userId) {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId);
-    await deleteDoc(userRef);
-    return { success: true };
+    // Try to use Cloud Function (deletes both Auth and Firestore)
+    try {
+      const functions = getFunctions();
+      const deleteUserFunc = httpsCallable(functions, 'deleteUser');
+      const result = await deleteUserFunc({ userId });
+
+      if (result.data.success) {
+        console.log('User deleted via Cloud Function:', result.data);
+        return { success: true, method: 'cloud-function' };
+      }
+    } catch (cloudError) {
+      console.warn('Cloud Function not available, falling back to Firestore-only deletion:', cloudError.message);
+
+      // Fallback: Delete only Firestore profile
+      // NOTE: This leaves the Firebase Auth account active
+      const userRef = doc(db, USERS_COLLECTION, userId);
+      await deleteDoc(userRef);
+
+      return {
+        success: true,
+        method: 'firestore-only',
+        warning: 'Firebase Auth account not deleted. User can still login but will have no profile.'
+      };
+    }
   } catch (error) {
     console.error('Error deleting user profile:', error);
     throw error;

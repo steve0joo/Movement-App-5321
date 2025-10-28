@@ -33,3 +33,17 @@ OFFLINE_SYNC.md
 
 # Firebase
 firebase.json
+.firebaserc
+serviceAccountKey.json
+*-serviceAccountKey.json
+scripts/serviceAccountKey.json
+
+# Firebase emulator data
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Cloud Functions
+functions/node_modules/
+functions/.eslintrc.js
