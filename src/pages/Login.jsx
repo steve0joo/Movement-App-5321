@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
 import { enableOfflineMode, setOfflineUser } from '../utils/offlineStorage';
+import { getAllTeams } from '../services/teamService';
+import { getRoutesByTeam } from '../services/routeService';
 import './Login.css';
 
 export default function Login() {
@@ -12,9 +14,13 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState('volunteer');
+  const [teamId, setTeamId] = useState('');
+  const [routeId, setRouteId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
+  const [teams, setTeams] = useState([]);
+  const [routes, setRoutes] = useState([]);
 
   const { login, signup } = useAuth();
   const { isOnline } = useSync();
@@ -24,6 +30,42 @@ export default function Login() {
   useEffect(() => {
     setOfflineMode(!isOnline);
   }, [isOnline]);
+
+  // Load teams when in signup mode
+  useEffect(() => {
+    if (mode === 'signup' && isOnline) {
+      loadTeams();
+    }
+  }, [mode, isOnline]);
+
+  // Load routes when team changes
+  useEffect(() => {
+    if (teamId && role === 'route_leader') {
+      loadRoutes(teamId);
+    } else {
+      setRoutes([]);
+      setRouteId('');
+    }
+  }, [teamId, role]);
+
+  async function loadTeams() {
+    try {
+      const allTeams = await getAllTeams();
+      setTeams(allTeams);
+    } catch (err) {
+      console.error('Error loading teams:', err);
+    }
+  }
+
+  async function loadRoutes(selectedTeamId) {
+    try {
+      const teamRoutes = await getRoutesByTeam(selectedTeamId);
+      setRoutes(teamRoutes);
+    } catch (err) {
+      console.error('Error loading routes:', err);
+      setRoutes([]);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -49,8 +91,16 @@ export default function Login() {
         await login(email, password);
         navigate('/');
       } else {
-        // Signup mode
-        await signup(email, password, role, displayName || null);
+        // Signup mode - validate team/route for certain roles
+        if (role !== 'super_admin' && !teamId) {
+          setLoading(false);
+          return setError('Please select a team');
+        }
+        if (role === 'route_leader' && !routeId) {
+          setLoading(false);
+          return setError('Please select a route for route leader role');
+        }
+        await signup(email, password, role, displayName || null, teamId || null, routeId || null);
         navigate('/');
       }
     } catch (err) {
@@ -198,24 +248,71 @@ export default function Login() {
 
           {/* Role Selection (signup only) */}
           {mode === 'signup' && (
-            <div className="form-group">
-              <label htmlFor="role">Role</label>
-              <select
-                id="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="role-select"
-              >
-                <option value="volunteer">Volunteer</option>
-                <option value="leader">Route Leader</option>
-                <option value="admin">Administrator</option>
-              </select>
-              <small className="form-hint">
-                {role === 'volunteer' && 'Basic access to manage data'}
-                {role === 'leader' && 'Can manage data and volunteers'}
-                {role === 'admin' && 'Full administrative access'}
-              </small>
-            </div>
+            <>
+              <div className="form-group">
+                <label htmlFor="role">Role</label>
+                <select
+                  id="role"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="role-select"
+                >
+                  <option value="volunteer">Volunteer</option>
+                  <option value="route_leader">Route Leader</option>
+                  <option value="team_admin">Team Administrator</option>
+                  <option value="super_admin">Super Administrator</option>
+                </select>
+                <small className="form-hint">
+                  {role === 'volunteer' && 'Basic access to manage data within team'}
+                  {role === 'route_leader' && 'Manage routes and volunteers within team'}
+                  {role === 'team_admin' && 'Full access within assigned team'}
+                  {role === 'super_admin' && 'Full system access across all teams'}
+                </small>
+              </div>
+
+              {/* Team Selection (all roles except for super_admin) */}
+              {role !== 'super_admin' && (
+                <div className="form-group">
+                  <label htmlFor="teamId">Team *</label>
+                  <select
+                    id="teamId"
+                    value={teamId}
+                    onChange={(e) => setTeamId(e.target.value)}
+                    required
+                  >
+                    <option value="">Select a team...</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.name} - {team.city}, {team.country}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Route Selection (route_leader only) */}
+              {role === 'route_leader' && teamId && (
+                <div className="form-group">
+                  <label htmlFor="routeId">Route *</label>
+                  <select
+                    id="routeId"
+                    value={routeId}
+                    onChange={(e) => setRouteId(e.target.value)}
+                    required
+                    disabled={routes.length === 0}
+                  >
+                    <option value="">
+                      {routes.length === 0 ? 'No routes available' : 'Select a route...'}
+                    </option>
+                    {routes.map((route) => (
+                      <option key={route.id} value={route.id}>
+                        {route.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
           )}
 
           {/* Submit Button */}

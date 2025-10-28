@@ -61,14 +61,14 @@ export default function Dashboard() {
               <p>Follow-ups</p>
             </button>
 
-            {role === 'admin' && (
+            {(role === 'super_admin' || role === 'team_admin') && (
               <button
                 className="action-card admin-card"
                 onClick={() => navigate('/admin/users')}
               >
                 <span className="action-icon">👤</span>
                 <h3>Manage Users</h3>
-                <p>Add/remove route leaders</p>
+                <p>Add/manage team users</p>
               </button>
             )}
           </div>
