@@ -185,27 +185,26 @@ service cloud.firestore {
 
 
     // FollowUps Collection
+    // TEMPORARY: Permissive rules for OLD data model (team, block, unit as strings)
+    // TODO: Update FollowUpForm to use new model (teamId, routeId, buildingId)
 
     match /followUps/{followUpId} {
-      // All authenticated users can read follow-ups in their team
-      allow read: if request.auth != null && belongsToTeam(resource.data.teamId);
+      // All authenticated users can read follow-ups
+      allow read: if request.auth != null;
 
-      // All authenticated users can create follow-ups in their team
-      allow create: if request.auth != null && belongsToTeam(request.resource.data.teamId);
+      // All authenticated users can create follow-ups
+      allow create: if request.auth != null;
 
       // Users can update/delete their own follow-ups
       allow update, delete: if request.auth != null &&
                              resource.data.createdBy == request.auth.uid;
 
-      // Route leaders can update/delete follow-ups in their route
-      allow update, delete: if isRouteLeader() &&
-                             getUserData().routeId == resource.data.routeId;
-
-      // Team admins can update/delete any follow-up in their team
-      allow update, delete: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
-
-      // Super admins can update/delete any follow-up
-      allow update, delete: if isSuperAdmin();
+      // Admins and route leaders can update/delete any follow-up
+      allow update, delete: if request.auth != null && (
+        getUserData().role == 'super_admin' ||
+        getUserData().role == 'team_admin' ||
+        getUserData().role == 'route_leader'
+      );
     }
   }
 }
