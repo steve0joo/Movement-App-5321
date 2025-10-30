@@ -22,23 +22,20 @@ const ROUTES_COLLECTION = 'routes';
 
 /**
  * Create a new route
- * @param {Object} routeData - Route information
- * @param {string} routeData.name - Route name
- * @param {string} routeData.communityId - Community ID this route belongs to
- * @param {string} routeData.teamId - Team ID this route belongs to
- * @param {string} routeData.routeLeaderId - User ID of the route leader (optional)
- * @param {string} routeData.description - Optional description
+ * @param {string} routeName - Route name
+ * @param {string} communityId - Community ID this route belongs to
+ * @param {string} teamId - Team ID this route belongs to
  * @param {string} createdBy - User ID of creator
+ * @param {string} routeLeaderId - User ID of the route leader (optional)
  * @returns {Promise<Object>} Created route with ID
  */
-export async function createRoute(routeData, createdBy) {
+export async function createRoute(routeName, communityId, teamId, createdBy, routeLeaderId = null) {
   try {
     const routeRef = await addDoc(collection(db, ROUTES_COLLECTION), {
-      name: routeData.name,
-      communityId: routeData.communityId,
-      teamId: routeData.teamId,
-      routeLeaderId: routeData.routeLeaderId || null,
-      description: routeData.description || '',
+      name: routeName,
+      communityId,
+      teamId,
+      routeLeaderId,
       createdBy,
       createdAt: serverTimestamp(),
       isActive: true,
@@ -46,7 +43,10 @@ export async function createRoute(routeData, createdBy) {
 
     return {
       id: routeRef.id,
-      ...routeData,
+      name: routeName,
+      communityId,
+      teamId,
+      routeLeaderId,
     };
   } catch (error) {
     console.error('Error creating route:', error);

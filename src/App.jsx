@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminUserPage from './pages/AdminUserPage';
 import AddLeaderPage from './pages/AddLeaderPage';
+import SeedDataPage from './pages/SeedDataPage';
 import FollowUps from './pages/FollowUps';
 import FollowUpForm from './pages/FollowUpForm';
 import PersonDetails from './pages/personDetails';
@@ -40,6 +41,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AddLeaderPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/seed-data"
+              element={
+                <ProtectedRoute>
+                  <SeedDataPage />
                 </ProtectedRoute>
               }
             />

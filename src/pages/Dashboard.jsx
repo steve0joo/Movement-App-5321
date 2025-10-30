@@ -71,6 +71,17 @@ export default function Dashboard() {
                 <p>Add/manage team users</p>
               </button>
             )}
+
+            {role === 'super_admin' && (
+              <button
+                className="action-card admin-card"
+                onClick={() => navigate('/admin/seed-data')}
+              >
+                <span className="action-icon">🌱</span>
+                <h3>Seed Database</h3>
+                <p>Populate with example data</p>
+              </button>
+            )}
           </div>
         </div>
 

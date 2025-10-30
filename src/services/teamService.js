@@ -22,19 +22,14 @@ const TEAMS_COLLECTION = 'teams';
 
 /**
  * Create a new team
- * @param {Object} teamData - Team information
- * @param {string} teamData.name - Team name (e.g., "Gwinnett")
- * @param {string} teamData.country - Country
- * @param {string} teamData.city - City
+ * @param {string} teamName - Team name (e.g., "Gwinnett")
  * @param {string} createdBy - User ID of creator
  * @returns {Promise<Object>} Created team with ID
  */
-export async function createTeam(teamData, createdBy) {
+export async function createTeam(teamName, createdBy) {
   try {
     const teamRef = await addDoc(collection(db, TEAMS_COLLECTION), {
-      name: teamData.name,
-      country: teamData.country,
-      city: teamData.city,
+      name: teamName,
       createdBy,
       createdAt: serverTimestamp(),
       isActive: true,
@@ -42,7 +37,7 @@ export async function createTeam(teamData, createdBy) {
 
     return {
       id: teamRef.id,
-      ...teamData,
+      name: teamName,
     };
   } catch (error) {
     console.error('Error creating team:', error);
@@ -133,27 +128,3 @@ export async function deleteTeam(teamId) {
   }
 }
 
-/**
- * Get teams by country
- * @param {string} country - Country name
- * @returns {Promise<Array>} Array of teams in the country
- */
-export async function getTeamsByCountry(country) {
-  try {
-    const teamsQuery = query(
-      collection(db, TEAMS_COLLECTION),
-      where('country', '==', country),
-      where('isActive', '==', true),
-      orderBy('city')
-    );
-    const snapshot = await getDocs(teamsQuery);
-
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-  } catch (error) {
-    console.error('Error getting teams by country:', error);
-    throw error;
-  }
-}

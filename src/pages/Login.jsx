@@ -34,6 +34,7 @@ export default function Login() {
   // Load teams when in signup mode
   useEffect(() => {
     if (mode === 'signup' && isOnline) {
+      console.log('Loading teams... (mode: signup, isOnline:', isOnline, ')');
       loadTeams();
     }
   }, [mode, isOnline]);
@@ -50,10 +51,17 @@ export default function Login() {
 
   async function loadTeams() {
     try {
+      console.log('Calling getAllTeams()...');
       const allTeams = await getAllTeams();
+      console.log('Teams loaded:', allTeams);
       setTeams(allTeams);
+
+      if (allTeams.length === 0) {
+        console.warn('⚠️ No teams found in database. You may need to create teams first or run seed data.');
+      }
     } catch (err) {
-      console.error('Error loading teams:', err);
+      console.error('❌ Error loading teams:', err);
+      setError('Failed to load teams. Please check console for details.');
     }
   }
 
@@ -279,14 +287,22 @@ export default function Login() {
                     value={teamId}
                     onChange={(e) => setTeamId(e.target.value)}
                     required
+                    disabled={teams.length === 0}
                   >
-                    <option value="">Select a team...</option>
+                    <option value="">
+                      {teams.length === 0 ? 'No teams available - Create teams first' : 'Select a team...'}
+                    </option>
                     {teams.map((team) => (
                       <option key={team.id} value={team.id}>
-                        {team.name} - {team.city}, {team.country}
+                        {team.name}
                       </option>
                     ))}
                   </select>
+                  {teams.length === 0 && isOnline && (
+                    <small style={{ color: '#dc3545', display: 'block', marginTop: '5px' }}>
+                      ⚠️ No teams found. Please create teams in the database first or use the seed data feature.
+                    </small>
+                  )}
                 </div>
               )}
 

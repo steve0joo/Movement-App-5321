@@ -22,19 +22,16 @@ const COMMUNITIES_COLLECTION = 'communities';
 
 /**
  * Create a new community
- * @param {Object} communityData - Community information
- * @param {string} communityData.name - Community name
- * @param {string} communityData.teamId - Team ID this community belongs to
- * @param {string} communityData.description - Optional description
+ * @param {string} communityName - Community name
+ * @param {string} teamId - Team ID this community belongs to
  * @param {string} createdBy - User ID of creator
  * @returns {Promise<Object>} Created community with ID
  */
-export async function createCommunity(communityData, createdBy) {
+export async function createCommunity(communityName, teamId, createdBy) {
   try {
     const communityRef = await addDoc(collection(db, COMMUNITIES_COLLECTION), {
-      name: communityData.name,
-      teamId: communityData.teamId,
-      description: communityData.description || '',
+      name: communityName,
+      teamId,
       createdBy,
       createdAt: serverTimestamp(),
       isActive: true,
@@ -42,7 +39,8 @@ export async function createCommunity(communityData, createdBy) {
 
     return {
       id: communityRef.id,
-      ...communityData,
+      name: communityName,
+      teamId,
     };
   } catch (error) {
     console.error('Error creating community:', error);

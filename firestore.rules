@@ -46,14 +46,14 @@ service cloud.firestore {
     // Teams Collection
     // ===========================
     match /teams/{teamId} {
+      // Allow anyone to read teams (needed for signup page dropdown)
+      allow read: if true;
+
       // Super admins can do anything
-      allow read, write: if isSuperAdmin();
+      allow write: if isSuperAdmin();
 
       // Team admins can read and update their own team
-      allow read, update: if isTeamAdmin() && belongsToTeam(teamId);
-
-      // Route leaders and volunteers can read their own team
-      allow read: if belongsToTeam(teamId);
+      allow update: if isTeamAdmin() && belongsToTeam(teamId);
     }
 
     // Communities Collection
@@ -72,17 +72,17 @@ service cloud.firestore {
     // Routes Collection
 
     match /routes/{routeId} {
+      // Allow anyone to read routes (needed for signup page dropdown)
+      allow read: if true;
+
       // Super admins can do anything
-      allow read, write: if isSuperAdmin();
+      allow write: if isSuperAdmin();
 
       // Team admins can manage routes in their team
-      allow read, write: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
+      allow write: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
 
-      // Route leaders can read and update their assigned route
-      allow read, update: if isRouteLeaderOfRoute(routeId);
-
-      // All authenticated users can read routes in their team
-      allow read: if belongsToTeam(resource.data.teamId);
+      // Route leaders can update their assigned route
+      allow update: if isRouteLeaderOfRoute(routeId);
     }
 
     // Buildings Collection
