@@ -31,22 +31,18 @@ export async function syncOfflineData(userId) {
     totalFailed: 0,
   };
 
-  // Sync Follow-ups
+  // Sync Follow-ups (updated for new data model)
   for (const followUp of offlineData.followUps) {
     try {
-      // Map to only the required Firestore fields
+      // Map to new data model fields
       const cleanData = {
-        name: followUp.name, // Name
-        team: followUp.team, // Team/Route
-        block: followUp.block, // Building/Block
-        unit: followUp.unit, // Apt # / House #
-        age: followUp.age || null, // Age
-        phone: followUp.phone || null, // Phone
-        followUp: followUp.followUp || '', // Follow-up
-        involvement: followUp.involvement || '', // Current Involvement
-        notes: followUp.notes || '', // Notes
-        date: followUp.date, // Date
-        urgency: followUp.urgency !== undefined ? followUp.urgency : 1, // Default to 1 if not set
+        buildingId: followUp.buildingId, // Building ID
+        unitNumber: followUp.unitNumber || followUp.unit, // Unit Number (fallback to old field)
+        teamId: followUp.teamId, // Team ID
+        routeId: followUp.routeId, // Route ID
+        description: followUp.description || followUp.followUp || '', // Description
+        status: followUp.status || 'pending', // Status
+        dueDate: followUp.dueDate || null, // Due Date
       };
 
       await createFollowUp(cleanData, userId);

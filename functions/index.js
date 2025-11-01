@@ -18,7 +18,13 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-exports.deleteUser = functions.https.onCall(async (data, context) => {
+// Define options for Cloud Functions (v5 style)
+const runtimeOpts = {
+  timeoutSeconds: 540,
+  memory: '1GB',
+};
+
+exports.deleteUser = functions.runWith(runtimeOpts).https.onCall(async (data, context) => {
   // 1. Check authentication
   if (!context.auth) {
     throw new functions.https.HttpsError(

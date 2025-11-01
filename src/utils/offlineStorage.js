@@ -320,7 +320,7 @@ export function updateOfflineItem(id, updates, type) {
 }
 
 /**
- * Search offline follow-ups
+ * Search offline follow-ups (updated for new data model)
  */
 export function searchOfflineFollowUps(searchTerm) {
   const followUps = getOfflineFollowUps();
@@ -329,11 +329,10 @@ export function searchOfflineFollowUps(searchTerm) {
   const term = searchTerm.toLowerCase();
   return followUps.filter(
     (item) =>
-      (item.name || '').toLowerCase().includes(term) ||
-      (item.block || '').toLowerCase().includes(term) ||
-      (item.unit || '').toLowerCase().includes(term) ||
-      (item.team || '').toLowerCase().includes(term) ||
-      (item.notes || '').toLowerCase().includes(term)
+      (item.buildingId || '').toLowerCase().includes(term) ||
+      (item.unitNumber || item.unit || '').toLowerCase().includes(term) ||
+      (item.description || item.followUp || '').toLowerCase().includes(term) ||
+      (item.teamId || item.team || '').toLowerCase().includes(term)
   );
 }
 
