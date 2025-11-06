@@ -1,0 +1,155 @@
+.access-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  /* remove top gutter so header sits at the very top of the shell */
+  padding: 0 24px 24px;
+  background: #fff;
+  min-height: 100vh;
+  box-sizing: border-box;
+  font-family: 'Raleway', system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #111827;
+}
+
+.access-header {
+  display:flex;
+  position: relative;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 24px 0 12px; /* 24px top, 0 left/right (shell provides horizontal padding), 12px bottom */
+  border-bottom: 1px solid #e6e6e6;
+  background: transparent;
+  margin-bottom: 12px;
+}
+
+.access-info{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.access-title { margin:0; font-size:22px; font-weight:600; }
+
+.btn-primary{
+  background:#4A8F8C;
+  color:#fff;
+  border:none;
+  width:36px;            /* match width to height */
+  height:36px;           /* keep height */
+  padding:0;             /* remove extra horizontal padding so button is square */
+  border-radius:8px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.btn-primary svg{ width:16px; height:16px; display:block; }
+
+.search-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid #d0d7d9;
+  border-radius:8px;
+  padding:6px 10px;
+  margin-bottom:8px;
+  min-height:40px;
+  background:rgba(255,255,255,0.95);
+}
+.search-row .fu-icon{ width:18px; height:18px; color:#7b7f87; }
+.search-input{ border:none; outline:none; flex:1; font-size:0.95rem; background:transparent; }
+
+/* codes list */
+.codes-table{ 
+  border-top:1px solid #eef2f4; 
+  border-bottom:1px solid #eef2f4; 
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  margin-top: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+.codes-table .table-head {
+  display: grid;
+  grid-template-columns: 18px 1fr 1fr 80px;
+  align-items: center;
+  gap: 12px;
+  background: #f8f9fa;
+  color: #333;
+  font-weight: 600;
+  padding: 1rem;
+  border-bottom: 2px solid #e9ecef;
+  min-width: 720px; /* adjust as needed to fit your columns */
+}
+.codes-row{ 
+  display:grid; 
+  grid-template-columns:18px 1fr 1fr 80px; 
+  align-items:center; 
+  gap:12px; 
+  padding:1rem; 
+  border-bottom:1px solid #e9ecef;
+  color: #555;
+  background: #fff;
+  min-width: 720px; /* adjust as needed to fit your columns */
+}
+
+/* keep cells consistent */
+.codes-table .cell { display:flex; align-items:center; gap:8px; }
+.cell-check { justify-content:center; }
+.cell-code { position:relative; align-items:center; }
+.code-value{ font-weight:700; margin-right:8px; }
+.copy-btn{ background:transparent; border:none; padding:6px; display:inline-flex; align-items:center; cursor:pointer; color:#6b7280; }
+.copied-bubble{ position:absolute; right:12px; top:12px; background:#111827; color:#fff; padding:4px 8px; border-radius:999px; font-size:12px; }
+
+.cell-actions{ justify-content:flex-end; }
+.btn-delete{ background:transparent; border:none; padding:6px; cursor:pointer; color:#b42318; }
+
+/* modal (re-using pattern from AdminUserPage.css) */
+.modal-overlay{
+  position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  background: rgba(15,23,42,0.48); z-index:1400; padding:24px;
+}
+.modal-content{
+  background:#fff; border-radius:12px; max-width:520px; width:100%; padding:18px; box-shadow:0 12px 40px rgba(15,23,42,0.16);
+}
+.modal-content h3{ margin:0 0 8px 0; font-size:1.125rem; }
+.modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; align-items: center; }
+.btn-cancel{ border:1px solid #e6e6e6; padding:8px 12px; border-radius:8px; cursor:pointer; }
+.modal-actions .btn-delete{ background:#ef4444; color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
+
+/* move the centered home/logo button down slightly so it sits lower in the header */
+.access-header .logo-home {
+  position: absolute;
+  left: 50%;
+  top: 54%; /* nudged down from 50% */
+  transform: translate(-50%, -40%); /* reduce upward translate so it appears lower */
+  z-index: 2;
+}
+
+/* ensure modal action buttons sit on the same row */
+.modal-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+  align-items: center;
+}
+
+/* Extra-small screens — condense further but keep readability */
+@media (max-width: 480px) {
+  .codes-table .table-head,
+  .codes-table .codes-row {
+    min-width: 300px !important;
+    grid-template-columns: 12px 110px 1fr 48px !important;
+    padding: 10px 1px !important;
+    font-size: 0.92rem;
+  }  
+  .cell-actions{ justify-content:flex-start; }
+  .access-shell { padding-left: 12px; padding-right: 12px; }
+}

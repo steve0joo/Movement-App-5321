@@ -20,6 +20,18 @@ export default function AdminUserPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
+  const IconPlus = (p) => (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...p}>
+      <path
+        d="M12 5v14M5 12h14"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  );
+
   // Check if user is admin (super_admin or team_admin)
   useEffect(() => {
     if (role && role !== 'super_admin' && role !== 'team_admin') {
@@ -167,7 +179,7 @@ export default function AdminUserPage() {
 
         <div className="admin-info">
           <span className="admin-badge">Admin</span>
-          <span>{currentUser?.email}</span>
+          {/* <span>{currentUser?.email}</span> */}
         </div>
       </header>
 
@@ -185,7 +197,7 @@ export default function AdminUserPage() {
               className="btn-primary"
               onClick={() => navigate('/admin/add-leader')}
             >
-              Add Route Leader
+              <IconPlus className="fu-icon" />
             </button>
           </div>
         </div>

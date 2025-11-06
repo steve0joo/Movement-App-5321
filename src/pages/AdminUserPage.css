@@ -10,12 +10,13 @@
 }
 
 /* single, consolidated header rule */
-.admin-header {
+.admin-page .admin-header {
   position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: nowrap;
+  /* increased horizontal padding for more space left/right */
   padding: 1rem 1rem;
   background: #ffffff;
   color: #1f2937;
@@ -123,7 +124,7 @@
   justify-content: space-between;
   flex-grow: none;
   align-items: flex-start;
-  margin-bottom: 2rem;
+  margin-bottom: 12px; /* was 2rem */
   gap: 8px;
 }
 .admin-actions h2 {
@@ -137,18 +138,28 @@
   white-space: nowrap;
 }
 
-/* primary button */
-.btn-primary {
+.admin-page .btn-primary {
   background: #4A8F8C;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  font-size: 1rem;
+  padding: 0 8px;
+  border-radius: 12px;
+  /* font-size: 2rem; */
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
+
+  /* center content */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+
+  /* ensure a consistent tappable size for the single '+' */
+  min-width: 36px;
+  height: 36px;
 }
+.btn-primary .fu-icon{ width:18px !important; height:18px !important; display:block; }
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
 
 .loading { text-align: center; padding: 3rem; color: #666; font-size: 1.1rem; }

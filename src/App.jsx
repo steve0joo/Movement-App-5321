@@ -11,6 +11,7 @@ import SeedDataPage from './pages/SeedDataPage';
 import FollowUps from './pages/FollowUps';
 import FollowUpForm from './pages/FollowUpForm';
 import PersonDetails from './pages/personDetails';
+import AccessCodesPage from './pages/AccessCodesPage';
 import './App.css';
 function App() {
   return (
@@ -73,6 +74,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <PersonDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/access"
+              element={
+                <ProtectedRoute>
+                  <AccessCodesPage />
                 </ProtectedRoute>
               }
             />
