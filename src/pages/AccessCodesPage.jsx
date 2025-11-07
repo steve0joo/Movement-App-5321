@@ -92,7 +92,6 @@ export default function AccessCodesPage() {
       // Delete user from Firebase Auth and Firestore
       if (deleteConfirm.firebaseUid) {
         await deleteDoc(doc(db, "users", deleteConfirm.firebaseUid));
-        // Note: Deleting from Firebase Auth requires Admin SDK on backend
         // For now, just delete from Firestore and mark as inactive
       }
       
@@ -106,29 +105,27 @@ export default function AccessCodesPage() {
     }
   };
 
-  // This function creates a random 5-digit number that doesn't conflict with existing codes
+  // This function creates a random 5-digit number should not already exist
   // We only check against codes currently loaded in the page to keep it simple
   const generateUniqueCode = async () => {
     let code;
     let isUnique = false;
     
     while (!isUnique) {
-      // Make a random number between 10000 and 99999 (always 5 digits)
+      // Make a random number between 10000 and 99999. Will always be 5 digits or so
       code = Math.floor(10000 + Math.random() * 90000).toString();
       
       // Check if we already have this code in our current list
-      // (In a perfect world we'd check the database too, but that requires more permissions)
       const existsInState = codes.some(c => c.code === code);
       
       isUnique = !existsInState;
       
-      // With 90,000 possible combinations, the chance of a duplicate is very low
     }
     
     return code;
   };
 
-  // This is the main function that creates a new access code for volunteers
+  // The main function that creates a new access code for volunteers
   const createCode = async () => {
     // Don't let people spam the create button
     if (isCreating) return;
@@ -143,10 +140,10 @@ export default function AccessCodesPage() {
       // This contains all the info needed for someone to log in with this code
       const accessCodeData = {
         code: accessCode,
-        role: "volunteer", // All access codes are for volunteers
+        role: "volunteer", // All codes are for volunteers to use only
         isActive: true, // This code can be used
         isUsed: false, // Nobody has logged in with it yet
-        isAccessCodeUser: true, // This marks it as an access code (not a regular user)
+        isAccessCodeUser: true, // This marks it as an access code user 
         createdAt: new Date(),
         createdBy: auth.currentUser?.uid, // Remember who created this code
         createdByRole: role, // Remember what role they had when they created it
@@ -157,7 +154,7 @@ export default function AccessCodesPage() {
       };
       
       // Save this to the database using the access code as the document ID
-      // This makes it easy to look up later when someone tries to log in
+      // should make it easier to look up later when someone tries to log in
       await setDoc(doc(db, "users", accessCode), accessCodeData);
       
       // Add the new code to our local list so it shows up on the page immediately
@@ -179,13 +176,14 @@ export default function AccessCodesPage() {
     }
   };
 
-  // This function runs when the page first loads to get all existing access codes from the database
+  // This function runs when the page first loads to get all existing access codes from our database
   useEffect(() => {
     const loadAccessCodes = async () => {
       try {
         console.log("Loading existing access codes...");
         
-        // Look for all documents in the users collection that are marked as access codes and are still active
+        // Look for all documents in the users collection that are marked as access codes and 
+        // are still considered active
         const q = query(
           collection(db, "users"), 
           where("isAccessCodeUser", "==", true),
@@ -193,16 +191,16 @@ export default function AccessCodesPage() {
         );
         const snapshot = await getDocs(q);
         
-        // Convert the database documents into a format our page can display
+        // Convert the documents into a viable format for the page
         const loadedCodes = [];
         snapshot.forEach((doc) => {
           const data = doc.data();
           loadedCodes.push({
-            id: doc.id, // Use the document ID (which is the access code)
+            id: doc.id, // Access code (aka document ID)
             code: data.code, // The actual 5-digit code to display
             team: data.teamId || "Unassigned", // Show team name or "Unassigned"
             firebaseUid: doc.id, // Keep track of the database ID
-            isUsed: data.isUsed || false, // Whether someone has used this code yet
+            isUsed: data.isUsed || false, // see if someone has used this code yet
             createdAt: data.createdAt
           });
         });
@@ -213,7 +211,7 @@ export default function AccessCodesPage() {
         
       } catch (error) {
         console.error("Error loading access codes:", error);
-        // If loading fails, we just keep the dummy data so the page still works
+        // Keeps the dummy data if loading has failed 
       }
     };
     
