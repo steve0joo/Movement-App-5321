@@ -72,7 +72,7 @@ export default function Dashboard() {
               </button>
             )}
 
-            {(role === 'super_admin' || role === 'team_admin') && (
+            {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
               <button
                 className="action-card admin-card"
                 onClick={() => navigate('/access')}

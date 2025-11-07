@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc, deleteDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { auth, db } from "../services/firebase";
 import "./AccessCodesPage.css";
 import menuIcon from "../assets/menu-button.png";
 import logoHome from "../assets/logo-home-button.png";
@@ -58,6 +61,7 @@ export default function AccessCodesPage() {
   const [q, setQ] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -81,16 +85,140 @@ export default function AccessCodesPage() {
 
   const confirmDelete = (c) => setDeleteConfirm(c);
   const cancelDelete = () => setDeleteConfirm(null);
-  const doDelete = () => {
-    setCodes((s) => s.filter((x) => x.id !== deleteConfirm.id));
-    setDeleteConfirm(null);
+  const doDelete = async () => {
+    if (!deleteConfirm) return;
+    
+    try {
+      // Delete user from Firebase Auth and Firestore
+      if (deleteConfirm.firebaseUid) {
+        await deleteDoc(doc(db, "users", deleteConfirm.firebaseUid));
+        // Note: Deleting from Firebase Auth requires Admin SDK on backend
+        // For now, just delete from Firestore and mark as inactive
+      }
+      
+      // Remove from local state
+      setCodes(s => s.filter(x => x.id !== deleteConfirm.id));
+      setDeleteConfirm(null);
+      
+    } catch (error) {
+      console.error("Error deleting access code:", error);
+      alert("Failed to delete access code. Please try again.");
+    }
   };
 
-  const createCode = () => {
-    // placeholder: open create modal or generate code
-    const id = Date.now().toString();
-    setCodes((s) => [{ id, code: Math.floor(10000 + Math.random() * 90000).toString(), team: "New Team" }, ...s]);
+  // This function creates a random 5-digit number that doesn't conflict with existing codes
+  // We only check against codes currently loaded in the page to keep it simple
+  const generateUniqueCode = async () => {
+    let code;
+    let isUnique = false;
+    
+    while (!isUnique) {
+      // Make a random number between 10000 and 99999 (always 5 digits)
+      code = Math.floor(10000 + Math.random() * 90000).toString();
+      
+      // Check if we already have this code in our current list
+      // (In a perfect world we'd check the database too, but that requires more permissions)
+      const existsInState = codes.some(c => c.code === code);
+      
+      isUnique = !existsInState;
+      
+      // With 90,000 possible combinations, the chance of a duplicate is very low
+    }
+    
+    return code;
   };
+
+  // This is the main function that creates a new access code for volunteers
+  const createCode = async () => {
+    // Don't let people spam the create button
+    if (isCreating) return;
+    
+    setIsCreating(true);
+    
+    try {
+      // First, generate a unique 5-digit code
+      const accessCode = await generateUniqueCode();
+      
+      // Create a document in Firestore that represents this access code
+      // This contains all the info needed for someone to log in with this code
+      const accessCodeData = {
+        code: accessCode,
+        role: "volunteer", // All access codes are for volunteers
+        isActive: true, // This code can be used
+        isUsed: false, // Nobody has logged in with it yet
+        isAccessCodeUser: true, // This marks it as an access code (not a regular user)
+        createdAt: new Date(),
+        createdBy: auth.currentUser?.uid, // Remember who created this code
+        createdByRole: role, // Remember what role they had when they created it
+        teamId: "", // Can be assigned to a team later
+        usedBy: null, // Will be filled in when someone uses the code
+        usedAt: null,
+        email: `volunteer_${accessCode}@temp.movement.app` // Temporary email for Firebase Auth
+      };
+      
+      // Save this to the database using the access code as the document ID
+      // This makes it easy to look up later when someone tries to log in
+      await setDoc(doc(db, "users", accessCode), accessCodeData);
+      
+      // Add the new code to our local list so it shows up on the page immediately
+      const newCodeEntry = {
+        id: accessCode,
+        code: accessCode,
+        team: "Unassigned", // Will show "Unassigned" until assigned to a team
+        firebaseUid: null // Will be filled in when someone first uses the code
+      };
+      
+      // Add to the top of the list so it's easy to see the newest codes
+      setCodes(s => [newCodeEntry, ...s]);
+      
+    } catch (error) {
+      console.error("Error creating access code:", error);
+      alert(`Failed to create access code: ${error.message}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // This function runs when the page first loads to get all existing access codes from the database
+  useEffect(() => {
+    const loadAccessCodes = async () => {
+      try {
+        console.log("Loading existing access codes...");
+        
+        // Look for all documents in the users collection that are marked as access codes and are still active
+        const q = query(
+          collection(db, "users"), 
+          where("isAccessCodeUser", "==", true),
+          where("isActive", "==", true)
+        );
+        const snapshot = await getDocs(q);
+        
+        // Convert the database documents into a format our page can display
+        const loadedCodes = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          loadedCodes.push({
+            id: doc.id, // Use the document ID (which is the access code)
+            code: data.code, // The actual 5-digit code to display
+            team: data.teamId || "Unassigned", // Show team name or "Unassigned"
+            firebaseUid: doc.id, // Keep track of the database ID
+            isUsed: data.isUsed || false, // Whether someone has used this code yet
+            createdAt: data.createdAt
+          });
+        });
+        
+        // Replace the dummy data with real data from the database
+        setCodes(loadedCodes);
+        console.log(`Loaded ${loadedCodes.length} access codes`);
+        
+      } catch (error) {
+        console.error("Error loading access codes:", error);
+        // If loading fails, we just keep the dummy data so the page still works
+      }
+    };
+    
+    loadAccessCodes();
+  }, []);
 
   // enable search by Team Name (case-insensitive)
   const filteredCodes = q.trim()
@@ -146,9 +274,15 @@ export default function AccessCodesPage() {
         <div className="access-info">
           <h2 className="access-title">Access Codes</h2>
 
-          <button className="btn-primary" onClick={createCode} aria-label="Create Code" title="Create Code">
+          <button 
+            className="btn-primary" 
+            onClick={createCode} 
+            disabled={isCreating}
+            aria-label="Create Code" 
+            title="Create Code"
+          >
             <IconPlus width={16} height={16} />
-            {/* <span className="visually-hidden">Create Code</span> */}
+            {isCreating && <span style={{ marginLeft: '5px' }}>Creating...</span>}
           </button>
         </div>
 
