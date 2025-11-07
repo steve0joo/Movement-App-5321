@@ -1,9 +1,19 @@
+// src/services/firebase.js
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import {
+  getAuth,
+  setPersistence,
+  browserLocalPersistence,
+  GoogleAuthProvider,
+  OAuthProvider,
+} from 'firebase/auth';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Firebase configuration from environment variables
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -14,20 +24,22 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
 export const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence);
 
-// Initialize Firestore with offline persistence enabled
-// This allows the app to work offline and automatically sync when back online
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager() // Supports multiple tabs
-  })
+    tabManager: persistentMultipleTabManager(),
+  }),
 });
 
 export const storage = getStorage(app);
+
+/* ---- OAuth providers ---- */
+export const googleProvider = new GoogleAuthProvider();
+// Prompt account chooser every time (nice dev UX)
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export default app;

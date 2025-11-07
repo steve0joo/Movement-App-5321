@@ -4,8 +4,12 @@ import {
   signOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
+  updateProfile,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { auth, googleProvider } from '../services/firebase';
 import { createUserProfile, getUserProfile } from '../services/userService';
 
 const AuthContext = createContext();
@@ -65,6 +69,42 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
+  function isPopupLikelyBlocked() {
+    // iOS Safari + some in-app browsers block popups; use redirect there
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+    return isIOS && isSafari;
+  }
+  
+  async function ensureProfile(user, fallbackRole = 'volunteer') {
+    const existing = await getUserProfile(user.uid);
+    if (!existing) {
+      await createUserProfile(user.uid, {
+        email: user.email || null,
+        role: fallbackRole,
+        displayName: user.displayName || null,
+      });
+    }
+  }
+  
+  async function signInWithGoogle() {
+    try {
+      let result;
+      if (isPopupLikelyBlocked()) {
+        await signInWithRedirect(auth, googleProvider);
+        return; // we’ll finish after redirect
+      } else {
+        result = await signInWithPopup(auth, googleProvider);
+      }
+      await ensureProfile(result.user);
+      return result.user;
+    } catch (e) {
+      console.error('Google sign-in error:', e);
+      throw e;
+    }
+  }
+
   // Listen for auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -84,12 +124,28 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
+  // Handle redirect-completion when the app loads
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getRedirectResult(auth);
+        if (res?.user) {
+          await ensureProfile(res.user);
+        }
+      } catch (e) {
+        console.error('OAuth redirect result error:', e);
+      }
+    })();
+  }, []);
+
   const value = {
     currentUser,
     role,
     signup,
     login,
     logout,
+    loading,
+    signInWithGoogle,
   };
 
   return (

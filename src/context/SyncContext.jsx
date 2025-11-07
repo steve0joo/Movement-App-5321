@@ -1,35 +1,41 @@
+// src/context/SyncContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { onSnapshot, collection } from 'firebase/firestore';
+import { onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { useAuth } from '../context/AuthContext';
 
 const SyncContext = createContext();
 
 export function useSync() {
-  const context = useContext(SyncContext);
-  if (!context) {
-    throw new Error('useSync must be used within a SyncProvider');
-  }
-  return context;
+  const ctx = useContext(SyncContext);
+  if (!ctx) throw new Error('useSync must be used within a SyncProvider');
+  return ctx;
 }
 
 export function SyncProvider({ children }) {
   const isOnline = useNetworkStatus();
-  const [syncStatus, setSyncStatus] = useState('synced'); // 'synced' | 'syncing' | 'offline'
+  const { currentUser } = useAuth();
+
+  // 'synced' | 'syncing' | 'offline'
+  const [syncStatus, setSyncStatus] = useState('synced');
   const [hasPendingWrites, setHasPendingWrites] = useState(false);
 
   useEffect(() => {
-    // Monitor Firestore sync status by listening to snapshot metadata
-    // This detects when there are pending writes waiting to sync
+    // Only start monitoring after we know who's signed in
+    if (!currentUser) return;
+
+    // Probe a doc the user is always allowed to read per your rules:
+    // users/{uid}
+    const probeRef = doc(db, 'users', currentUser.uid);
+
     const unsubscribe = onSnapshot(
-      collection(db, 'neighborhoods'),
+      probeRef,
       { includeMetadataChanges: true },
       (snapshot) => {
-        // Check if there are pending writes
         const pending = snapshot.metadata.hasPendingWrites;
         setHasPendingWrites(pending);
 
-        // Update sync status based on network and pending writes
         if (!isOnline) {
           setSyncStatus('offline');
         } else if (pending) {
@@ -39,33 +45,25 @@ export function SyncProvider({ children }) {
         }
       },
       (error) => {
+        // If rules ever block this (shouldn't given your rules), don't crash the app.
         console.error('Sync monitoring error:', error);
+        // Fall back to a conservative status
+        setHasPendingWrites(false);
+        setSyncStatus(isOnline ? 'synced' : 'offline');
       }
     );
 
     return () => unsubscribe();
-  }, [isOnline]);
+  }, [currentUser, isOnline]);
 
-  // Update status when network changes
+  // Recompute when only network state changes (no Firestore event)
   useEffect(() => {
-    if (!isOnline) {
-      setSyncStatus('offline');
-    } else if (hasPendingWrites) {
-      setSyncStatus('syncing');
-    } else {
-      setSyncStatus('synced');
-    }
+    if (!isOnline) setSyncStatus('offline');
+    else if (hasPendingWrites) setSyncStatus('syncing');
+    else setSyncStatus('synced');
   }, [isOnline, hasPendingWrites]);
 
-  const value = {
-    isOnline,
-    syncStatus,
-    hasPendingWrites,
-  };
+  const value = { isOnline, syncStatus, hasPendingWrites };
 
-  return (
-    <SyncContext.Provider value={value}>
-      {children}
-    </SyncContext.Provider>
-  );
+  return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }
