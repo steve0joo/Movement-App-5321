@@ -84,7 +84,7 @@ export default function FollowUpForm({ onClose, onSaved }) {
   }, []);
 
   useEffect(() => {
-    // throttle autosave (very light)
+    // th  rottle autosave (very light)
     if (firstMount.current) {
       firstMount.current = false;
       return;
