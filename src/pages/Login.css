@@ -264,6 +264,17 @@ input:-webkit-autofill {
   vertical-align: middle;
 }
 
+.form-group { display: grid; gap: 6px; margin: 8px 10px; }
+
+.role-select { appearance: none; }
+
+.form-hint {
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: -2px;
+  padding-left: 2px;
+}
+
 /* Small screens */
 @media (max-width: 400px) {
   .logo-img { width: 120px; height: 120px; }
