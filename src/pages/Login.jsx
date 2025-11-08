@@ -19,7 +19,9 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [displayName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+
+  const [role, setRole] = useState("volunteer");
 
   const { login, signup, signInWithGoogle } = useAuth();
   const { isOnline } = useSync();
@@ -68,7 +70,7 @@ export default function Login() {
 
     try {
       setLoading(true);
-      await signup(email, password, "volunteer", null);
+      await signup(email, password, role, displayName);
       navigate("/");
     } catch (err) {
       console.error("Signup error:", err);
@@ -337,6 +339,19 @@ export default function Login() {
           <form onSubmit={handleSignup} className="form">
             <h2 className="sr-only">Create account</h2>
 
+          {/* Display Name (signup only) */}
+            <div className="form-group">
+              <label htmlFor="displayName">Full Name</label>
+              <input
+                id="displayName"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Enter your full name"
+                autoComplete="name"
+              />
+            </div>
+
             <input
               className="input"
               type="email"
@@ -366,6 +381,27 @@ export default function Login() {
               onChange={(e) => setConfirm(e.target.value)}
               required
             />
+            {/* Role Selection (signup only) */}
+            <div className="form-group">
+              <label htmlFor="role">Role</label>
+              <select
+                id="role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="role-select input"
+              >
+                {/* IMPORTANT: use values that match your Firestore rules */}
+                <option value="volunteer">Volunteer</option>
+                <option value="route_leader">Route Leader</option>
+                <option value="team_admin">Administrator</option>
+                {/* If you want a super user later: <option value="super_admin">Super Admin</option> */}
+              </select>
+              <small className="form-hint">
+                {role === "volunteer" && "Basic access to record and view data in the team"}
+                {role === "route_leader" && "Manage a route and its volunteers"}
+                {role === "team_admin" && "Full administrative access"}
+              </small>
+            </div>
 
             <button type="submit" className="btn-pill btn-primary-mint" disabled={loading || offlineMode}>
               {loading ? "Signing up..." : "Sign Up!"}
@@ -383,7 +419,7 @@ export default function Login() {
         </div>
       )}
 
-      {/* ---------------- ACCESS CODE (uses teammate logic) ---------------- */}
+      {/* ---------------- ACCESS CODE ---------------- */}
       {view === "code" && (
         <div className="auth-card code-card">
           <form onSubmit={submitAccessCode} onPaste={handleCodePaste}>

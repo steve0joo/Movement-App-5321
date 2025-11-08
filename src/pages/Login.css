@@ -177,6 +177,7 @@ input:-webkit-autofill {
   color: #61706f;
   font-size: 14px;
 }
+.error.mt { margin-top: 12px; }
 
 /* Error */
 .error {
@@ -262,6 +263,17 @@ input:-webkit-autofill {
 .vendor-icon {
   display: inline-block;
   vertical-align: middle;
+}
+
+.form-group { display: grid; gap: 6px; margin: 8px 10px; }
+
+.role-select { appearance: none; }
+
+.form-hint {
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: -2px;
+  padding-left: 2px;
 }
 
 /* Small screens */
