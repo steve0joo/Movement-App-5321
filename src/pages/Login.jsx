@@ -78,7 +78,7 @@ export default function Login() {
     }
   };
 
-  /* ---------------- Access code logic (teammate’s) ---------------- */
+  /* ---------------- Access code logic ---------------- */
   // We trigger this from your “code” view by joining the 6 inputs.
   const handleAccessCodeLogin = async (joinedCode) => {
     const accessCode = (joinedCode || "").trim();
