@@ -177,6 +177,7 @@ input:-webkit-autofill {
   color: #61706f;
   font-size: 14px;
 }
+.error.mt { margin-top: 12px; }
 
 /* Error */
 .error {
