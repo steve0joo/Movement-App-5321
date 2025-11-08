@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -8,6 +8,8 @@ import {
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { createUserProfile } from '../services/userService';
+import { getAllTeams } from '../services/teamService';
+import { getRoutesByTeam } from '../services/routeService';
 import './AddLeaderPage.css';
 
 export default function AddLeaderPage() {
@@ -18,18 +20,56 @@ export default function AddLeaderPage() {
     password: '',
     confirmPassword: '',
     displayName: '',
-    siteId: '',
+    teamId: '',
+    routeId: '',
     adminPassword: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [teams, setTeams] = useState([]);
+  const [routes, setRoutes] = useState([]);
   const adminEmail = currentUser?.email;
 
   // Redirect if not admin
-  if (role !== 'admin') {
+  if (role !== 'super_admin' && role !== 'team_admin') {
     navigate('/');
     return null;
+  }
+
+  // Load teams on mount
+  useEffect(() => {
+    loadTeams();
+  }, []);
+
+  // Load routes when team changes
+  useEffect(() => {
+    if (formData.teamId) {
+      loadRoutes(formData.teamId);
+    } else {
+      setRoutes([]);
+      setFormData(prev => ({ ...prev, routeId: '' }));
+    }
+  }, [formData.teamId]);
+
+  async function loadTeams() {
+    try {
+      const allTeams = await getAllTeams();
+      setTeams(allTeams);
+    } catch (err) {
+      console.error('Error loading teams:', err);
+      setError('Failed to load teams');
+    }
+  }
+
+  async function loadRoutes(teamId) {
+    try {
+      const teamRoutes = await getRoutesByTeam(teamId);
+      setRoutes(teamRoutes);
+    } catch (err) {
+      console.error('Error loading routes:', err);
+      setError('Failed to load routes');
+    }
   }
 
   function handleChange(e) {
@@ -48,6 +88,18 @@ export default function AddLeaderPage() {
     // Validation
     if (!formData.email || !formData.password || !formData.adminPassword) {
       setError('Route Leader\'s email, password, and admin\'s password are required.');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.teamId) {
+      setError('Please select a team for the route leader.');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.routeId) {
+      setError('Please select a route for the route leader.');
       setLoading(false);
       return;
     }
@@ -81,12 +133,13 @@ export default function AddLeaderPage() {
         formData.password
       );
 
-      // Create Firestore profile with 'leader' role
+      // Create Firestore profile with 'route_leader' role
       await createUserProfile(userCredential.user.uid, {
         email: formData.email,
-        role: 'leader',
+        role: 'route_leader',
         displayName: formData.displayName || null,
-        siteId: formData.siteId || null,
+        teamId: formData.teamId,
+        routeId: formData.routeId,
       });
 
       // Sign out the newly created user
@@ -101,7 +154,8 @@ export default function AddLeaderPage() {
         password: '',
         confirmPassword: '',
         displayName: '',
-        siteId: '',
+        teamId: '',
+        routeId: '',
         adminPassword: '',
       });
 
@@ -230,19 +284,52 @@ export default function AddLeaderPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="siteId">Site ID</label>
-              <input
-                type="text"
-                id="siteId"
-                name="siteId"
-                value={formData.siteId}
+              <label htmlFor="teamId">
+                Team <span className="required">*</span>
+              </label>
+              <select
+                id="teamId"
+                name="teamId"
+                value={formData.teamId}
                 onChange={handleChange}
-                placeholder="e.g., Site-001, NYC, Tokyo"
-                maxLength={50}
-              />
-              <small>
-                Optional - Identifies which global site this leader manages
-              </small>
+                required
+              >
+                <option value="">Select a team...</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name} - {team.city}, {team.country}
+                  </option>
+                ))}
+              </select>
+              <small>Select the team this route leader will manage</small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="routeId">
+                Route <span className="required">*</span>
+              </label>
+              <select
+                id="routeId"
+                name="routeId"
+                value={formData.routeId}
+                onChange={handleChange}
+                required
+                disabled={!formData.teamId || routes.length === 0}
+              >
+                <option value="">
+                  {!formData.teamId
+                    ? 'Select a team first...'
+                    : routes.length === 0
+                    ? 'No routes available for this team'
+                    : 'Select a route...'}
+                </option>
+                {routes.map((route) => (
+                  <option key={route.id} value={route.id}>
+                    {route.name}
+                  </option>
+                ))}
+              </select>
+              <small>Select the specific route this leader will manage</small>
             </div>
           </div>
 

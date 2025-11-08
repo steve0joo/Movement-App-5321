@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   collection,
   onSnapshot,
@@ -10,55 +10,138 @@ import {
   doc,
   addDoc,
   setDoc,
-} from "firebase/firestore";
-import { db } from "../services/firebase";
-import { isOfflineModeActive, getOfflineFollowUps, deleteOfflineItem } from "../utils/offlineStorage";
-import FollowUpForm from "./FollowUpForm";
-import "./FollowUps.css";
-import menuIcon from "../assets/menu-button.png";
-import logoHome from "../assets/logo-home-button.png";
-import editIcon from "../assets/edit-button.png";
-import trashIcon from "../assets/trash-button.png";
+} from 'firebase/firestore';
+import { db } from '../services/firebase';
+import {
+  isOfflineModeActive,
+  getOfflineFollowUps,
+  deleteOfflineItem,
+} from '../utils/offlineStorage';
+import FollowUpForm from './FollowUpForm';
+import './FollowUps.css';
+import menuIcon from '../assets/menu-button.png';
+import logoHome from '../assets/logo-home-button.png';
+import editIcon from '../assets/edit-button.png';
+import trashIcon from '../assets/trash-button.png';
 
 /* Inline icons (immune to external icon libs) */
 const IconMenu = (p) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...p}>
-    <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+    <path
+      d="M3 6h18M3 12h18M3 18h18"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      fill="none"
+    />
   </svg>
 );
 const IconPlus = (p) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...p}>
-    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+    <path
+      d="M12 5v14M5 12h14"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      fill="none"
+    />
   </svg>
 );
 const IconSearch = (p) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...p}>
-    <path d="M21 21l-4.3-4.3M4 10.5a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+    <path
+      d="M21 21l-4.3-4.3M4 10.5a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      fill="none"
+    />
   </svg>
 );
 const IconFilter = (p) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...p}>
-    <path d="M3 6h18M6 12h12M10 18h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+    <path
+      d="M3 6h18M6 12h12M10 18h4"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      fill="none"
+    />
   </svg>
 );
 const IconTrash = (p) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...p}>
-    <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+    <path
+      d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      fill="none"
+    />
   </svg>
 );
 const IconEdit = (p) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...p}>
-    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z" fill="currentColor"/>
+    <path
+      d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"
+      fill="currentColor"
+    />
   </svg>
 );
 
 /* UI fallback so the page renders even if Firestore is empty */
 const FALLBACK = [
-  { id: "1", name: "Maria Lopez", lastActivity: "2025-10-12T21:41:00Z", urgency: 3, team: "Route A", block:"A", unit:"2628", age:43, followUp:"N/A", involvement:"N/A", notes:"—" },
-  { id: "2", name: "James Park", lastActivity: "2025-10-11T16:10:00Z", urgency: 2, team: "Route B", block:"3", unit:"18B", age:35, followUp:"Call next week", involvement:"Occasional", notes:"—" },
-  { id: "3", name: "Amina Yusuf", lastActivity: "2025-10-01T12:00:00Z", urgency: 1, team: "Route C", block:"12", unit:"7C", age:29, followUp:"N/A", involvement:"N/A", notes:"—" },
-  { id: "4", name: "Samir Khan", lastActivity: "2025-09-30T08:45:00Z", urgency: 2 },
-  { id: "5", name: "Grace Kim", lastActivity: "2025-09-22T14:20:00Z", urgency: 1 },
+  {
+    id: '1',
+    name: 'Maria Lopez',
+    lastActivity: '2025-10-12T21:41:00Z',
+    urgency: 3,
+    team: 'Route A',
+    block: 'A',
+    unit: '2628',
+    age: 43,
+    followUp: 'N/A',
+    involvement: 'N/A',
+    notes: '—',
+  },
+  {
+    id: '2',
+    name: 'James Park',
+    lastActivity: '2025-10-11T16:10:00Z',
+    urgency: 2,
+    team: 'Route B',
+    block: '3',
+    unit: '18B',
+    age: 35,
+    followUp: 'Call next week',
+    involvement: 'Occasional',
+    notes: '—',
+  },
+  {
+    id: '3',
+    name: 'Amina Yusuf',
+    lastActivity: '2025-10-01T12:00:00Z',
+    urgency: 1,
+    team: 'Route C',
+    block: '12',
+    unit: '7C',
+    age: 29,
+    followUp: 'N/A',
+    involvement: 'N/A',
+    notes: '—',
+  },
+  {
+    id: '4',
+    name: 'Samir Khan',
+    lastActivity: '2025-09-30T08:45:00Z',
+    urgency: 2,
+  },
+  {
+    id: '5',
+    name: 'Grace Kim',
+    lastActivity: '2025-09-22T14:20:00Z',
+    urgency: 1,
+  },
 ];
 
 export default function FollowUps() {
@@ -72,16 +155,17 @@ export default function FollowUps() {
   useEffect(() => {
     if (!menuOpen) return;
     function onDocClick(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target))
+        setMenuOpen(false);
     }
     function onKey(e) {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === 'Escape') setMenuOpen(false);
     }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
     };
   }, [menuOpen]);
 
@@ -92,7 +176,7 @@ export default function FollowUps() {
 
   function handleMenuSelect(item) {
     setMenuOpen(false);
-    if (item === "Users") navigate("/admin/users");
+    if (item === 'Users') navigate('/admin/users');
     // other items intentionally non-functional for now
   }
 
@@ -101,26 +185,26 @@ export default function FollowUps() {
     function tryFlush() {
       if (!navigator.onLine) return;
       try {
-        const key = "fu_outbox";
-        const rows = JSON.parse(localStorage.getItem(key) || "[]");
+        const key = 'fu_outbox';
+        const rows = JSON.parse(localStorage.getItem(key) || '[]');
         if (!rows.length) return;
-        Promise.all(rows.map(r => addDoc(collection(db, "followUps"), r)))
+        Promise.all(rows.map((r) => addDoc(collection(db, 'followUps'), r)))
           .then(() => localStorage.removeItem(key))
           .catch(() => {});
       } catch {}
     }
     tryFlush();
-    window.addEventListener("online", tryFlush);
-    return () => window.removeEventListener("online", tryFlush);
+    window.addEventListener('online', tryFlush);
+    return () => window.removeEventListener('online', tryFlush);
   }, []);
-  
+
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState([]);
-  const [qText, setQText] = useState("");
+  const [qText, setQText] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [teamFilter, setTeamFilter] = useState("");
-  const [routeFilter, setRouteFilter] = useState("");
-  const [sortMode, setSortMode] = useState("urgent"); // "urgent" | "recent"
+  const [teamFilter, setTeamFilter] = useState('');
+  const [routeFilter, setRouteFilter] = useState('');
+  const [sortMode, setSortMode] = useState('urgent'); // "urgent" | "recent"
   const [expandedId, setExpandedId] = useState(null);
 
   // delete + undo state
@@ -134,21 +218,23 @@ export default function FollowUps() {
       // Load offline data
       const offlineData = getOfflineFollowUps();
       if (offlineData.length > 0) {
-        setPeople(offlineData.map(item => ({
-          ...item,
-          urgency: typeof item.urgency === "number" ? item.urgency : 0,
-        })));
+        setPeople(
+          offlineData.map((item) => ({
+            ...item,
+            urgency: typeof item.urgency === 'number' ? item.urgency : 0,
+          }))
+        );
       } else {
         setPeople(FALLBACK);
       }
       setLoading(false);
-      return; // No cleanup needed for offline mode
+      return;
     }
 
     // Online mode - load from Firestore
     const qRef = query(
-      collection(db, "followUps"),
-      orderBy("lastActivity", "desc")
+      collection(db, 'followUps'),
+      orderBy('lastActivity', 'desc')
     );
 
     const unsub = onSnapshot(
@@ -161,7 +247,8 @@ export default function FollowUps() {
             id: d.id,
             ...d.data(),
             // ensure urgency exists (0 = least urgent)
-            urgency: typeof d.data().urgency === "number" ? d.data().urgency : 0,
+            urgency:
+              typeof d.data().urgency === 'number' ? d.data().urgency : 0,
             __fromFirestore: true,
           }));
           setPeople(rows);
@@ -185,12 +272,13 @@ export default function FollowUps() {
         (p.block && String(p.block).toLowerCase().includes(t)) ||
         (p.unit && String(p.unit).toLowerCase().includes(t));
       const matchesTeam = !teamFilter || p.team === teamFilter;
-      const matchesRoute = !routeFilter || p.route === routeFilter || p.team === routeFilter;
+      const matchesRoute =
+        !routeFilter || p.route === routeFilter || p.team === routeFilter;
       return matchesText && matchesTeam && matchesRoute;
     });
 
     // Client ask: most urgent → least urgent (default)
-    if (sortMode === "urgent") {
+    if (sortMode === 'urgent') {
       return [...base].sort((a, b) => (b.urgency ?? 0) - (a.urgency ?? 0));
     }
     // recent → older
@@ -212,13 +300,13 @@ export default function FollowUps() {
       try {
         if (item.__fromFirestore) {
           // Delete from Firestore
-          await deleteDoc(doc(db, "followUps", item.id));
+          await deleteDoc(doc(db, 'followUps', item.id));
         } else if (item.isOffline) {
           // Delete from offline storage
           deleteOfflineItem(item.id, 'followup');
         }
       } catch (e) {
-        console.error("Delete failed", e);
+        console.error('Delete failed', e);
       } finally {
         setUndoData(null);
         undoTimerRef.current = null;
@@ -244,10 +332,10 @@ export default function FollowUps() {
     // restore in Firestore if it existed there
     try {
       if (undoData.item.__fromFirestore) {
-        await setDoc(doc(db, "followUps", undoData.item.id), undoData.item);
+        await setDoc(doc(db, 'followUps', undoData.item.id), undoData.item);
       }
     } catch (e) {
-      console.error("Undo restore failed", e);
+      console.error('Undo restore failed', e);
     } finally {
       setUndoData(null);
     }
@@ -268,20 +356,43 @@ export default function FollowUps() {
             aria-label="Open menu"
             onClick={toggleMenu}
           >
-            <img src={menuIcon} alt="Menu" style={{ height: 18, display: "block" }} />
+            <img
+              src={menuIcon}
+              alt="Menu"
+              style={{ height: 18, display: 'block' }}
+            />
           </button>
 
           {menuOpen && (
-            <div className="menu-dropdown" role="menu" aria-orientation="vertical">
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("New Visit")} role="menuitem">
+            <div
+              className="menu-dropdown"
+              role="menu"
+              aria-orientation="vertical"
+            >
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => handleMenuSelect('New Visit')}
+                role="menuitem"
+              >
                 New Visit
               </button>
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Families")} role="menuitem">
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => handleMenuSelect('Families')}
+                role="menuitem"
+              >
                 Families
               </button>
 
-              {role === 'admin' && (
-                <button type="button" className="menu-item" onClick={() => handleMenuSelect("Users")} role="menuitem">
+              {(role === 'super_admin' || role === 'team_admin') && (
+                <button
+                  type="button"
+                  className="menu-item"
+                  onClick={() => handleMenuSelect('Users')}
+                  role="menuitem"
+                >
                   Users
                 </button>
               )}
@@ -291,14 +402,17 @@ export default function FollowUps() {
 
         <button
           className="logo-home"
-          onClick={() => navigate("/")}
+          onClick={() => navigate('/')}
           title="Home"
           aria-label="Go to dashboard"
         >
-          <img src={logoHome} alt="Home" style={{ height: 36, display: "block" }} />
+          <img
+            src={logoHome}
+            alt="Home"
+            style={{ height: 36, display: 'block' }}
+          />
         </button>
-
-       </header>
+      </header>
 
       {showForm && (
         <FollowUpForm
@@ -308,7 +422,15 @@ export default function FollowUps() {
       )}
 
       <main className="content">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '0px 0 20px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            margin: '0px 0 20px',
+          }}
+        >
           <h2 style={{ margin: 0 }}>Follow-ups</h2>
           <button
             className="add-btn"
@@ -332,7 +454,10 @@ export default function FollowUps() {
         </div>
 
         {/* Filters */}
-        <button className="filter-btn" onClick={() => setFiltersOpen((s) => !s)}>
+        <button
+          className="filter-btn"
+          onClick={() => setFiltersOpen((s) => !s)}
+        >
           <IconFilter className="fu-icon fu-muted" />
           <span>Edit filters</span>
         </button>
@@ -372,7 +497,9 @@ export default function FollowUps() {
         {/* List */}
         <section className="cards">
           {loading && <div className="loading">Loading…</div>}
-          {!loading && filtered.length === 0 && <div className="empty">No results</div>}
+          {!loading && filtered.length === 0 && (
+            <div className="empty">No results</div>
+          )}
 
           {filtered.map((p, idxInFiltered) => {
             const open = expandedId === p.id;
@@ -380,7 +507,7 @@ export default function FollowUps() {
             const originalIndex = people.findIndex((x) => x.id === p.id);
 
             return (
-              <article key={p.id} className={`fu-card ${open ? "open" : ""}`}>
+              <article key={p.id} className={`fu-card ${open ? 'open' : ''}`}>
                 {/* Header — click to toggle */}
                 <header
                   className="fu-card-head"
@@ -388,61 +515,125 @@ export default function FollowUps() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault(); toggle(p.id);
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggle(p.id);
                     }
                   }}
                   aria-expanded={open}
                 >
-                  <div className="fu-name">
-                    {p.name ?? "name"}
-                  </div>
+                  <div className="fu-name">{p.name ?? 'name'}</div>
 
                   <button
                     className="fu-more-btn"
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); toggle(p.id); }}
-                    aria-label={open ? "Show less" : "Show more"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggle(p.id);
+                    }}
+                    aria-label={open ? 'Show less' : 'Show more'}
                   >
-                    <span>{open ? "less" : "…more"}</span>
-                    <svg className={`fu-chev ${open ? "rot" : ""}`} viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M8 10l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    <span>{open ? 'less' : '…more'}</span>
+                    <svg
+                      className={`fu-chev ${open ? 'rot' : ''}`}
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M8 10l4 4 4-4"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
                     </svg>
                   </button>
                 </header>
 
                 {open ? (
-                  <div className="fu-card-body" onClick={(e)=>e.stopPropagation()}>
+                  <div
+                    className="fu-card-body"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="fu-meta">
-                      {p.date && <div><span className="label">Date:</span> {p.date}</div>}
-                      {p.team && <div><span className="label">Team name:</span> {p.team}</div>}
-                      {p.block && <div><span className="label">Building/Block:</span> {p.block}</div>}
-                      {p.unit && <div><span className="label">Apt # / House #:</span> {p.unit}</div>}
-                      {p.age && <div><span className="label">Age:</span> {p.age}</div>}
-                      {(p.followUp ?? "") !== "" && <div><span className="label">Follow-up:</span> {p.followUp}</div>}
-                      {(p.involvement ?? "") !== "" && <div><span className="label">Current involvement:</span> {p.involvement}</div>}
-                      <div><span className="label">Notes:</span></div>
-                      <p className="fu-notes">{p.notes ?? "—"}</p>
+                      {p.date && (
+                        <div>
+                          <span className="label">Date:</span> {p.date}
+                        </div>
+                      )}
+                      {p.team && (
+                        <div>
+                          <span className="label">Team name:</span> {p.team}
+                        </div>
+                      )}
+                      {p.block && (
+                        <div>
+                          <span className="label">Building/Block:</span>{' '}
+                          {p.block}
+                        </div>
+                      )}
+                      {p.unit && (
+                        <div>
+                          <span className="label">Apt # / House #:</span>{' '}
+                          {p.unit}
+                        </div>
+                      )}
+                      {p.age && (
+                        <div>
+                          <span className="label">Age:</span> {p.age}
+                        </div>
+                      )}
+                      {(p.followUp ?? '') !== '' && (
+                        <div>
+                          <span className="label">Follow-up:</span> {p.followUp}
+                        </div>
+                      )}
+                      {(p.involvement ?? '') !== '' && (
+                        <div>
+                          <span className="label">Current involvement:</span>{' '}
+                          {p.involvement}
+                        </div>
+                      )}
+                      <div>
+                        <span className="label">Notes:</span>
+                      </div>
+                      <p className="fu-notes">{p.notes ?? '—'}</p>
                     </div>
 
                     <div className="row-actions">
-                      <button className="edit-btn" title="Edit" aria-label={`Edit ${p.name || ''}`}>
-                        <img src={editIcon} alt="Edit" style={{ width: 18, height: 18, display: 'block' }} />
+                      <button
+                        className="edit-btn"
+                        title="Edit"
+                        aria-label={`Edit ${p.name || ''}`}
+                      >
+                        <img
+                          src={editIcon}
+                          alt="Edit"
+                          style={{ width: 18, height: 18, display: 'block' }}
+                        />
                       </button>
                       <button
                         className="del-btn"
                         title="Delete"
                         aria-label={`Delete ${p.name || ''}`}
-                        onClick={() => handleDelete(p, originalIndex >= 0 ? originalIndex : idxInFiltered)}
+                        onClick={() =>
+                          handleDelete(
+                            p,
+                            originalIndex >= 0 ? originalIndex : idxInFiltered
+                          )
+                        }
                       >
-                        <img src={trashIcon} alt="Delete" style={{ width: 18, height: 18, display: 'block' }} />
+                        <img
+                          src={trashIcon}
+                          alt="Delete"
+                          style={{ width: 18, height: 18, display: 'block' }}
+                        />
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="fu-footer">
-                    {p.lastActivity ?? "—"}
-                  </div>
+                  <div className="fu-footer">{p.lastActivity ?? '—'}</div>
                 )}
               </article>
             );
@@ -454,7 +645,9 @@ export default function FollowUps() {
       {undoData && (
         <div className="undo-toast" role="status" aria-live="polite">
           Follow-up deleted.
-          <button className="undo-btn" onClick={handleUndo}>Undo</button>
+          <button className="undo-btn" onClick={handleUndo}>
+            Undo
+          </button>
         </div>
       )}
     </div>

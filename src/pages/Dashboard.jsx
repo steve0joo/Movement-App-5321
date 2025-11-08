@@ -61,14 +61,36 @@ export default function Dashboard() {
               <p>Follow-ups</p>
             </button>
 
-            {role === 'admin' && (
+            {(role === 'super_admin' || role === 'team_admin') && (
               <button
                 className="action-card admin-card"
                 onClick={() => navigate('/admin/users')}
               >
                 <span className="action-icon">👤</span>
                 <h3>Manage Users</h3>
-                <p>Add/remove route leaders</p>
+                <p>Add/manage team users</p>
+              </button>
+            )}
+
+            {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
+              <button
+                className="action-card admin-card"
+                onClick={() => navigate('/access')}
+              >
+                {/* <span className="action-icon">👤</span> */}
+                <h3>Access Codes</h3>
+                <p>Add/manage access codes</p>
+              </button>
+            )}
+
+            {role === 'super_admin' && (
+              <button
+                className="action-card admin-card"
+                onClick={() => navigate('/admin/seed-data')}
+              >
+                <span className="action-icon">🌱</span>
+                <h3>Seed Database</h3>
+                <p>Populate with example data</p>
               </button>
             )}
           </div>

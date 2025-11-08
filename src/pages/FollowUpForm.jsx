@@ -210,7 +210,7 @@ export default function FollowUpForm({ onClose, onSaved }) {
               <button type="button" className="menu-item" onClick={() => handleMenuSelect("Families")} role="menuitem">
                 Families
               </button>
-              {role === "admin" && (
+              {(role === "super_admin" || role === "team_admin") && (
                 <button type="button" className="menu-item" onClick={() => handleMenuSelect("Users")} role="menuitem">
                   Users
                 </button>

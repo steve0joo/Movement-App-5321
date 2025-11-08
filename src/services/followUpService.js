@@ -10,14 +10,9 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  setDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
-  validateName,
-  validateAge,
-  validateTeam,
-  validateBlock,
   validateUnit,
   validateText,
   validateUrgency,
@@ -41,38 +36,19 @@ const FOLLOWUPS_COLLECTION = 'followUps';
  */
 export async function createFollowUp(followUpData, userId) {
   try {
-    // Validate all required fields
+    // Validate all required fields (updated for new data model)
     const validation = batchValidate({
-      name: () => validateName(followUpData.name, {
-        required: true,
-        minLength: 2,
-        maxLength: 100,
-        fieldName: 'Name',
-      }),
-      team: () => validateTeam(followUpData.team, { required: true }),
-      block: () => validateBlock(followUpData.block, { required: true }),
-      unit: () => validateUnit(followUpData.unit, { required: true }),
-      age: () => validateAge(followUpData.age, {
+      buildingId: () => validateUserId(followUpData.buildingId, { required: true }),
+      unitNumber: () => validateUnit(followUpData.unitNumber, { required: true }),
+      teamId: () => validateUserId(followUpData.teamId, { required: true }),
+      routeId: () => validateUserId(followUpData.routeId, { required: true }),
+      description: () => validateText(followUpData.description, {
         required: false,
-        min: 0,
-        max: 150,
+        maxLength: 1000,
+        fieldName: 'Description',
       }),
-      followUp: () => validateText(followUpData.followUp, {
-        required: false,
-        maxLength: 500,
-        fieldName: 'Follow-up',
-      }),
-      involvement: () => validateText(followUpData.involvement, {
-        required: false,
-        maxLength: 500,
-        fieldName: 'Involvement',
-      }),
-      notes: () => validateText(followUpData.notes, {
-        required: false,
-        maxLength: 5000,
-        fieldName: 'Notes',
-      }),
-      urgency: () => validateUrgency(followUpData.urgency),
+      status: () => followUpData.status || 'pending',
+      dueDate: () => validateDate(followUpData.dueDate, { required: false, fieldName: 'Due Date' }),
       userId: () => validateUserId(userId, { required: true }),
     });
 
@@ -84,24 +60,20 @@ export async function createFollowUp(followUpData, userId) {
       );
     }
 
-    // Build sanitized payload
+    // Build sanitized payload (new data model)
     const sanitizedData = {
-      name: validation.data.name,
-      team: validation.data.team,
-      block: validation.data.block,
-      unit: validation.data.unit,
-      age: validation.data.age,
-      followUp: validation.data.followUp || '',
-      involvement: validation.data.involvement || '',
-      notes: validation.data.notes || '',
-      urgency: validation.data.urgency,
-      date: followUpData.date || new Date().toISOString().split('T')[0],
-      lastActivity: new Date().toISOString(),
+      buildingId: validation.data.buildingId,
+      unitNumber: validation.data.unitNumber,
+      teamId: validation.data.teamId,
+      routeId: validation.data.routeId,
+      description: validation.data.description || '',
+      status: validation.data.status || 'pending', // pending, in_progress, completed
+      dueDate: validation.data.dueDate || null,
+      completedAt: null,
       createdBy: validation.data.userId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       isActive: true,
-      isDeleted: false,
     };
 
     // Add to Firestore
@@ -142,58 +114,35 @@ export async function updateFollowUp(followUpId, updates, userId) {
       throw new ValidationError('Invalid follow-up ID', 'followUpId');
     }
 
-    // Build validation object only for fields being updated
+    // Build validation object only for fields being updated (new data model)
     const validators = {
       userId: () => validateUserId(userId, { required: true }),
     };
 
-    if (updates.name !== undefined) {
-      validators.name = () => validateName(updates.name, {
-        required: true,
-        minLength: 2,
-        maxLength: 100,
-        fieldName: 'Name',
-      });
+    if (updates.buildingId !== undefined) {
+      validators.buildingId = () => validateUserId(updates.buildingId, { required: true });
     }
-    if (updates.team !== undefined) {
-      validators.team = () => validateTeam(updates.team, { required: true });
+    if (updates.unitNumber !== undefined) {
+      validators.unitNumber = () => validateUnit(updates.unitNumber, { required: true });
     }
-    if (updates.block !== undefined) {
-      validators.block = () => validateBlock(updates.block, { required: true });
+    if (updates.teamId !== undefined) {
+      validators.teamId = () => validateUserId(updates.teamId, { required: true });
     }
-    if (updates.unit !== undefined) {
-      validators.unit = () => validateUnit(updates.unit, { required: true });
+    if (updates.routeId !== undefined) {
+      validators.routeId = () => validateUserId(updates.routeId, { required: true });
     }
-    if (updates.age !== undefined) {
-      validators.age = () => validateAge(updates.age, {
+    if (updates.description !== undefined) {
+      validators.description = () => validateText(updates.description, {
         required: false,
-        min: 0,
-        max: 150,
+        maxLength: 1000,
+        fieldName: 'Description',
       });
     }
-    if (updates.followUp !== undefined) {
-      validators.followUp = () => validateText(updates.followUp, {
-        required: false,
-        maxLength: 500,
-        fieldName: 'Follow-up',
-      });
+    if (updates.status !== undefined) {
+      validators.status = () => updates.status; // pending, in_progress, completed
     }
-    if (updates.involvement !== undefined) {
-      validators.involvement = () => validateText(updates.involvement, {
-        required: false,
-        maxLength: 500,
-        fieldName: 'Involvement',
-      });
-    }
-    if (updates.notes !== undefined) {
-      validators.notes = () => validateText(updates.notes, {
-        required: false,
-        maxLength: 5000,
-        fieldName: 'Notes',
-      });
-    }
-    if (updates.urgency !== undefined) {
-      validators.urgency = () => validateUrgency(updates.urgency);
+    if (updates.dueDate !== undefined) {
+      validators.dueDate = () => validateDate(updates.dueDate, { required: false, fieldName: 'Due Date' });
     }
 
     const validation = batchValidate(validators);
@@ -209,10 +158,14 @@ export async function updateFollowUp(followUpId, updates, userId) {
     // Build sanitized updates object
     const sanitizedUpdates = {
       ...validation.data,
-      lastActivity: new Date().toISOString(),
       updatedAt: serverTimestamp(),
       updatedBy: userId,
     };
+
+    // Handle completion timestamp
+    if (updates.status === 'completed' && !sanitizedUpdates.completedAt) {
+      sanitizedUpdates.completedAt = serverTimestamp();
+    }
 
     // Remove userId from updates (it's metadata, not a field)
     delete sanitizedUpdates.userId;
@@ -249,8 +202,8 @@ export async function getFollowUp(followUpId) {
 
     if (followUpDoc.exists()) {
       const data = followUpDoc.data();
-      // Don't return deleted items
-      if (data.isDeleted) {
+      // Don't return inactive items
+      if (!data.isActive) {
         return null;
       }
       return { id: followUpDoc.id, ...data };
@@ -274,9 +227,10 @@ export async function getAllFollowUps(options = {}) {
   try {
     const {
       userId = null,
-      team = null,
+      teamId = null,
+      routeId = null,
       includeDeleted = false,
-      orderByField = 'lastActivity',
+      orderByField = 'createdAt',
       orderDirection = 'desc',
       limit = null,
     } = options;
@@ -291,14 +245,20 @@ export async function getAllFollowUps(options = {}) {
     }
 
     // Filter by team
-    if (team) {
-      const validTeam = validateTeam(team, { required: true });
-      constraints.push(where('team', '==', validTeam));
+    if (teamId) {
+      validateUserId(teamId, { required: true });
+      constraints.push(where('teamId', '==', teamId));
     }
 
-    // Filter out deleted items by default
+    // Filter by route
+    if (routeId) {
+      validateUserId(routeId, { required: true });
+      constraints.push(where('routeId', '==', routeId));
+    }
+
+    // Filter to only active items by default
     if (!includeDeleted) {
-      constraints.push(where('isDeleted', '==', false));
+      constraints.push(where('isActive', '==', true));
     }
 
     // Add ordering
@@ -347,7 +307,7 @@ export async function softDeleteFollowUp(followUpId, userId) {
     const followUpRef = doc(db, FOLLOWUPS_COLLECTION, followUpId);
 
     await updateDoc(followUpRef, {
-      isDeleted: true,
+      isActive: false,
       deletedAt: serverTimestamp(),
       deletedBy: userId,
       updatedAt: serverTimestamp(),
@@ -402,7 +362,7 @@ export async function restoreFollowUp(followUpId, userId) {
     const followUpRef = doc(db, FOLLOWUPS_COLLECTION, followUpId);
 
     await updateDoc(followUpRef, {
-      isDeleted: false,
+      isActive: true,
       restoredAt: serverTimestamp(),
       restoredBy: userId,
       updatedAt: serverTimestamp(),
@@ -416,7 +376,7 @@ export async function restoreFollowUp(followUpId, userId) {
 }
 
 /**
- * Search follow-ups by name, block, or unit
+ * Search follow-ups by building, unit, or description
  * Works offline - searches cached data if available
  *
  * @param {string} searchTerm - Term to search for
@@ -440,18 +400,14 @@ export async function searchFollowUps(searchTerm, options = {}) {
 
     // Client-side filtering (Firestore doesn't support full-text search)
     return followUps.filter((followUp) => {
-      const name = (followUp.name || '').toLowerCase();
-      const block = (followUp.block || '').toLowerCase();
-      const unit = (followUp.unit || '').toLowerCase();
-      const team = (followUp.team || '').toLowerCase();
-      const notes = (followUp.notes || '').toLowerCase();
+      const buildingId = (followUp.buildingId || '').toLowerCase();
+      const unitNumber = (followUp.unitNumber || '').toLowerCase();
+      const description = (followUp.description || '').toLowerCase();
 
       return (
-        name.includes(sanitizedTerm) ||
-        block.includes(sanitizedTerm) ||
-        unit.includes(sanitizedTerm) ||
-        team.includes(sanitizedTerm) ||
-        notes.includes(sanitizedTerm)
+        buildingId.includes(sanitizedTerm) ||
+        unitNumber.includes(sanitizedTerm) ||
+        description.includes(sanitizedTerm)
       );
     });
   } catch (error) {

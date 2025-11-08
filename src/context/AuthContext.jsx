@@ -25,15 +25,19 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [role, setRole] = useState(null);
+  const [teamId, setTeamId] = useState(null);
+  const [routeId, setRouteId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Sign up
-  // Role: 'volunteer' | 'leader' | 'admin'
+  // Role: 'volunteer' | 'route_leader' | 'team_admin' | 'super_admin'
   async function signup(
     email,
     password,
     userRole = 'volunteer',
-    displayName = null
+    displayName = null,
+    teamId = null,
+    routeId = null
   ) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     // Create user profile in Firestore using userService
@@ -41,6 +45,8 @@ export function AuthProvider({ children }) {
       email,
       role: userRole,
       displayName,
+      teamId,
+      routeId,
     });
     return cred;
   }
@@ -110,13 +116,42 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        // Get user profile from Firestore using userService
-        const userProfile = await getUserProfile(user.uid);
-        // Set role: 'volunteer' | 'leader' | 'admin'
-        setRole(userProfile?.role || null);
+        try {
+          // Get user profile from Firestore using userService
+          const userProfile = await getUserProfile(user.uid);
+
+          // Check if profile exists
+          if (!userProfile) {
+            // Auth account exists but no Firestore profile
+            // This can happen if:
+            // 1. User was deleted from Firestore but Auth account remains
+            // 2. Profile creation failed during signup
+            console.warn('User authenticated but no Firestore profile found. Logging out.');
+            await signOut(auth);
+            setRole(null);
+            setTeamId(null);
+            setRouteId(null);
+            setCurrentUser(null);
+          } else {
+            // Set role: 'volunteer' | 'route_leader' | 'team_admin' | 'super_admin'
+            setRole(userProfile.role || null);
+            setTeamId(userProfile.teamId || null);
+            setRouteId(userProfile.routeId || null);
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          // On error, sign out to be safe
+          await signOut(auth);
+          setRole(null);
+          setTeamId(null);
+          setRouteId(null);
+          setCurrentUser(null);
+        }
       } else {
         // No user signed in
         setRole(null);
+        setTeamId(null);
+        setRouteId(null);
       }
       setLoading(false);
     });
@@ -141,6 +176,8 @@ export function AuthProvider({ children }) {
   const value = {
     currentUser,
     role,
+    teamId,
+    routeId,
     signup,
     login,
     logout,

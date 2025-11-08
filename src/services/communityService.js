@@ -1,0 +1,157 @@
+/**
+ * Community Service
+ * Handles CRUD operations for communities (neighborhoods, apartment complexes, etc.)
+ */
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { db } from './firebase.js';
+
+const COMMUNITIES_COLLECTION = 'communities';
+
+/**
+ * Create a new community
+ * @param {string} communityName - Community name
+ * @param {string} teamId - Team ID this community belongs to
+ * @param {string} createdBy - User ID of creator
+ * @returns {Promise<Object>} Created community with ID
+ */
+export async function createCommunity(communityName, teamId, createdBy) {
+  try {
+    const communityRef = await addDoc(collection(db, COMMUNITIES_COLLECTION), {
+      name: communityName,
+      teamId,
+      createdBy,
+      createdAt: serverTimestamp(),
+      isActive: true,
+    });
+
+    return {
+      id: communityRef.id,
+      name: communityName,
+      teamId,
+    };
+  } catch (error) {
+    console.error('Error creating community:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get a single community by ID
+ * @param {string} communityId - Community ID
+ * @returns {Promise<Object|null>} Community data or null if not found
+ */
+export async function getCommunity(communityId) {
+  try {
+    const communityRef = doc(db, COMMUNITIES_COLLECTION, communityId);
+    const communitySnap = await getDoc(communityRef);
+
+    if (communitySnap.exists()) {
+      return {
+        id: communitySnap.id,
+        ...communitySnap.data(),
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting community:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all communities for a specific team
+ * @param {string} teamId - Team ID
+ * @returns {Promise<Array>} Array of communities in the team
+ */
+export async function getCommunitiesByTeam(teamId) {
+  try {
+    const communitiesQuery = query(
+      collection(db, COMMUNITIES_COLLECTION),
+      where('teamId', '==', teamId),
+      where('isActive', '==', true),
+      orderBy('name')
+    );
+    const snapshot = await getDocs(communitiesQuery);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error('Error getting communities by team:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all communities (for super admins)
+ * @returns {Promise<Array>} Array of all communities
+ */
+export async function getAllCommunities() {
+  try {
+    const communitiesQuery = query(
+      collection(db, COMMUNITIES_COLLECTION),
+      where('isActive', '==', true),
+      orderBy('name')
+    );
+    const snapshot = await getDocs(communitiesQuery);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error('Error getting all communities:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update community information
+ * @param {string} communityId - Community ID
+ * @param {Object} updates - Fields to update
+ * @returns {Promise<void>}
+ */
+export async function updateCommunity(communityId, updates) {
+  try {
+    const communityRef = doc(db, COMMUNITIES_COLLECTION, communityId);
+    await updateDoc(communityRef, {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error updating community:', error);
+    throw error;
+  }
+}
+
+/**
+ * Soft delete a community (set isActive to false)
+ * @param {string} communityId - Community ID
+ * @returns {Promise<void>}
+ */
+export async function deleteCommunity(communityId) {
+  try {
+    const communityRef = doc(db, COMMUNITIES_COLLECTION, communityId);
+    await updateDoc(communityRef, {
+      isActive: false,
+      deletedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error deleting community:', error);
+    throw error;
+  }
+}

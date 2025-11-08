@@ -20,9 +20,21 @@ export default function AdminUserPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  // Check if user is admin
+  const IconPlus = (p) => (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...p}>
+      <path
+        d="M12 5v14M5 12h14"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  );
+
+  // Check if user is admin (super_admin or team_admin)
   useEffect(() => {
-    if (role && role !== 'admin') {
+    if (role && role !== 'super_admin' && role !== 'team_admin') {
       navigate('/');
     }
   }, [role, navigate]);
@@ -84,8 +96,8 @@ export default function AdminUserPage() {
     return routeLeaders.filter((l) => {
       const name = (l.displayName || '').toLowerCase();
       const email = (l.email || '').toLowerCase();
-      const site = (l.siteId || l.siteName || '').toLowerCase(); // support siteId or siteName if available
-      return name.includes(q) || email.includes(q) || site.includes(q);
+      const team = (l.teamId || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || team.includes(q);
     });
   }, [routeLeaders, searchTerm]);
 
@@ -167,7 +179,7 @@ export default function AdminUserPage() {
 
         <div className="admin-info">
           <span className="admin-badge">Admin</span>
-          <span>{currentUser?.email}</span>
+          {/* <span>{currentUser?.email}</span> */}
         </div>
       </header>
 
@@ -185,7 +197,7 @@ export default function AdminUserPage() {
               className="btn-primary"
               onClick={() => navigate('/admin/add-leader')}
             >
-              Add Route Leader
+              <IconPlus className="fu-icon" />
             </button>
           </div>
         </div>
@@ -193,11 +205,11 @@ export default function AdminUserPage() {
         <form className="search-row" onSubmit={handleSearchSubmit} style={{ marginBottom: 16 }}>
           <input
             type="search"
-            placeholder="Search by name, email, or site"
+            placeholder="Search by name, email, or team"
             value={searchTerm}
             onChange={onSearchChange}
             className="search-input"
-            aria-label="Search route leaders by name, email, or site"
+            aria-label="Search route leaders by name, email, or team"
           />
           <button type="submit" className="search-button" aria-label="Search">
             <img src={searchIcon} alt="Search" style={{ width: 18, height: 18, display: 'block' }} />
@@ -215,7 +227,8 @@ export default function AdminUserPage() {
                 <tr>
                   <th>Email</th>
                   <th>Display Name</th>
-                  <th>Site</th>
+                  <th>Team ID</th>
+                  <th>Route ID</th>
                   <th>Created</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -226,7 +239,8 @@ export default function AdminUserPage() {
                   <tr key={leader.id}>
                     <td>{leader.email}</td>
                     <td>{leader.displayName || '—'}</td>
-                    <td>{leader.siteId || '—'}</td>
+                    <td>{leader.teamId || '—'}</td>
+                    <td>{leader.routeId || '—'}</td>
                     <td>
                       {leader.createdAt
                         ? new Date(

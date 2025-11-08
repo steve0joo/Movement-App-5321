@@ -3,8 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSync } from "../context/SyncContext";
 import { enableOfflineMode, setOfflineUser } from "../utils/offlineStorage";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { auth, db } from "../services/firebase";
 import "./Login.css";
-
 
 export default function Login() {
   // views: "welcome" | "login" | "signup" | "code"
@@ -24,19 +29,17 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // access code (6 boxes)
+  // 6-box access code UI (we’ll join to a string before auth)
   const [code, setCode] = useState(Array(6).fill(""));
   const codeRefs = useRef([...Array(6)].map(() => ({ current: null })));
 
   const offlineMode = !isOnline;
-
   useEffect(() => setError(""), [view]);
 
-  /* ---------------- Email login / signup ---------------- */
+  /* ---------------- Email login ---------------- */
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     setError("");
-
     try {
       setLoading(true);
       await login(email, password);
@@ -55,10 +58,10 @@ export default function Login() {
     }
   };
 
+  /* ---------------- Email signup (volunteer) ---------------- */
   const handleSignup = async (e) => {
     e.preventDefault();
     setError("");
-
     if (password !== confirm) return setError("Passwords do not match");
     if (password.length < 6) return setError("Password must be at least 6 characters");
     if (offlineMode) return setError("You must be online to create an account");
@@ -75,6 +78,79 @@ export default function Login() {
     }
   };
 
+  /* ---------------- Access code logic (teammate’s) ---------------- */
+  // We trigger this from your “code” view by joining the 6 inputs.
+  const handleAccessCodeLogin = async (joinedCode) => {
+    const accessCode = (joinedCode || "").trim();
+    if (!accessCode) {
+      setError("Enter the 6-digit code.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      // 1) Validate access code document (users/{accessCode})
+      const accessCodeRef = doc(db, "users", accessCode);
+      let snap;
+      try {
+        snap = await getDoc(accessCodeRef);
+      } catch {
+        throw new Error("Access code does not exist. Please check your code and try again.");
+      }
+      if (!snap.exists()) {
+        throw new Error("Access code does not exist. Please check your code and try again.");
+      }
+
+      const userData = snap.data();
+      if (!userData.isAccessCodeUser || !userData.isActive || userData.role !== "volunteer") {
+        throw new Error("Invalid or inactive access code. Please contact your administrator.");
+      }
+
+      // 2) Create or sign into a temp Firebase Auth account for this volunteer
+      const tempEmail = `volunteer_${accessCode}@temp.movement.app`;
+      const tempPassword = `volunteer${accessCode}123`;
+      let firebaseUser;
+
+      try {
+        const cred = await signInWithEmailAndPassword(auth, tempEmail, tempPassword);
+        firebaseUser = cred.user;
+      } catch (signInErr) {
+        if (signInErr.code === "auth/user-not-found" || signInErr.code === "auth/invalid-credential") {
+          const cred = await createUserWithEmailAndPassword(auth, tempEmail, tempPassword);
+          firebaseUser = cred.user;
+        } else {
+          throw new Error("Wrong access code. Please check your code and try again.");
+        }
+      }
+
+      // 3) Ensure app profile exists (so the rest of the app recognizes the user)
+      const profile = {
+        email: tempEmail,
+        role: "volunteer",
+        displayName: `Volunteer ${accessCode}`,
+        isActive: true,
+        accessCode,
+        isAccessCodeUser: true,
+        teamId: userData.teamId || "",
+        createdAt: userData.createdAt || new Date(),
+        updatedAt: new Date(),
+      };
+      await setDoc(doc(db, "users", firebaseUser.uid), profile);
+      navigate("/");
+    } catch (err) {
+      console.error("Access code login error:", err);
+      if (String(err?.message).includes("Missing or insufficient permissions")) {
+        setError("Access code does not exist. Please check your code and try again.");
+      } else {
+        setError(err?.message || "Access code login failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /* ---------------- Access code inputs ---------------- */
   const handleCodeChange = (idx, val) => {
     if (!/^\d?$/.test(val)) return;
@@ -83,15 +159,11 @@ export default function Login() {
     setCode(next);
     if (val && idx < 5) codeRefs.current[idx + 1].focus();
   };
-
   const handleCodeKeyDown = (idx, e) => {
-    if (e.key === "Backspace" && !code[idx] && idx > 0) {
-      codeRefs.current[idx - 1].focus();
-    }
+    if (e.key === "Backspace" && !code[idx] && idx > 0) codeRefs.current[idx - 1].focus();
     if (e.key === "ArrowLeft" && idx > 0) codeRefs.current[idx - 1].focus();
     if (e.key === "ArrowRight" && idx < 5) codeRefs.current[idx + 1].focus();
   };
-
   const handleCodePaste = (e) => {
     const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     if (!text) return;
@@ -100,13 +172,11 @@ export default function Login() {
     setCode(next);
     codeRefs.current[Math.min(text.length, 5)].focus();
   };
-
   const submitAccessCode = (e) => {
     e.preventDefault();
     const joined = code.join("");
     if (joined.length !== 6) return setError("Enter the 6-digit code.");
-    // TODO: verify access code with backend
-    navigate("/");
+    return handleAccessCodeLogin(joined);
   };
 
   /* ---------------- Offline flow ---------------- */
@@ -142,12 +212,7 @@ export default function Login() {
       {view === "welcome" && (
         <div className="auth-card welcome-card">
           <div className="logo-stack">
-            {/* Uses public/images/image-2.png */}
-            <img
-              src="/images/image-2.png"
-              alt="Movement logo"
-              className="logo-img"
-            />
+            <img src="/images/image-2.png" alt="Movement logo" className="logo-img" />
             <div className="app-name">THE MOVEMENT APP</div>
           </div>
 
@@ -171,7 +236,6 @@ export default function Login() {
             <div className="app-name-sm">THE MOVEMENT APP</div>
           </div>
 
-          {/* Offline indicator */}
           {offlineMode && (
             <div className="offline-notice">
               ❌ You are offline. Login may work if you have logged in before, or you can continue in offline mode to record data locally.
@@ -201,11 +265,7 @@ export default function Login() {
               required
             />
 
-            <button
-              type="submit"
-              className="btn-pill btn-primary-mint"
-              disabled={loading}
-            >
+            <button type="submit" className="btn-pill btn-primary-mint" disabled={loading}>
               {loading ? "Logging in..." : "Log in"}
             </button>
 
@@ -247,22 +307,15 @@ export default function Login() {
                 style={{ width: "18px", height: "18px" }}
               />
               &nbsp; Continue with Google
-
             </button>
 
             {offlineMode && (
               <div className="offline-mode-section">
                 <div className="divider"><span>OR</span></div>
-                <button
-                  type="button"
-                  className="btn-offline"
-                  onClick={handleContinueOffline}
-                >
+                <button type="button" className="btn-offline" onClick={handleContinueOffline}>
                   📱 Continue Offline
                 </button>
-                <p className="offline-hint">
-                  Record data locally. Sync to database when you're back online.
-                </p>
+                <p className="offline-hint">Record data locally. Sync to database when you're back online.</p>
               </div>
             )}
           </form>
@@ -272,16 +325,13 @@ export default function Login() {
       {/* ---------------- SIGNUP ---------------- */}
       {view === "signup" && (
         <div className="auth-card form-card">
-          {/* Small header with logo */}
           <div className="form-header">
             <img src="/images/image-2.png" alt="Movement logo" className="logo-img-sm" />
             <div className="app-name-sm">THE MOVEMENT APP</div>
           </div>
 
           {offlineMode && (
-            <div className="offline-notice">
-              ❌ You are offline. Sign up requires internet connection.
-            </div>
+            <div className="offline-notice">❌ You are offline. Sign up requires internet connection.</div>
           )}
 
           <form onSubmit={handleSignup} className="form">
@@ -317,11 +367,7 @@ export default function Login() {
               required
             />
 
-            <button
-              type="submit"
-              className="btn-pill btn-primary-mint"
-              disabled={loading || offlineMode}
-            >
+            <button type="submit" className="btn-pill btn-primary-mint" disabled={loading || offlineMode}>
               {loading ? "Signing up..." : "Sign Up!"}
             </button>
 
@@ -337,7 +383,7 @@ export default function Login() {
         </div>
       )}
 
-      {/* ---------------- ACCESS CODE ---------------- */}
+      {/* ---------------- ACCESS CODE (uses teammate logic) ---------------- */}
       {view === "code" && (
         <div className="auth-card code-card">
           <form onSubmit={submitAccessCode} onPaste={handleCodePaste}>
@@ -359,7 +405,9 @@ export default function Login() {
               ))}
             </div>
 
-            <button className="btn-pill btn-primary-mint big">enter</button>
+            <button className="btn-pill btn-primary-mint big" disabled={loading}>
+              {loading ? "Verifying..." : "enter"}
+            </button>
             {error && <div className="error mt">{error}</div>}
           </form>
         </div>
@@ -367,4 +415,3 @@ export default function Login() {
     </div>
   );
 }
-
