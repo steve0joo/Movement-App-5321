@@ -4,6 +4,7 @@ import { SyncProvider } from './context/SyncContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import SyncPrompt from './components/SyncPrompt';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import AdminUserPage from './pages/AdminUserPage';
 import AddLeaderPage from './pages/AddLeaderPage';
@@ -21,6 +22,7 @@ function App() {
           <SyncPrompt />
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/"
               element={
