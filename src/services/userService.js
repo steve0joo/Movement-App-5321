@@ -10,39 +10,40 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 
 const USERS_COLLECTION = 'users';
 
 /**
- * Create or update user profile in Firestore
- * Called after Firebase Auth signup
- *
+ * Create or update user profile in Firestore.
+ * IMPORTANT: email is taken from auth.currentUser to satisfy rules:
+ * request.resource.data.email == request.auth.token.email
  * Role hierarchy:
  * 'volunteer': Basic access, manages data within assigned team
  * 'route_leader': Route leader, manages routes and volunteers within assigned team
  * 'team_admin': Team administrator, manages team data and users (cannot access other teams)
  * 'super_admin': Super administrator, full system access across all teams
  */
-export async function createUserProfile(userId, userData) {
+export async function createUserProfile(userId, userData = {}) {
   try {
     const userRef = doc(db, USERS_COLLECTION, userId);
     const profile = {
-      email: userData.email,
-      role: userData.role || 'volunteer', // 'volunteer' | 'route_leader' | 'team_admin' | 'super_admin'
-      teamId: userData.teamId || null, // Required for all users except for super_admin
-      displayName: userData.displayName || null,
+      // Ensure rule match
+      email: auth.currentUser?.email ?? null,
+
+      // Provided fields (with sensible defaults)
+      role: userData.role || 'volunteer',
+      teamId: userData.teamId ?? null,
+      routeId: userData.routeId ?? null,
+      displayName: userData.displayName ?? null,
+      isActive: true,
+
+      // Timestamps
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      isActive: true,
     };
 
-    // Add routeId only for route_leader role
-    if (userData.role === 'route_leader' && userData.routeId) {
-      profile.routeId = userData.routeId;
-    }
-
-    await setDoc(userRef, profile);
+    await setDoc(userRef, profile, { merge: true });
     return { success: true };
   } catch (error) {
     console.error('Error creating user profile:', error);
@@ -50,9 +51,6 @@ export async function createUserProfile(userId, userData) {
   }
 }
 
-/**
- * Get user profile by ID
- */
 export async function getUserProfile(userId) {
   try {
     const userDoc = await getDoc(doc(db, USERS_COLLECTION, userId));
@@ -66,75 +64,43 @@ export async function getUserProfile(userId) {
   }
 }
 
-/**
- * Get all route leaders (admin function)
- * Returns all users with their roles
- */
 export async function getAllUsers() {
   try {
     const usersRef = collection(db, USERS_COLLECTION);
     const querySnapshot = await getDocs(usersRef);
-
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    return querySnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (error) {
     console.error('Error getting all users:', error);
     throw error;
   }
 }
 
-/**
- * Get users by role
- */
 export async function getUsersByRole(role) {
   try {
     const usersRef = collection(db, USERS_COLLECTION);
     const q = query(usersRef, where('role', '==', role));
     const querySnapshot = await getDocs(q);
-
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    return querySnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (error) {
     console.error('Error getting users by role:', error);
     throw error;
   }
 }
 
-/**
- * Delete user (admin function)
- * Deletes both Firebase Auth account & Firestore profile via Cloud Function
- *
- * NOTE: Requires Cloud Function deployed at functions/index.js
- * If Cloud Function not available, falls back to Firestore-only deletion
- */
 export async function deleteUserProfile(userId) {
   try {
-    // Try to use Cloud Function (deletes both Auth and Firestore)
     try {
       const functions = getFunctions();
       const deleteUserFunc = httpsCallable(functions, 'deleteUser');
       const result = await deleteUserFunc({ userId });
-
-      if (result.data.success) {
-        console.log('User deleted via Cloud Function:', result.data);
-        return { success: true, method: 'cloud-function' };
-      }
+      if (result.data.success) return { success: true, method: 'cloud-function' };
     } catch (cloudError) {
       console.warn('Cloud Function not available, falling back to Firestore-only deletion:', cloudError.message);
-
-      // Fallback: Delete only Firestore profile
-      // NOTE: This leaves the Firebase Auth account active
-      const userRef = doc(db, USERS_COLLECTION, userId);
-      await deleteDoc(userRef);
-
+      await deleteDoc(doc(db, USERS_COLLECTION, userId));
       return {
         success: true,
         method: 'firestore-only',
-        warning: 'Firebase Auth account not deleted. User can still login but will have no profile.'
+        warning: 'Firebase Auth account not deleted. User can still login but will have no profile.',
       };
     }
   } catch (error) {
@@ -143,20 +109,10 @@ export async function deleteUserProfile(userId) {
   }
 }
 
-/**
- * Update user profile (admin function)
- */
 export async function updateUserProfile(userId, updates) {
   try {
     const userRef = doc(db, USERS_COLLECTION, userId);
-    await setDoc(
-      userRef,
-      {
-        ...updates,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    await setDoc(userRef, { ...updates, updatedAt: serverTimestamp() }, { merge: true });
     return { success: true };
   } catch (error) {
     console.error('Error updating user profile:', error);
@@ -164,115 +120,66 @@ export async function updateUserProfile(userId, updates) {
   }
 }
 
-/**
- * Check if user is an admin (super_admin or team_admin)
- */
 export async function isUserAdmin(userId) {
   try {
-    const userProfile = await getUserProfile(userId);
-    return (
-      userProfile?.role === 'super_admin' || userProfile?.role === 'team_admin'
-    );
-  } catch (error) {
-    console.error('Error checking admin status:', error);
+    const u = await getUserProfile(userId);
+    return u?.role === 'super_admin' || u?.role === 'team_admin';
+  } catch (e) {
+    console.error('Error checking admin status:', e);
     return false;
   }
 }
 
-/**
- * Check if user is a super admin
- */
 export async function isUserSuperAdmin(userId) {
   try {
-    const userProfile = await getUserProfile(userId);
-    return userProfile?.role === 'super_admin';
-  } catch (error) {
-    console.error('Error checking super admin status:', error);
+    const u = await getUserProfile(userId);
+    return u?.role === 'super_admin';
+  } catch (e) {
+    console.error('Error checking super admin status:', e);
     return false;
   }
 }
 
-/**
- * Check if user is a team admin
- */
 export async function isUserTeamAdmin(userId) {
   try {
-    const userProfile = await getUserProfile(userId);
-    return userProfile?.role === 'team_admin';
-  } catch (error) {
-    console.error('Error checking team admin status:', error);
+    const u = await getUserProfile(userId);
+    return u?.role === 'team_admin';
+  } catch (e) {
+    console.error('Error checking team admin status:', e);
     return false;
   }
 }
 
-/**
- * Check if user is route leader or admin
- */
 export async function isUserLeaderOrAdmin(userId) {
   try {
-    const userProfile = await getUserProfile(userId);
-    return (
-      userProfile?.role === 'route_leader' ||
-      userProfile?.role === 'team_admin' ||
-      userProfile?.role === 'super_admin'
-    );
-  } catch (error) {
-    console.error('Error checking leader status:', error);
+    const u = await getUserProfile(userId);
+    return u?.role === 'route_leader' || u?.role === 'team_admin' || u?.role === 'super_admin';
+  } catch (e) {
+    console.error('Error checking leader status:', e);
     return false;
   }
 }
 
-/**
- * Get all volunteers (for route leaders to manage)
- */
 export async function getAllVolunteers() {
-  try {
-    return await getUsersByRole('volunteer');
-  } catch (error) {
-    console.error('Error getting volunteers:', error);
-    throw error;
-  }
+  return getUsersByRole('volunteer');
 }
 
-/**
- * Get all route leaders (for admins to manage)
- */
 export async function getAllRouteLeaders() {
-  try {
-    return await getUsersByRole('route_leader');
-  } catch (error) {
-    console.error('Error getting route leaders:', error);
-    throw error;
-  }
+  return getUsersByRole('route_leader');
 }
 
-/**
- * Get users by team ID
- */
 export async function getUsersByTeam(teamId) {
   try {
     const usersRef = collection(db, USERS_COLLECTION);
     const q = query(usersRef, where('teamId', '==', teamId));
     const querySnapshot = await getDocs(q);
-
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    return querySnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (error) {
     console.error('Error getting users by team:', error);
     throw error;
   }
 }
 
-/**
- * Get all team admins (for super admins to manage)
- */
 export async function getAllTeamAdmins() {
-  try {
-    return await getUsersByRole('team_admin');
-  } catch (error) {
-    console.error('Error getting team admins:', error);
-    throw error;
-  }
+  return getUsersByRole('team_admin');
 }

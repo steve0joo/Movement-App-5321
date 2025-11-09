@@ -156,14 +156,14 @@ input:-webkit-autofill {
   align-items: center;
   text-align: center;
   margin: 12px 0;
-  color: #9ca3af;
+  color: #293a37;
   font-size: 0.85rem;
 }
 .divider::before,
 .divider::after {
   content: "";
   flex: 1;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 2px solid #c7d8d2; /* darker & thicker */
 }
 .divider span { padding: 0 0.75rem; font-weight: 500; }
 
@@ -238,26 +238,40 @@ input:-webkit-autofill {
 .code-card { max-width: 380px; width: 100%; }
 .code-label { display: block; margin-bottom: 14px; font-weight: 700; color: #2f4442; padding-left: 2px; }
 .code-boxes {
-  display: grid;
-  grid-template-columns: repeat(6, 48px);
-  gap: 10px;
-  justify-content: start;
-  margin-bottom: 28px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+  margin-bottom: 20px;
 }
 .code-input {
-  width: 48px; height: 48px;
-  border-radius: 10px;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
   border: 1px solid #d7e4de;
   background: #ffffff;
   text-align: center;
-  font-size: 20px;
-  color: #2b3b3a; /* visible digits */
+  font-size: 24px;
+  line-height: 64px;
+  color: #2b3b3a;
   outline: none;
   transition: border-color .2s, box-shadow .2s;
 }
 .code-input:focus {
   border-color: #4d8482;
   box-shadow: 0 0 0 3px rgba(77,132,130,.15);
+}
+
+.code-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.btn-pill.code-submit {
+  min-width: 160px;
+  padding: 14px 28px;
+  box-shadow: 0 10px 22px rgba(74, 143, 140, 0.25);
 }
 
 .vendor-icon {
@@ -274,6 +288,23 @@ input:-webkit-autofill {
   font-size: 12px;
   margin-top: -2px;
   padding-left: 2px;
+}
+
+.sheet-title { font-weight: 700; color: #2f4442; }
+.muted { color: #61706f; opacity: .9; }
+.link[disabled] { opacity: .5; pointer-events: none; }
+
+.code-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.code-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2b3b3a;
+  text-align: center;
 }
 
 /* Small screens */
