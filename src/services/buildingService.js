@@ -227,22 +227,57 @@ export async function deleteBuilding(buildingId) {
  * @param {string} buildingId - Building ID
  * @param {Object} visitData - Visit information
  * @param {string} visitData.unitNumber - Unit number/name
- * @param {string} visitData.notes - Visit notes
+ * @param {string} visitData.routeLeaderId - Route leader user ID (optional)
+ * @param {Array<Object>} visitData.people - Array of people met during visit
+ * @param {string} visitData.people[].name - Person's name (required)
+ * @param {number} visitData.people[].age - Person's age (optional)
+ * @param {string} visitData.people[].phone - Person's phone (optional)
+ * @param {string} visitData.people[].followUp - Follow-up notes for this person (optional)
+ * @param {string} visitData.people[].involvement - Current involvement level (optional)
+ * @param {string} visitData.notes - General visit notes
  * @param {Array<string>} visitData.photoUrls - Photo URLs (optional)
  * @param {string} createdBy - User ID of creator
  * @returns {Promise<Object>} Created visit with ID
  */
 export async function createVisit(buildingId, visitData, createdBy) {
   try {
-    const visitsRef = collection(db, BUILDINGS_COLLECTION, buildingId, VISITS_SUBCOLLECTION);
+    // Validate that at least one person is provided
+    if (!visitData.people || visitData.people.length === 0) {
+      throw new Error('At least one person is required for a visit');
+    }
+
+    // Validate that each person has a name
+    const invalidPeople = visitData.people.filter(
+      (person) => !person.name || person.name.trim() === ''
+    );
+    if (invalidPeople.length > 0) {
+      throw new Error('Each person must have a name');
+    }
+
+    const visitsRef = collection(
+      db,
+      BUILDINGS_COLLECTION,
+      buildingId,
+      VISITS_SUBCOLLECTION
+    );
 
     const visitRef = await addDoc(visitsRef, {
+      buildingId, // Store parent building reference
       unitNumber: visitData.unitNumber,
+      routeLeaderId: visitData.routeLeaderId || null,
+      people: visitData.people.map((person) => ({
+        name: person.name.trim(),
+        age: person.age ? Number(person.age) : null,
+        phone: person.phone ? person.phone.trim() : '',
+        followUp: person.followUp ? person.followUp.trim() : '',
+        involvement: person.involvement ? person.involvement.trim() : '',
+      })),
       notes: visitData.notes || '',
       photoUrls: visitData.photoUrls || [],
       visitDate: visitData.visitDate || serverTimestamp(),
       createdBy,
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
 
     // Update building's lastVisitDate and visitCount
@@ -324,7 +359,13 @@ export async function getVisitsByUnit(buildingId, unitNumber) {
  */
 export async function getVisit(buildingId, visitId) {
   try {
-    const visitRef = doc(db, BUILDINGS_COLLECTION, buildingId, VISITS_SUBCOLLECTION, visitId);
+    const visitRef = doc(
+      db,
+      BUILDINGS_COLLECTION,
+      buildingId,
+      VISITS_SUBCOLLECTION,
+      visitId
+    );
     const visitSnap = await getDoc(visitRef);
 
     if (visitSnap.exists()) {
@@ -350,7 +391,13 @@ export async function getVisit(buildingId, visitId) {
  */
 export async function updateVisit(buildingId, visitId, updates) {
   try {
-    const visitRef = doc(db, BUILDINGS_COLLECTION, buildingId, VISITS_SUBCOLLECTION, visitId);
+    const visitRef = doc(
+      db,
+      BUILDINGS_COLLECTION,
+      buildingId,
+      VISITS_SUBCOLLECTION,
+      visitId
+    );
     await updateDoc(visitRef, {
       ...updates,
       updatedAt: serverTimestamp(),
@@ -369,7 +416,13 @@ export async function updateVisit(buildingId, visitId, updates) {
  */
 export async function deleteVisit(buildingId, visitId) {
   try {
-    const visitRef = doc(db, BUILDINGS_COLLECTION, buildingId, VISITS_SUBCOLLECTION, visitId);
+    const visitRef = doc(
+      db,
+      BUILDINGS_COLLECTION,
+      buildingId,
+      VISITS_SUBCOLLECTION,
+      visitId
+    );
     await deleteDoc(visitRef);
 
     // Decrement building's visitCount
@@ -382,6 +435,101 @@ export async function deleteVisit(buildingId, visitId) {
     });
   } catch (error) {
     console.error('Error deleting visit:', error);
+    throw error;
+  }
+}
+
+// Helper Functions for Visit People
+
+/**
+ * Extract the people from past visits at a specific unit
+ * Merge information from multiple visits for the same person (matching by name)
+ * @param {string} buildingId
+ * @param {string} unitNumber
+ * @returns {Promise<Array<Object>>} Array of the people with merged data
+ */
+export async function getPastPeopleAtUnit(buildingId, unitNumber) {
+  try {
+    const visits = await getVisitsByUnit(buildingId, unitNumber);
+
+    // Extract all people from all visits
+    const allPeople = visits.flatMap((visit) => visit.people || []);
+
+    // Group people by name (not case-sensitive)
+    const peopleMap = {};
+
+    allPeople.forEach((person) => {
+      const normalizedName = person.name.toLowerCase().trim();
+
+      if (!peopleMap[normalizedName]) {
+        // First occurrence of this person
+        peopleMap[normalizedName] = {
+          name: person.name, // Keep original casing
+          age: person.age || null,
+          phone: person.phone || '',
+          followUp: person.followUp || '',
+          involvement: person.involvement || '',
+          visitCount: 1,
+        };
+      } else {
+        // If person already exists, merge data (prefer non-empty values)
+        const existing = peopleMap[normalizedName];
+        existing.age = existing.age || person.age || null;
+        existing.phone = existing.phone || person.phone || '';
+        existing.followUp = existing.followUp || person.followUp || '';
+        existing.involvement = existing.involvement || person.involvement || '';
+        existing.visitCount += 1;
+      }
+    });
+
+    // Convert the map to array and sort by visit count (most frequent first)
+    return Object.values(peopleMap).sort((a, b) => b.visitCount - a.visitCount);
+  } catch (error) {
+    console.error('Error getting past people at unit:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all people across all visits in a building
+ * @param {string} buildingId - Building ID
+ * @returns {Promise<Array<Object>>} Array of unique people
+ */
+export async function getAllPeopleInBuilding(buildingId) {
+  try {
+    const visits = await getBuildingVisits(buildingId);
+
+    // Extract all people from all visits
+    const allPeople = visits.flatMap((visit) => visit.people || []);
+
+    // Group people by name (not case-sensitive)
+    const peopleMap = {};
+
+    allPeople.forEach((person) => {
+      const normalizedName = person.name.toLowerCase().trim();
+
+      if (!peopleMap[normalizedName]) {
+        peopleMap[normalizedName] = {
+          name: person.name,
+          age: person.age || null,
+          phone: person.phone || '',
+          followUp: person.followUp || '',
+          involvement: person.involvement || '',
+          visitCount: 1,
+        };
+      } else {
+        const existing = peopleMap[normalizedName];
+        existing.age = existing.age || person.age || null;
+        existing.phone = existing.phone || person.phone || '';
+        existing.followUp = existing.followUp || person.followUp || '';
+        existing.involvement = existing.involvement || person.involvement || '';
+        existing.visitCount += 1;
+      }
+    });
+
+    return Object.values(peopleMap).sort((a, b) => b.visitCount - a.visitCount);
+  } catch (error) {
+    console.error('Error getting all people in building:', error);
     throw error;
   }
 }

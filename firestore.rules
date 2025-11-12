@@ -104,6 +104,8 @@ service cloud.firestore {
 
 
       // Visits Subcollection
+      // Visit schema includes people[] array for multiple people per visit
+      // Each person: { name, age, phone, followUp, involvement }
 
       match /visits/{visitId} {
         // Super admins can do anything
