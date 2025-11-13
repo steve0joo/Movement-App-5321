@@ -1,0 +1,202 @@
+================================================================================
+MOVEMENT APP: CRITICAL DATA INTEGRITY ISSUES - QUICK REFERENCE
+================================================================================
+
+ISSUE #1: MISSING FOLLOW-UP SERVICE
+────────────────────────────────────
+Severity: CRITICAL | Impact: Blocks all work | Lines: N/A (missing file)
+
+Current State: FollowUps page queries Firestore directly, no service layer
+Missing File: src/services/followUpService.js
+Solution: Create service with 9+ functions for CRUD + cascade deletes
+Blocked By: None
+Blocks: cascadeDeleteService.js, all delete operations
+
+ISSUE #2: TEAM DELETE HAS NO CASCADE
+─────────────────────────────────────
+Severity: CRITICAL | Impact: Massive orphaning | File: src/services/teamService.js:118-129
+
+Current Code:
+  deleteTeam(teamId) → Sets isActive=false → Returns
+  
+Orphans Created:
+  - 100s of Communities
+  - 1000s of Routes
+  - 10000s of Buildings
+  - 100000s of Visits
+  - All child FollowUps
+  - All users (teamId dangling)
+
+Solution: Implement deleteTeamCascade() function
+Lines: After line 129
+Complexity: VERY HIGH (5 levels deep)
+
+ISSUE #3: COMMUNITY DELETE HAS NO CASCADE
+──────────────────────────────────────────
+Severity: CRITICAL | Impact: Cascade orphaning | File: src/services/communityService.js:146-157
+
+Current Code:
+  deleteCommunity(communityId) → Sets isActive=false → Returns
+  
+Orphans Created:
+  - All Routes in community
+  - All Buildings in routes
+  - All Visits in buildings
+  - All FollowUps in buildings
+  
+Solution: Implement deleteCommunityCascade() function
+Lines: After line 157
+Complexity: HIGH (3 levels deep)
+
+ISSUE #4: ROUTE DELETE HAS NO CASCADE
+──────────────────────────────────────
+Severity: CRITICAL | Impact: Orphaning + broken users | File: src/services/routeService.js:245-256
+
+Current Code:
+  deleteRoute(routeId) → Sets isActive=false → Returns
+  
+Orphans Created:
+  - All Buildings in route
+  - All Visits in buildings
+  - All FollowUps in buildings
+  - routeLeader.routeId (dangling reference)
+  
+Solution: Implement deleteRouteCascade() function
+Lines: After line 256
+Complexity: MEDIUM (2 levels deep + user cleanup)
+
+ISSUE #5: BUILDING DELETE IGNORES FOLLOW-UPS
+──────────────────────────────────────────────
+Severity: CRITICAL | Impact: Orphaned follow-ups | File: src/services/buildingService.js:209-229
+
+Current Code:
+  deleteBuilding() → Deletes visits ✅ → Ignores follow-ups ❌ → Deletes building
+
+Orphans Created:
+  - FollowUps with buildingId pointing to deleted building
+  
+Solution: Add follow-up cascade before deleteDoc(buildingRef)
+Lines: 220-229 (add code before line 224)
+Complexity: LOW (single loop)
+
+ISSUE #6: lastVisitDate NOT RESET WHEN LAST VISIT DELETED
+──────────────────────────────────────────────────────────
+Severity: HIGH | Impact: Data consistency | File: src/services/buildingService.js:427-450
+
+Current Code (Line 444):
+  visitCount: Math.max(0, currentCount - 1),
+  // Missing: lastVisitDate reset
+
+Bug Scenario:
+  1. Building has visits on [2025-01-15]
+  2. All visits deleted
+  3. visitCount = 0 ✅
+  4. lastVisitDate = 2025-01-15 ❌ (should be null)
+
+Solution: Add conditional logic to reset lastVisitDate when visitCount becomes 0
+Lines: 443-445
+Complexity: MEDIUM (needs visit query if remaining)
+
+ISSUE #7: FOLLOW-UP FIRESTORE RULES TOO PERMISSIVE
+───────────────────────────────────────────────────
+Severity: HIGH | Impact: Security (team isolation) | File: firestore.rules:225-226
+
+Current Rules:
+  match /followUps/{followUpId} {
+    allow read: if request.auth != null;  // WRONG - all users see all follow-ups
+  }
+  
+Solution: Restrict read by teamId
+Lines: 226-231 (replace and extend)
+Complexity: LOW (pattern already exists)
+
+================================================================================
+IMPLEMENTATION ORDER
+================================================================================
+
+WEEK 1 (Blocking Issues)
+1. Create followUpService.js [NEW FILE] - Enables cascade deletes
+2. Fix deleteVisit() lastVisitDate [buildingService.js] - Data consistency
+3. Add follow-up cascade to deleteBuilding() [buildingService.js] - Prevent orphans
+
+WEEK 2 (Critical Cascades)
+4. Create cascadeDeleteService.js [NEW FILE] - Orchestrate deletes
+5. Update deleteBuilding() [buildingService.js] - Use cascade
+6. Update deleteRoute() [routeService.js] - Use cascade
+7. Update deleteCommunity() [communityService.js] - Use cascade
+8. Update deleteTeam() [teamService.js] - Use cascade
+
+WEEK 3 (Security & Validation)
+9. Fix FollowUp rules [firestore.rules] - Team isolation
+10. Add foreign key validation [All services] - Prevent orphans at creation
+
+================================================================================
+AFFECTED FILES (ABSOLUTE PATHS)
+================================================================================
+
+CREATE (New):
+  /Users/steve.joo/Documents/GitHub/movement-app/src/services/followUpService.js
+  /Users/steve.joo/Documents/GitHub/movement-app/src/services/cascadeDeleteService.js
+
+MODIFY:
+  /Users/steve.joo/Documents/GitHub/movement-app/src/services/buildingService.js
+  /Users/steve.joo/Documents/GitHub/movement-app/src/services/routeService.js
+  /Users/steve.joo/Documents/GitHub/movement-app/src/services/communityService.js
+  /Users/steve.joo/Documents/GitHub/movement-app/src/services/teamService.js
+  /Users/steve.joo/Documents/GitHub/movement-app/firestore.rules
+
+================================================================================
+CRITICAL FUNCTIONS TO IMPLEMENT
+================================================================================
+
+followUpService.js (9 functions):
+  ✓ createFollowUp(data, userId) with validation
+  ✓ getAllFollowUps(filters: {teamId?, routeId?, buildingId?, userId?})
+  ✓ getFollowUpsByBuilding(buildingId)
+  ✓ getFollowUpsByRoute(routeId)
+  ✓ getFollowUpsByTeam(teamId)
+  ✓ softDeleteFollowUp(id, userId)
+  ✓ softDeleteFollowUpsByBuilding(buildingId, userId)
+  ✓ softDeleteFollowUpsByRoute(routeId, userId)
+  ✓ softDeleteFollowUpsByTeam(teamId, userId)
+
+cascadeDeleteService.js (4 functions):
+  ✓ deleteTeamAndCascade(teamId, userId)
+  ✓ deleteCommunityAndCascade(communityId, userId)
+  ✓ deleteRouteAndCascade(routeId, userId)
+  ✓ deleteBuildingAndCascade(buildingId, userId)
+
+buildingService.js (2 fixes):
+  ✓ deleteVisit() - Add lastVisitDate reset logic
+  ✓ deleteBuilding() - Add follow-up cascade + update callers
+
+routeService.js (1 update):
+  ✓ deleteRoute() - Call deleteRouteCascade()
+
+communityService.js (1 update):
+  ✓ deleteCommunity() - Call deleteCommunityCascade()
+
+teamService.js (1 update):
+  ✓ deleteTeam() - Call deleteTeamCascade()
+
+firestore.rules (1 update):
+  ✓ followUp read rules - Add team/route isolation
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
+
+[ ] deleteBuilding() cascades to follow-ups
+[ ] deleteRoute() cascades to buildings and follow-ups
+[ ] deleteCommunity() cascades to routes, buildings, follow-ups
+[ ] deleteTeam() cascades to all child entities
+[ ] deleteTeam() resets user.teamId
+[ ] deleteRoute() resets user.routeId
+[ ] deleteVisit() resets lastVisitDate when empty
+[ ] FollowUp rules restrict by teamId
+[ ] Can't create follow-up for deleted building (validation)
+[ ] Can't create building for deleted route (validation)
+[ ] Offline sync handles new cascades
+[ ] No orphaned data after cascade deletes
+
+================================================================================

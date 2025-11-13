@@ -1,0 +1,126 @@
+/* Autocomplete wrapper */
+.autocomplete-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Input styling - inherits from parent */
+.autocomplete-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #fff;
+  color: #111827;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.autocomplete-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.autocomplete-input:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Dropdown */
+.autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+}
+
+/* Option item */
+.autocomplete-option {
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.autocomplete-option:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-option:hover,
+.autocomplete-option.highlighted {
+  background-color: #f3f4f6;
+}
+
+/* Create new option */
+.autocomplete-create {
+  color: #2563eb;
+  font-weight: 500;
+  border-top: 2px solid #e5e7eb;
+  background-color: #eff6ff;
+}
+
+.autocomplete-create:hover,
+.autocomplete-create.highlighted {
+  background-color: #dbeafe;
+}
+
+.autocomplete-create strong {
+  color: #1e40af;
+}
+
+/* Loading state */
+.autocomplete-loading {
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Empty state */
+.autocomplete-empty {
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+/* Scrollbar styling */
+.autocomplete-dropdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 0 8px 8px 0;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .autocomplete-dropdown {
+    max-height: 200px;
+  }
+
+  .autocomplete-option {
+    padding: 12px 14px;
+  }
+}

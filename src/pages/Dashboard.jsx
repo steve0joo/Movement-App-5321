@@ -35,40 +35,32 @@ export default function Dashboard() {
           <div className="action-grid">
             <button
               className="action-card"
-              onClick={() => navigate('/collect')}
+              onClick={() => navigate('/visits/new')}
             >
               <span className="action-icon">📝</span>
               <h3>New Visit</h3>
-              <p>Collect family data</p>
+              <p>Record visit with families</p>
             </button>
 
             <button
               type="button"
               className="action-card"
-              onClick={() => navigate('/families')}
+              onClick={() => navigate('/visit-history')}
               >
-              <span className="action-icon">👥</span>
-              <h3>Families</h3>
-              <p>View all families</p>
+              <span className="action-icon">📋</span>
+              <h3>Visit History</h3>
+              <p>View and filter visit records</p>
             </button>
 
-            <button
-              className="action-card"
-              onClick={() => navigate('/followups')}
-            >
-              <span className="action-icon">✅</span>
-              <h3>Dashboard</h3>
-              <p>Follow-ups</p>
-            </button>
-
-            {(role === 'super_admin' || role === 'team_admin') && (
+            {/* Unified Admin Panel - Single entry point for all admin features */}
+            {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
               <button
                 className="action-card admin-card"
-                onClick={() => navigate('/admin/users')}
+                onClick={() => navigate('/admin')}
               >
-                <span className="action-icon">👤</span>
-                <h3>Manage Users</h3>
-                <p>Add/manage team users</p>
+                <span className="action-icon">⚙️</span>
+                <h3>Admin Panel</h3>
+                <p>Manage users, teams, and buildings</p>
               </button>
             )}
 
@@ -77,7 +69,7 @@ export default function Dashboard() {
                 className="action-card admin-card"
                 onClick={() => navigate('/access')}
               >
-                {/* <span className="action-icon">👤</span> */}
+                <span className="action-icon">🔑</span>
                 <h3>Access Codes</h3>
                 <p>Add/manage access codes</p>
               </button>

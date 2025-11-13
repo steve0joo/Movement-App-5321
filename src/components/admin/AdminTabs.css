@@ -1,0 +1,94 @@
+.admin-tabs {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 2rem;
+}
+
+.admin-tabs-container {
+  display: flex;
+  gap: 0;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.admin-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.admin-tab:hover {
+  color: #374151;
+  background: #f9fafb;
+}
+
+.admin-tab.active {
+  color: #4A8F8C;
+  border-bottom-color: #4A8F8C;
+  background: transparent;
+}
+
+.admin-tab-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.admin-tab-label {
+  font-weight: 500;
+}
+
+/* Mobile: Dropdown selector */
+@media (max-width: 640px) {
+  .admin-tabs-container {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  .admin-tab {
+    width: 100%;
+    justify-content: flex-start;
+    border-bottom: 1px solid #e5e7eb;
+    border-left: 3px solid transparent;
+    padding: 14px 20px;
+  }
+
+  .admin-tab.active {
+    border-bottom-color: #e5e7eb;
+    border-left-color: #4A8F8C;
+    background: #f0f9ff;
+  }
+}
+
+/* Tablet: Horizontal scrolling */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .admin-tabs-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .admin-tabs-container::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .admin-tabs-container::-webkit-scrollbar-track {
+    background: #f3f4f6;
+  }
+
+  .admin-tabs-container::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 2px;
+  }
+}

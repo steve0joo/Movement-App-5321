@@ -1,0 +1,654 @@
+import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { db } from '../services/firebase';
+import { collectionGroup, getDocs, query, orderBy } from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
+import { getBuilding } from '../services/buildingService';
+import { getAllTeams } from '../services/teamService';
+import { getCommunitiesByTeam } from '../services/communityService';
+import { getRoutesByCommunity, getRoutesByTeam } from '../services/routeService';
+import { getBuildingsByRoute } from '../services/buildingService';
+import './VisitHistory.css';
+
+const VisitHistory = () => {
+  const navigate = useNavigate();
+  const { currentUser, role, teamId: userTeamId, routeId: userRouteId } = useAuth();
+
+  // Data state
+  const [visits, setVisits] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Entity data for dropdowns
+  const [teams, setTeams] = useState([]);
+  const [communities, setCommunities] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  const [buildings, setBuildings] = useState([]);
+
+  // Name lookups
+  const [buildingNames, setBuildingNames] = useState({});
+  const [routeNames, setRouteNames] = useState({});
+  const [communityNames, setCommunityNames] = useState({});
+  const [teamNames, setTeamNames] = useState({});
+
+  // Filter state
+  const [selectedTeamId, setSelectedTeamId] = useState(userTeamId || '');
+  const [selectedCommunityId, setSelectedCommunityId] = useState('');
+  const [selectedRouteId, setSelectedRouteId] = useState(userRouteId || '');
+  const [selectedBuildingId, setSelectedBuildingId] = useState('');
+
+  // View options
+  const [groupBy, setGroupBy] = useState('building'); // 'building', 'route', 'flat'
+  const [searchText, setSearchText] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [expandedVisits, setExpandedVisits] = useState({});
+
+  // Fetch all visits on mount
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchVisits = async () => {
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log('Fetching all visits...');
+        const visitsQuery = query(
+          collectionGroup(db, 'visits'),
+          orderBy('visitDate', 'desc')
+        );
+        const querySnapshot = await getDocs(visitsQuery);
+        const fetchedVisits = [];
+        const buildingIds = new Set();
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const buildingId = doc.ref.parent.parent?.id;
+
+          if (data && buildingId) {
+            buildingIds.add(buildingId);
+            fetchedVisits.push({
+              id: doc.id,
+              buildingId,
+              ...data,
+            });
+          }
+        });
+
+        // Fetch building data for all buildings
+        console.log('Fetching building data for', buildingIds.size, 'buildings...');
+        const buildingDataMap = {};
+        const routeIdsSet = new Set();
+        const communityIdsSet = new Set();
+        const teamIdsSet = new Set();
+
+        await Promise.all(
+          Array.from(buildingIds).map(async (buildingId) => {
+            try {
+              const building = await getBuilding(buildingId);
+              if (building) {
+                buildingDataMap[buildingId] = building;
+                if (building.routeId) routeIdsSet.add(building.routeId);
+                if (building.communityId) communityIdsSet.add(building.communityId);
+                if (building.teamId) teamIdsSet.add(building.teamId);
+              }
+            } catch (error) {
+              console.error(`Error fetching building ${buildingId}:`, error);
+            }
+          })
+        );
+
+        // Add building data to visits
+        fetchedVisits.forEach(visit => {
+          const building = buildingDataMap[visit.buildingId];
+          if (building) {
+            visit.buildingName = building.name;
+            visit.routeId = building.routeId;
+            visit.communityId = building.communityId;
+            visit.teamId = building.teamId;
+          }
+        });
+
+        if (!isCancelled) {
+          console.log('Fetched', fetchedVisits.length, 'visits with building data');
+          setVisits(fetchedVisits);
+
+          // Store entity IDs for fetching names
+          setBuildingNames(Object.fromEntries(
+            Object.entries(buildingDataMap).map(([id, b]) => [id, b.name])
+          ));
+
+          // Fetch and store route, community, team names
+          await fetchEntityNames(routeIdsSet, communityIdsSet, teamIdsSet);
+
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.error('Error fetching visits:', err);
+          setError(`Failed to load visits: ${err.message}`);
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchVisits();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentUser]);
+
+  // Fetch entity names for display
+  const fetchEntityNames = async (routeIds, communityIds, teamIds) => {
+    try {
+      // For now, we'll fetch these as needed in the filter dropdowns
+      // This is a placeholder for future optimization
+    } catch (error) {
+      console.error('Error fetching entity names:', error);
+    }
+  };
+
+  // Load teams for super_admin
+  useEffect(() => {
+    if (role === 'super_admin') {
+      getAllTeams().then(teams => {
+        setTeams(teams);
+        const nameMap = Object.fromEntries(teams.map(t => [t.id, t.name]));
+        setTeamNames(nameMap);
+      }).catch(err => {
+        console.error('Error fetching teams:', err);
+      });
+    }
+  }, [role]);
+
+  // Load communities when team is selected
+  useEffect(() => {
+    if (selectedTeamId) {
+      getCommunitiesByTeam(selectedTeamId).then(communities => {
+        setCommunities(communities);
+        const nameMap = Object.fromEntries(communities.map(c => [c.id, c.name]));
+        setCommunityNames(nameMap);
+      }).catch(err => {
+        console.error('Error fetching communities:', err);
+      });
+    } else {
+      setCommunities([]);
+      setSelectedCommunityId('');
+    }
+  }, [selectedTeamId]);
+
+  // Load routes when community is selected
+  useEffect(() => {
+    if (selectedCommunityId) {
+      getRoutesByCommunity(selectedCommunityId).then(routes => {
+        setRoutes(routes);
+        const nameMap = Object.fromEntries(routes.map(r => [r.id, r.name]));
+        setRouteNames(nameMap);
+      }).catch(err => {
+        console.error('Error fetching routes:', err);
+      });
+    } else if (selectedTeamId) {
+      // If no community selected but team is, show all routes in team
+      getRoutesByTeam(selectedTeamId).then(routes => {
+        setRoutes(routes);
+        const nameMap = Object.fromEntries(routes.map(r => [r.id, r.name]));
+        setRouteNames(nameMap);
+      }).catch(err => {
+        console.error('Error fetching routes:', err);
+      });
+    } else {
+      setRoutes([]);
+      setSelectedRouteId(userRouteId || '');
+    }
+  }, [selectedCommunityId, selectedTeamId, userRouteId]);
+
+  // Load buildings when route is selected
+  useEffect(() => {
+    if (selectedRouteId) {
+      getBuildingsByRoute(selectedRouteId).then(buildings => {
+        setBuildings(buildings);
+      }).catch(err => {
+        console.error('Error fetching buildings:', err);
+      });
+    } else {
+      setBuildings([]);
+      setSelectedBuildingId('');
+    }
+  }, [selectedRouteId]);
+
+  // Filter visits based on selected filters
+  const filteredVisits = useMemo(() => {
+    let filtered = visits;
+
+    // Apply team filter
+    if (selectedTeamId) {
+      filtered = filtered.filter(v => v.teamId === selectedTeamId);
+    }
+
+    // Apply community filter
+    if (selectedCommunityId) {
+      filtered = filtered.filter(v => v.communityId === selectedCommunityId);
+    }
+
+    // Apply route filter
+    if (selectedRouteId) {
+      filtered = filtered.filter(v => v.routeId === selectedRouteId);
+    }
+
+    // Apply building filter
+    if (selectedBuildingId) {
+      filtered = filtered.filter(v => v.buildingId === selectedBuildingId);
+    }
+
+    // Apply search filter
+    if (searchText.trim()) {
+      const search = searchText.toLowerCase();
+      filtered = filtered.filter(v =>
+        (v.buildingName && v.buildingName.toLowerCase().includes(search)) ||
+        (v.unitNumber && String(v.unitNumber).toLowerCase().includes(search)) ||
+        (v.notes && v.notes.toLowerCase().includes(search))
+      );
+    }
+
+    return filtered;
+  }, [visits, selectedTeamId, selectedCommunityId, selectedRouteId, selectedBuildingId, searchText]);
+
+  // Group visits based on groupBy option
+  const groupedVisits = useMemo(() => {
+    if (groupBy === 'flat') {
+      return { 'All Visits': filteredVisits };
+    }
+
+    if (groupBy === 'building') {
+      return filteredVisits.reduce((acc, visit) => {
+        const key = visit.buildingId || 'Unknown';
+        const label = visit.buildingName || `Building ${key}`;
+        if (!acc[key]) {
+          acc[key] = { label, visits: [] };
+        }
+        acc[key].visits.push(visit);
+        return acc;
+      }, {});
+    }
+
+    if (groupBy === 'route') {
+      return filteredVisits.reduce((acc, visit) => {
+        const key = visit.routeId || 'Unknown';
+        const label = routeNames[key] || `Route ${key}`;
+        if (!acc[key]) {
+          acc[key] = { label, visits: [] };
+        }
+        acc[key].visits.push(visit);
+        return acc;
+      }, {});
+    }
+
+    return {};
+  }, [filteredVisits, groupBy, routeNames]);
+
+  const toggleGroup = (groupKey) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupKey]: !prev[groupKey]
+    }));
+  };
+
+  const toggleVisit = (visitId) => {
+    setExpandedVisits(prev => ({
+      ...prev,
+      [visitId]: !prev[visitId]
+    }));
+  };
+
+  if (!currentUser) {
+    return <div className="visit-history-page">Please log in to view this content.</div>;
+  }
+
+  if (loading) {
+    return (
+      <div className="visit-history-page">
+        <div className="loading">Loading visits...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="visit-history-page">
+        <div className="error">{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="visit-history-page">
+      <div className="page-header">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="back-button"
+        >
+          ← Back to Dashboard
+        </button>
+        <h1>Visit History</h1>
+      </div>
+
+      {/* Filters Section */}
+      <div className="filters-section">
+        <div className="filters-header">
+          <h2>Filters</h2>
+          <button
+            className="clear-filters-btn"
+            onClick={() => {
+              if (role !== 'super_admin') {
+                setSelectedTeamId(userTeamId || '');
+              } else {
+                setSelectedTeamId('');
+              }
+              setSelectedCommunityId('');
+              if (role !== 'route_leader') {
+                setSelectedRouteId('');
+              } else {
+                setSelectedRouteId(userRouteId || '');
+              }
+              setSelectedBuildingId('');
+              setSearchText('');
+            }}
+          >
+            Clear Filters
+          </button>
+        </div>
+
+        <div className="filter-controls">
+          {/* Team Filter - only for super_admin */}
+          {role === 'super_admin' && (
+            <div className="filter-group">
+              <label htmlFor="team-filter">Team</label>
+              <select
+                id="team-filter"
+                value={selectedTeamId}
+                onChange={(e) => setSelectedTeamId(e.target.value)}
+                className="filter-select"
+              >
+                <option value="">All Teams</option>
+                {teams.map(team => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Community Filter */}
+          <div className="filter-group">
+            <label htmlFor="community-filter">Community</label>
+            <select
+              id="community-filter"
+              value={selectedCommunityId}
+              onChange={(e) => setSelectedCommunityId(e.target.value)}
+              className="filter-select"
+              disabled={!selectedTeamId && role === 'super_admin'}
+            >
+              <option value="">All Communities</option>
+              {communities.map(community => (
+                <option key={community.id} value={community.id}>
+                  {community.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Route Filter - locked for route_leader */}
+          <div className="filter-group">
+            <label htmlFor="route-filter">Route</label>
+            <select
+              id="route-filter"
+              value={selectedRouteId}
+              onChange={(e) => setSelectedRouteId(e.target.value)}
+              className="filter-select"
+              disabled={role === 'route_leader'}
+            >
+              <option value="">All Routes</option>
+              {routes.map(route => (
+                <option key={route.id} value={route.id}>
+                  {route.name}
+                </option>
+              ))}
+            </select>
+            {role === 'route_leader' && (
+              <small className="filter-note">Locked to your assigned route</small>
+            )}
+          </div>
+
+          {/* Building Filter */}
+          <div className="filter-group">
+            <label htmlFor="building-filter">Building</label>
+            <select
+              id="building-filter"
+              value={selectedBuildingId}
+              onChange={(e) => setSelectedBuildingId(e.target.value)}
+              className="filter-select"
+              disabled={!selectedRouteId}
+            >
+              <option value="">All Buildings</option>
+              {buildings.map(building => (
+                <option key={building.id} value={building.id}>
+                  {building.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Search */}
+          <div className="filter-group">
+            <label htmlFor="search-filter">Search</label>
+            <input
+              id="search-filter"
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Search building, unit, notes..."
+              className="filter-input"
+            />
+          </div>
+        </div>
+
+        {/* Group By Options */}
+        <div className="view-options">
+          <label>Group By:</label>
+          <div className="radio-group">
+            <label className="radio-label">
+              <input
+                type="radio"
+                value="building"
+                checked={groupBy === 'building'}
+                onChange={(e) => setGroupBy(e.target.value)}
+              />
+              Building
+            </label>
+            <label className="radio-label">
+              <input
+                type="radio"
+                value="route"
+                checked={groupBy === 'route'}
+                onChange={(e) => setGroupBy(e.target.value)}
+              />
+              Route
+            </label>
+            <label className="radio-label">
+              <input
+                type="radio"
+                value="flat"
+                checked={groupBy === 'flat'}
+                onChange={(e) => setGroupBy(e.target.value)}
+              />
+              Flat List
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Results Summary */}
+      <div className="results-summary">
+        <p>
+          Showing <strong>{filteredVisits.length}</strong> visit{filteredVisits.length !== 1 ? 's' : ''}
+          {groupBy !== 'flat' && ` in ${Object.keys(groupedVisits).length} ${groupBy === 'building' ? 'building' : 'route'}${Object.keys(groupedVisits).length !== 1 ? 's' : ''}`}
+        </p>
+      </div>
+
+      {/* Visits Display */}
+      {filteredVisits.length === 0 ? (
+        <div className="empty-state">
+          <p>No visits found matching your filters.</p>
+          <button
+            type="button"
+            onClick={() => navigate('/visits/new')}
+            className="primary-button"
+          >
+            Record a Visit
+          </button>
+        </div>
+      ) : groupBy === 'flat' ? (
+        // Flat list view
+        <div className="visits-list">
+          {filteredVisits.map(visit => (
+            <div key={visit.id} className="visit-card">
+              <div
+                className="visit-header"
+                onClick={() => toggleVisit(visit.id)}
+              >
+                <div className="visit-title">
+                  <strong>{visit.buildingName || 'Unknown Building'}</strong> - Unit {visit.unitNumber || 'N/A'}
+                </div>
+                <div className="visit-date">
+                  {visit.visitDate?.toDate
+                    ? visit.visitDate.toDate().toLocaleDateString()
+                    : 'N/A'}
+                </div>
+                <span className="expand-icon">
+                  {expandedVisits[visit.id] ? '−' : '+'}
+                </span>
+              </div>
+              {expandedVisits[visit.id] && (
+                <div className="visit-details">
+                  <div className="detail-item">
+                    <label>Building:</label>
+                    <span>{visit.buildingName || 'Unknown'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Unit:</label>
+                    <span>{visit.unitNumber || 'N/A'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Route:</label>
+                    <span>{routeNames[visit.routeId] || 'Unknown'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Visit Date:</label>
+                    <span>
+                      {visit.visitDate?.toDate
+                        ? visit.visitDate.toDate().toLocaleDateString()
+                        : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="detail-item full-width">
+                    <label>Notes:</label>
+                    <p>{visit.notes || 'No notes'}</p>
+                  </div>
+                  {visit.photoUrls && visit.photoUrls.length > 0 && (
+                    <div className="detail-item">
+                      <label>Photos:</label>
+                      <span>{visit.photoUrls.length} photo(s)</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        // Grouped view (by building or route)
+        <div className="visits-grouped">
+          {Object.entries(groupedVisits).map(([groupKey, groupData]) => {
+            const isFlat = groupBy === 'flat';
+            const label = isFlat ? 'All Visits' : groupData.label;
+            const groupVisits = isFlat ? groupData : groupData.visits;
+
+            return (
+              <div key={groupKey} className="visit-group">
+                <div
+                  className={`group-header ${expandedGroups[groupKey] ? 'expanded' : ''}`}
+                  onClick={() => toggleGroup(groupKey)}
+                >
+                  <h3>{label}</h3>
+                  <span className="visit-count">
+                    {groupVisits.length} visit{groupVisits.length !== 1 ? 's' : ''}
+                  </span>
+                  <span className="expand-icon">
+                    {expandedGroups[groupKey] ? '−' : '+'}
+                  </span>
+                </div>
+                {expandedGroups[groupKey] && (
+                  <div className="group-visits">
+                    {groupVisits.map(visit => (
+                      <div key={visit.id} className="visit-item">
+                        <div
+                          className="visit-item-header"
+                          onClick={() => toggleVisit(visit.id)}
+                        >
+                          <span className="visit-unit">Unit {visit.unitNumber || 'N/A'}</span>
+                          <span className="visit-date-small">
+                            {visit.visitDate?.toDate
+                              ? visit.visitDate.toDate().toLocaleDateString()
+                              : 'N/A'}
+                          </span>
+                          <span className="expand-icon-small">
+                            {expandedVisits[visit.id] ? '−' : '+'}
+                          </span>
+                        </div>
+                        {expandedVisits[visit.id] && (
+                          <div className="visit-item-details">
+                            <div className="detail-grid">
+                              <div className="detail-item">
+                                <label>Unit:</label>
+                                <span>{visit.unitNumber || 'N/A'}</span>
+                              </div>
+                              <div className="detail-item">
+                                <label>Visit Date:</label>
+                                <span>
+                                  {visit.visitDate?.toDate
+                                    ? visit.visitDate.toDate().toLocaleDateString()
+                                    : 'N/A'}
+                                </span>
+                              </div>
+                              <div className="detail-item full-width">
+                                <label>Notes:</label>
+                                <p>{visit.notes || 'No notes'}</p>
+                              </div>
+                              {visit.photoUrls && visit.photoUrls.length > 0 && (
+                                <div className="detail-item">
+                                  <label>Photos:</label>
+                                  <span>{visit.photoUrls.length} photo(s)</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default VisitHistory;

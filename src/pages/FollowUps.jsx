@@ -3,21 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   collection,
+  collectionGroup,
   onSnapshot,
   orderBy,
   query,
   deleteDoc,
   doc,
-  addDoc,
-  setDoc,
+  where,
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import {
-  isOfflineModeActive,
-  getOfflineFollowUps,
-  deleteOfflineItem,
-} from '../utils/offlineStorage';
-import FollowUpForm from './FollowUpForm';
+import { getBuilding } from '../services/buildingService';
+import { isOfflineModeActive, getOfflineVisits, deleteOfflineItem } from '../utils/offlineStorage';
 import './FollowUps.css';
 import menuIcon from '../assets/menu-button.png';
 import logoHome from '../assets/logo-home-button.png';
@@ -90,62 +86,9 @@ const IconEdit = (p) => (
 );
 
 /* UI fallback so the page renders even if Firestore is empty */
-const FALLBACK = [
-  {
-    id: '1',
-    name: 'Maria Lopez',
-    lastActivity: '2025-10-12T21:41:00Z',
-    urgency: 3,
-    team: 'Route A',
-    block: 'A',
-    unit: '2628',
-    age: 43,
-    followUp: 'N/A',
-    involvement: 'N/A',
-    notes: '—',
-  },
-  {
-    id: '2',
-    name: 'James Park',
-    lastActivity: '2025-10-11T16:10:00Z',
-    urgency: 2,
-    team: 'Route B',
-    block: '3',
-    unit: '18B',
-    age: 35,
-    followUp: 'Call next week',
-    involvement: 'Occasional',
-    notes: '—',
-  },
-  {
-    id: '3',
-    name: 'Amina Yusuf',
-    lastActivity: '2025-10-01T12:00:00Z',
-    urgency: 1,
-    team: 'Route C',
-    block: '12',
-    unit: '7C',
-    age: 29,
-    followUp: 'N/A',
-    involvement: 'N/A',
-    notes: '—',
-  },
-  {
-    id: '4',
-    name: 'Samir Khan',
-    lastActivity: '2025-09-30T08:45:00Z',
-    urgency: 2,
-  },
-  {
-    id: '5',
-    name: 'Grace Kim',
-    lastActivity: '2025-09-22T14:20:00Z',
-    urgency: 1,
-  },
-];
+const FALLBACK = [];
 
 export default function FollowUps() {
-  const [showForm, setShowForm] = useState(false);
   const navigate = useNavigate();
   const { role } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -180,31 +123,15 @@ export default function FollowUps() {
     // other items intentionally non-functional for now
   }
 
-  // try to upload any offline-saved forms when back online
-  useEffect(() => {
-    function tryFlush() {
-      if (!navigator.onLine) return;
-      try {
-        const key = 'fu_outbox';
-        const rows = JSON.parse(localStorage.getItem(key) || '[]');
-        if (!rows.length) return;
-        Promise.all(rows.map((r) => addDoc(collection(db, 'followUps'), r)))
-          .then(() => localStorage.removeItem(key))
-          .catch(() => {});
-      } catch {}
-    }
-    tryFlush();
-    window.addEventListener('online', tryFlush);
-    return () => window.removeEventListener('online', tryFlush);
-  }, []);
+  // Note: Offline sync is now handled by syncService.js
 
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState([]);
+  const [buildingNames, setBuildingNames] = useState({});
   const [qText, setQText] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [teamFilter, setTeamFilter] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
-  const [sortMode, setSortMode] = useState('urgent'); // "urgent" | "recent"
   const [expandedId, setExpandedId] = useState(null);
 
   // delete + undo state
@@ -215,26 +142,21 @@ export default function FollowUps() {
     const offlineMode = isOfflineModeActive();
 
     if (offlineMode) {
-      // Load offline data
-      const offlineData = getOfflineFollowUps();
-      if (offlineData.length > 0) {
-        setPeople(
-          offlineData.map((item) => ({
-            ...item,
-            urgency: typeof item.urgency === 'number' ? item.urgency : 0,
-          }))
-        );
-      } else {
-        setPeople(FALLBACK);
-      }
+      // Load offline visits
+      const offlineData = getOfflineVisits();
+      setPeople(offlineData.map((item) => ({
+        ...item,
+        buildingName: item.buildingName || 'Unknown',
+        lastActivity: item.visitDate || item.createdAt,
+      })));
       setLoading(false);
       return;
     }
 
-    // Online mode - load from Firestore
+    // Online mode - query all visits from building subcollections using collectionGroup
     const qRef = query(
-      collection(db, 'followUps'),
-      orderBy('lastActivity', 'desc')
+      collectionGroup(db, 'visits'),
+      orderBy('visitDate', 'desc')
     );
 
     const unsub = onSnapshot(
@@ -243,19 +165,26 @@ export default function FollowUps() {
         if (snap.empty) {
           setPeople(FALLBACK);
         } else {
-          const rows = snap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-            // ensure urgency exists (0 = least urgent)
-            urgency:
-              typeof d.data().urgency === 'number' ? d.data().urgency : 0,
-            __fromFirestore: true,
-          }));
+          const rows = snap.docs.map((d) => {
+            const data = d.data();
+            // Extract building ID from the document reference path
+            // Path format: buildings/{buildingId}/visits/{visitId}
+            const buildingId = d.ref.parent.parent?.id;
+
+            return {
+              id: d.id,
+              buildingId,
+              ...data,
+              lastActivity: data.visitDate?.toDate?.() || data.createdAt?.toDate?.() || new Date(),
+              __fromFirestore: true,
+            };
+          });
           setPeople(rows);
         }
         setLoading(false);
       },
-      () => {
+      (error) => {
+        console.error('Error loading visits:', error);
         setPeople(FALLBACK);
         setLoading(false);
       }
@@ -263,29 +192,50 @@ export default function FollowUps() {
     return () => unsub();
   }, []);
 
+  // Fetch building names for all unique buildingIds in people
+  useEffect(() => {
+    const fetchBuildingNames = async () => {
+      const uniqueBuildingIds = [...new Set(people.map(p => p.buildingId).filter(Boolean))];
+
+      if (uniqueBuildingIds.length === 0) return;
+
+      const nameMap = {};
+      await Promise.all(
+        uniqueBuildingIds.map(async (buildingId) => {
+          try {
+            const building = await getBuilding(buildingId);
+            nameMap[buildingId] = building?.name || `Building ${buildingId.substring(0, 8)}...`;
+          } catch (error) {
+            console.error(`Error fetching building ${buildingId}:`, error);
+            nameMap[buildingId] = `Building ${buildingId.substring(0, 8)}...`;
+          }
+        })
+      );
+
+      setBuildingNames(prev => ({ ...prev, ...nameMap }));
+    };
+
+    fetchBuildingNames();
+  }, [people]);
+
   const filtered = useMemo(() => {
     const t = qText.trim().toLowerCase();
     const base = people.filter((p) => {
       const matchesText =
         !t ||
-        (p.name && String(p.name).toLowerCase().includes(t)) ||
-        (p.block && String(p.block).toLowerCase().includes(t)) ||
-        (p.unit && String(p.unit).toLowerCase().includes(t));
-      const matchesTeam = !teamFilter || p.team === teamFilter;
-      const matchesRoute =
-        !routeFilter || p.route === routeFilter || p.team === routeFilter;
+        (p.unitNumber && String(p.unitNumber).toLowerCase().includes(t)) ||
+        (p.notes && String(p.notes).toLowerCase().includes(t)) ||
+        (p.buildingId && String(p.buildingId).toLowerCase().includes(t));
+      const matchesTeam = !teamFilter || p.teamId === teamFilter || p.team === teamFilter;
+      const matchesRoute = !routeFilter || p.routeId === routeFilter || p.route === routeFilter;
       return matchesText && matchesTeam && matchesRoute;
     });
 
-    // Client ask: most urgent → least urgent (default)
-    if (sortMode === 'urgent') {
-      return [...base].sort((a, b) => (b.urgency ?? 0) - (a.urgency ?? 0));
-    }
-    // recent → older
+    // Most recent → older (default sort by visit date)
     return [...base].sort(
       (a, b) => new Date(b.lastActivity || 0) - new Date(a.lastActivity || 0)
     );
-  }, [people, qText, teamFilter, routeFilter, sortMode]);
+  }, [people, qText, teamFilter, routeFilter]);
 
   const toggle = (id) => setExpandedId((cur) => (cur === id ? null : id));
 
@@ -298,12 +248,12 @@ export default function FollowUps() {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     const timer = setTimeout(async () => {
       try {
-        if (item.__fromFirestore) {
-          // Delete from Firestore
-          await deleteDoc(doc(db, 'followUps', item.id));
+        if (item.__fromFirestore && item.buildingId) {
+          // Delete from Firestore visits subcollection
+          await deleteDoc(doc(db, 'buildings', item.buildingId, 'visits', item.id));
         } else if (item.isOffline) {
           // Delete from offline storage
-          deleteOfflineItem(item.id, 'followup');
+          deleteOfflineItem(item.id, 'visit');
         }
       } catch (e) {
         console.error('Delete failed', e);
@@ -329,16 +279,9 @@ export default function FollowUps() {
       return cp;
     });
 
-    // restore in Firestore if it existed there
-    try {
-      if (undoData.item.__fromFirestore) {
-        await setDoc(doc(db, 'followUps', undoData.item.id), undoData.item);
-      }
-    } catch (e) {
-      console.error('Undo restore failed', e);
-    } finally {
-      setUndoData(null);
-    }
+    setUndoData(null);
+    // Note: Undo restore to Firestore is not implemented for visits
+    // Visits would need to be re-created which is complex
   };
 
   return (
@@ -414,13 +357,6 @@ export default function FollowUps() {
         </button>
       </header>
 
-      {showForm && (
-        <FollowUpForm
-          onClose={() => setShowForm(false)}
-          onSaved={() => setShowForm(false)}
-        />
-      )}
-
       <main className="content">
         <div
           style={{
@@ -431,12 +367,12 @@ export default function FollowUps() {
             margin: '0px 0 20px',
           }}
         >
-          <h2 style={{ margin: 0 }}>Follow-ups</h2>
+          <h2 style={{ margin: 0 }}>Visit History</h2>
           <button
             className="add-btn"
-            aria-label="add follow-up"
-            onClick={() => setShowForm(true)}
-            title="Add follow-up"
+            aria-label="Record new visit"
+            onClick={() => navigate('/visits/new')}
+            title="Record new visit"
             style={{ marginLeft: 12 }}
           >
             <IconPlus className="fu-icon" />
@@ -469,7 +405,7 @@ export default function FollowUps() {
               <input
                 value={teamFilter}
                 onChange={(e) => setTeamFilter(e.target.value)}
-                placeholder="e.g., Route A"
+                placeholder="Filter by team ID"
               />
             </div>
             <div className="filter-row">
@@ -477,19 +413,8 @@ export default function FollowUps() {
               <input
                 value={routeFilter}
                 onChange={(e) => setRouteFilter(e.target.value)}
-                placeholder="e.g., Route B"
+                placeholder="Filter by route ID"
               />
-            </div>
-            <div className="filter-row">
-              <label>Sort</label>
-              <select
-                className="sort-select"
-                value={sortMode}
-                onChange={(e) => setSortMode(e.target.value)}
-              >
-                <option value="urgent">Most urgent first</option>
-                <option value="recent">Most recent first</option>
-              </select>
             </div>
           </div>
         )}
@@ -522,7 +447,7 @@ export default function FollowUps() {
                   }}
                   aria-expanded={open}
                 >
-                  <div className="fu-name">{p.name ?? 'name'}</div>
+                  <div className="fu-name">Unit {p.unitNumber ?? 'Unknown'}</div>
 
                   <button
                     className="fu-more-btn"
@@ -557,66 +482,38 @@ export default function FollowUps() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="fu-meta">
-                      {p.date && (
+                      {p.visitDate && (
                         <div>
-                          <span className="label">Date:</span> {p.date}
+                          <span className="label">Visit Date:</span>{' '}
+                          {p.visitDate?.toDate ? p.visitDate.toDate().toLocaleDateString() : new Date(p.visitDate).toLocaleDateString()}
                         </div>
                       )}
-                      {p.team && (
+                      {p.buildingId && (
                         <div>
-                          <span className="label">Team name:</span> {p.team}
+                          <span className="label">Building:</span> {buildingNames[p.buildingId] || p.buildingId}
                         </div>
                       )}
-                      {p.block && (
+                      {p.unitNumber && (
                         <div>
-                          <span className="label">Building/Block:</span>{' '}
-                          {p.block}
-                        </div>
-                      )}
-                      {p.unit && (
-                        <div>
-                          <span className="label">Apt # / House #:</span>{' '}
-                          {p.unit}
-                        </div>
-                      )}
-                      {p.age && (
-                        <div>
-                          <span className="label">Age:</span> {p.age}
-                        </div>
-                      )}
-                      {(p.followUp ?? '') !== '' && (
-                        <div>
-                          <span className="label">Follow-up:</span> {p.followUp}
-                        </div>
-                      )}
-                      {(p.involvement ?? '') !== '' && (
-                        <div>
-                          <span className="label">Current involvement:</span>{' '}
-                          {p.involvement}
+                          <span className="label">Unit Number:</span> {p.unitNumber}
                         </div>
                       )}
                       <div>
                         <span className="label">Notes:</span>
                       </div>
                       <p className="fu-notes">{p.notes ?? '—'}</p>
+                      {p.photoUrls && p.photoUrls.length > 0 && (
+                        <div>
+                          <span className="label">Photos:</span> {p.photoUrls.length} photo(s)
+                        </div>
+                      )}
                     </div>
 
                     <div className="row-actions">
                       <button
-                        className="edit-btn"
-                        title="Edit"
-                        aria-label={`Edit ${p.name || ''}`}
-                      >
-                        <img
-                          src={editIcon}
-                          alt="Edit"
-                          style={{ width: 18, height: 18, display: 'block' }}
-                        />
-                      </button>
-                      <button
                         className="del-btn"
                         title="Delete"
-                        aria-label={`Delete ${p.name || ''}`}
+                        aria-label={`Delete visit for unit ${p.unitNumber || ''}`}
                         onClick={() =>
                           handleDelete(
                             p,
@@ -633,7 +530,14 @@ export default function FollowUps() {
                     </div>
                   </div>
                 ) : (
-                  <div className="fu-footer">{p.lastActivity ?? '—'}</div>
+                  <div className="fu-footer">
+                    {p.lastActivity ?
+                      (p.lastActivity instanceof Date ?
+                        p.lastActivity.toLocaleDateString() :
+                        new Date(p.lastActivity).toLocaleDateString()
+                      ) : '—'
+                    }
+                  </div>
                 )}
               </article>
             );
@@ -644,7 +548,7 @@ export default function FollowUps() {
       {/* Undo toast */}
       {undoData && (
         <div className="undo-toast" role="status" aria-live="polite">
-          Follow-up deleted.
+          Visit deleted.
           <button className="undo-btn" onClick={handleUndo}>
             Undo
           </button>

@@ -3,7 +3,6 @@
  * Handles syncing offline data to Firestore when connection is restored
  */
 
-import { createFollowUp } from './followUpService';
 import { createNeighborhood, createVisit } from './neighborhoodService';
 import {
   getAllOfflineDataForSync,
@@ -23,42 +22,12 @@ export async function syncOfflineData(userId) {
 
   const offlineData = getAllOfflineDataForSync();
   const results = {
-    followUps: { successful: 0, failed: 0, errors: [] },
     neighborhoods: { successful: 0, failed: 0, errors: [] },
     visits: { successful: 0, failed: 0, errors: [] },
     totalProcessed: 0,
     totalSuccessful: 0,
     totalFailed: 0,
   };
-
-  // Sync Follow-ups (updated for new data model)
-  for (const followUp of offlineData.followUps) {
-    try {
-      // Map to new data model fields
-      const cleanData = {
-        buildingId: followUp.buildingId, // Building ID
-        unitNumber: followUp.unitNumber || followUp.unit, // Unit Number (fallback to old field)
-        teamId: followUp.teamId, // Team ID
-        routeId: followUp.routeId, // Route ID
-        description: followUp.description || followUp.followUp || '', // Description
-        status: followUp.status || 'pending', // Status
-        dueDate: followUp.dueDate || null, // Due Date
-      };
-
-      await createFollowUp(cleanData, userId);
-      results.followUps.successful++;
-      results.totalSuccessful++;
-    } catch (error) {
-      results.followUps.failed++;
-      results.totalFailed++;
-      results.followUps.errors.push({
-        item: followUp,
-        error: error.message,
-      });
-      console.error('Failed to sync follow-up:', error);
-    }
-    results.totalProcessed++;
-  }
 
   // Sync Neighborhoods
   for (const neighborhood of offlineData.neighborhoods) {
@@ -182,7 +151,7 @@ export function getOfflineDataSummary() {
   return {
     counts,
     hasData: counts.total > 0,
-    summary: `${counts.total} items (${counts.followUps} follow-ups, ${counts.neighborhoods} neighborhoods, ${counts.visits} visits)`,
+    summary: `${counts.total} items (${counts.neighborhoods} neighborhoods, ${counts.visits} visits)`,
     oldestItem: getOldestOfflineItem(data),
     newestItem: getNewestOfflineItem(data),
   };
@@ -193,7 +162,6 @@ export function getOfflineDataSummary() {
  */
 function getOldestOfflineItem(data) {
   const allItems = [
-    ...data.followUps,
     ...data.neighborhoods,
     ...data.visits,
   ];
@@ -208,11 +176,7 @@ function getOldestOfflineItem(data) {
 
   return {
     date: oldest.createdAt,
-    type: data.followUps.includes(oldest)
-      ? 'follow-up'
-      : data.neighborhoods.includes(oldest)
-      ? 'neighborhood'
-      : 'visit',
+    type: data.neighborhoods.includes(oldest) ? 'neighborhood' : 'visit',
   };
 }
 
@@ -221,7 +185,6 @@ function getOldestOfflineItem(data) {
  */
 function getNewestOfflineItem(data) {
   const allItems = [
-    ...data.followUps,
     ...data.neighborhoods,
     ...data.visits,
   ];
@@ -236,11 +199,7 @@ function getNewestOfflineItem(data) {
 
   return {
     date: newest.createdAt,
-    type: data.followUps.includes(newest)
-      ? 'follow-up'
-      : data.neighborhoods.includes(newest)
-      ? 'neighborhood'
-      : 'visit',
+    type: data.neighborhoods.includes(newest) ? 'neighborhood' : 'visit',
   };
 }
 
@@ -252,7 +211,6 @@ function getNewestOfflineItem(data) {
  */
 export async function retryFailedSync(previousResults, userId) {
   const retryResults = {
-    followUps: { successful: 0, failed: 0, errors: [] },
     neighborhoods: { successful: 0, failed: 0, errors: [] },
     visits: { successful: 0, failed: 0, errors: [] },
     totalProcessed: 0,
@@ -260,34 +218,44 @@ export async function retryFailedSync(previousResults, userId) {
     totalFailed: 0,
   };
 
-  // Retry failed follow-ups
-  for (const failedItem of previousResults.followUps.errors) {
-    try {
-      const { id, isOffline, createdAt, ...cleanData } = failedItem.item;
-      await createFollowUp(cleanData, userId);
-      retryResults.followUps.successful++;
-      retryResults.totalSuccessful++;
-    } catch (error) {
-      retryResults.followUps.failed++;
-      retryResults.totalFailed++;
-      retryResults.followUps.errors.push(failedItem);
+  // Retry failed neighborhoods
+  if (previousResults.neighborhoods?.errors) {
+    for (const failedItem of previousResults.neighborhoods.errors) {
+      try {
+        const { id, isOffline, createdAt, ...cleanData } = failedItem.item;
+        await createNeighborhood(cleanData, userId);
+        retryResults.neighborhoods.successful++;
+        retryResults.totalSuccessful++;
+      } catch (error) {
+        retryResults.neighborhoods.failed++;
+        retryResults.totalFailed++;
+        retryResults.neighborhoods.errors.push(failedItem);
+      }
+      retryResults.totalProcessed++;
     }
-    retryResults.totalProcessed++;
   }
 
-  // Retry failed neighborhoods
-  for (const failedItem of previousResults.neighborhoods.errors) {
-    try {
-      const { id, isOffline, createdAt, ...cleanData } = failedItem.item;
-      await createNeighborhood(cleanData, userId);
-      retryResults.neighborhoods.successful++;
-      retryResults.totalSuccessful++;
-    } catch (error) {
-      retryResults.neighborhoods.failed++;
-      retryResults.totalFailed++;
-      retryResults.neighborhoods.errors.push(failedItem);
+  // Retry failed visits
+  if (previousResults.visits?.errors) {
+    for (const failedItem of previousResults.visits.errors) {
+      try {
+        const { id, isOffline, createdAt, neighborhoodId, ...cleanData } = failedItem.item;
+        if (neighborhoodId && !neighborhoodId.startsWith('offline_')) {
+          await createVisit(neighborhoodId, cleanData, userId);
+          retryResults.visits.successful++;
+          retryResults.totalSuccessful++;
+        } else {
+          retryResults.visits.failed++;
+          retryResults.totalFailed++;
+          retryResults.visits.errors.push(failedItem);
+        }
+      } catch (error) {
+        retryResults.visits.failed++;
+        retryResults.totalFailed++;
+        retryResults.visits.errors.push(failedItem);
+      }
+      retryResults.totalProcessed++;
     }
-    retryResults.totalProcessed++;
   }
 
   return retryResults;

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { collectionGroup, getDocs, query, orderBy } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { getBuilding } from '../services/buildingService';
 import './PersonDetails.css';
 
 
@@ -19,35 +20,76 @@ const PersonDetails = () => {
 
  useEffect(() => {
    let isCancelled = false;
-   
-   const fetchFormData = async () => {
+
+   const fetchVisitData = async () => {
      if (isCancelled) return;
-     
+
      try {
-       console.log('Fetching form data...');
-       //create reference to followUps collection in firestore
-       const dataCollection = collection(db, 'followUps');
-       //get the docs from collection (followUps)
-       const querySnapshot = await getDocs(dataCollection);
-       const forms = [];
+       console.log('Fetching visit data from buildings...');
+       // Query all visits across all buildings using collectionGroup
+       const visitsQuery = query(
+         collectionGroup(db, 'visits'),
+         orderBy('visitDate', 'desc')
+       );
+       const querySnapshot = await getDocs(visitsQuery);
+       const visits = [];
+       const buildingIds = new Set();
+
        querySnapshot.forEach((doc) => {
-         // Add each document's data to our array
          const data = doc.data();
-         if (data) {
-           forms.push({ id: doc.id, ...data });
+         // Extract building ID from the document reference path
+         // Path format: buildings/{buildingId}/visits/{visitId}
+         const buildingId = doc.ref.parent.parent?.id;
+
+         if (data && buildingId) {
+           buildingIds.add(buildingId);
+           visits.push({
+             id: doc.id,
+             buildingId,
+             ...data,
+             // Normalize field names for display
+             block: buildingId, // Use buildingId as block for grouping
+             unit: data.unitNumber,
+             notes: data.notes || '',
+             date: data.visitDate,
+           });
          }
        });
-       
+
+       // Fetch building names for all buildings
+       console.log('Fetching building names for', buildingIds.size, 'buildings...', Array.from(buildingIds));
+       const buildingNameMap = {};
+       await Promise.all(
+         Array.from(buildingIds).map(async (buildingId) => {
+           try {
+             const building = await getBuilding(buildingId);
+             console.log(`Fetched building ${buildingId}:`, building);
+             buildingNameMap[buildingId] = building?.name || `Building ${buildingId.substring(0, 8)}...`;
+           } catch (error) {
+             console.error(`Error fetching building ${buildingId}:`, error);
+             buildingNameMap[buildingId] = `Building ${buildingId.substring(0, 8)}...`;
+           }
+         })
+       );
+
+       console.log('Building name map:', buildingNameMap);
+
+       // Add building names to visits
+       visits.forEach(visit => {
+         visit.buildingName = buildingNameMap[visit.buildingId] || visit.buildingId;
+       });
+
+       console.log('Sample visit with building name:', visits[0]);
+
        if (!isCancelled) {
-         console.log('Fetched', forms.length, 'records');
-         //stores all the variables from (forms) into formData
-         setFormData(forms);
+         console.log('Fetched', visits.length, 'visit records with building names');
+         setFormData(visits);
          setLoading(false);
        }
      } catch (err) {
        if (!isCancelled) {
-         console.error('Error fetching form data:', err);
-         setError(`Failed to load form data: ${err.message}`);
+         console.error('Error fetching visit data:', err);
+         setError(`Failed to load visit data: ${err.message}`);
          setLoading(false);
        }
      }
@@ -55,11 +97,11 @@ const PersonDetails = () => {
 
    //if current user exists, fetch data
    if (currentUser) {
-     fetchFormData();
+     fetchVisitData();
    } else {
      setLoading(false);
    }
-   
+
    return () => {
      isCancelled = true;
    };
@@ -86,20 +128,16 @@ const PersonDetails = () => {
 
 
 
- //group people by their building/block number
+ //group visits by their building ID
  const groupByBuilding = (data) => {
    if (!Array.isArray(data)) return {};
-   //transforms array into a object using reduce()
-   //acc is the accumulator, the object being built
-   //person is the current object being processed
-   return data.reduce((acc, person) => {
-     if (!person) return acc;
-     //either the person is in a building/block or 'Unassigned' if none
-     const block = person.block || person['Building/Block'] || 'Unassigned';
-     if (!acc[block]) {
-       acc[block] = [];
+   return data.reduce((acc, visit) => {
+     if (!visit) return acc;
+     const buildingId = visit.buildingId || visit.block || 'Unassigned';
+     if (!acc[buildingId]) {
+       acc[buildingId] = [];
      }
-     acc[block].push(person);
+     acc[buildingId].push(visit);
      return acc;
    }, {});
  };
@@ -108,13 +146,13 @@ const PersonDetails = () => {
  // Handles clicking on a building/block header
  const handleBlockClick = (block) => {
    setExpandedBlock(expandedBlock === block ? null : block);
-   setExpandedPerson(null);  // Close any open person details
+   setExpandedPerson(null);  // Close any open visit details
  };
 
 
-// Handles clicking on a person's name to show/hide details
- const handlePersonClick = (personId) => {
-   setExpandedPerson(expandedPerson === personId ? null : personId);
+// Handles clicking on a visit to show/hide details
+ const handlePersonClick = (visitId) => {
+   setExpandedPerson(expandedPerson === visitId ? null : visitId);
  };
 
 
@@ -129,80 +167,68 @@ const PersonDetails = () => {
        >
          ← Back to Dashboard
        </button>
-       <h1>Community Members by Building</h1>
+       <h1>Visit History by Building</h1>
      </div>
      {formData && formData.length > 0 ? (
        <div className="buildings-list">
          {Object.entries(groupByBuilding(formData))
            // Sort buildings numerically/alphabetically
            .sort(([a], [b]) => String(a || '').localeCompare(String(b || '')))
-           .map(([block, people]) => (
+           .map(([buildingId, visits]) => (
              // Building Section: Contains header and collapsible content
-             <div key={block} className="building-section">
+             <div key={buildingId} className="building-section">
                <div
-                 className={`building-header ${expandedBlock === block ? 'expanded' : ''}`}
-                 onClick={() => handleBlockClick(block)}
+                 className={`building-header ${expandedBlock === buildingId ? 'expanded' : ''}`}
+                 onClick={() => handleBlockClick(buildingId)}
                >
-                 <h2>Building/Block {block}</h2>
-                 <span className="person-count">{people.length} {people.length === 1 ? 'person' : 'people'}</span>
-                 <span className="expand-icon">{expandedBlock === block ? '−' : '+'}</span>
+                 <h2>{visits[0]?.buildingName || `Building ${buildingId}`}</h2>
+                 <span className="person-count">{visits.length} {visits.length === 1 ? 'visit' : 'visits'}</span>
+                 <span className="expand-icon">{expandedBlock === buildingId ? '−' : '+'}</span>
                </div>
-               {expandedBlock === block && (
+               {expandedBlock === buildingId && (
                  <div className="people-list">
-                   {people.filter(person => person).map((person) => (
-                     <div key={person.id} className="person-section">
+                   {visits.filter(visit => visit).map((visit) => (
+                     <div key={visit.id} className="person-section">
                        <div
-                         className={`person-header ${expandedPerson === person.id ? 'expanded' : ''}`}
-                         onClick={() => handlePersonClick(person.id)}
+                         className={`person-header ${expandedPerson === visit.id ? 'expanded' : ''}`}
+                         onClick={() => handlePersonClick(visit.id)}
                        >
-                         <h3>{person.name || person.Name || 'Unnamed Person'}</h3>
-                         <span className="expand-icon">{expandedPerson === person.id ? '−' : '+'}</span>
+                         <h3>Unit {visit.unitNumber || visit.unit || 'N/A'}</h3>
+                         <span className="expand-icon">{expandedPerson === visit.id ? '−' : '+'}</span>
                        </div>
-                       {expandedPerson === person.id && (
+                       {expandedPerson === visit.id && (
                          <div className="person-details">
                            <div className="details-grid">
-                             {/* Basic Information */}
+                             {/* Visit Information */}
                              <div className="detail-item">
-                               <label>Age</label>
-                               <span>{person.age || person.Age || 'N/A'}</span>
+                               <label>Unit Number</label>
+                               <span>{visit.unitNumber || visit.unit || 'N/A'}</span>
                              </div>
                              <div className="detail-item">
-                               <label>Apt #/ House #</label>
-                               <span>{person.unit || person['Apt #/ House #'] || 'N/A'}</span>
-                             </div>
-                             <div className="detail-item">
-                               <label>Phone</label>
-                               <span>{person.phone || person.Phone || 'N/A'}</span>
-                             </div>
-                             <div className="detail-item">
-                               <label>Team/Route</label>
-                               <span>{person.team || person['Route Leader'] || 'N/A'}</span>
-                             </div>
-                             <div className="detail-item">
-                               <label>Date</label>
+                               <label>Visit Date</label>
                                <span>
-                                 {person.date
-                                   ? new Date(person.date).toLocaleDateString()
-                                   : person.Date && person.Date.seconds
-                                   ? new Date(person.Date.seconds * 1000).toLocaleDateString()
-                                   : person.Date
-                                   ? new Date(person.Date).toLocaleDateString()
+                                 {visit.visitDate?.toDate
+                                   ? visit.visitDate.toDate().toLocaleDateString()
+                                   : visit.date?.toDate
+                                   ? visit.date.toDate().toLocaleDateString()
+                                   : visit.visitDate
+                                   ? new Date(visit.visitDate).toLocaleDateString()
+                                   : visit.date
+                                   ? new Date(visit.date).toLocaleDateString()
                                    : 'N/A'
                                  }
                                </span>
                              </div>
                              <div className="detail-item full-width">
-                               <label>Current Involvement</label>
-                               <span className="notes-text">{person.involvement || person['Current Involvement'] || 'No involvement information provided'}</span>
-                             </div>
-                             <div className="detail-item full-width">
-                               <label>Follow-up</label>
-                               <span className="notes-text">{person.followUp || person['Follow-up'] || 'No follow-up information'}</span>
-                             </div>
-                             <div className="detail-item full-width">
                                <label>Notes</label>
-                               <span className="notes-text">{person.notes || person.Notes || 'No notes available'}</span>
+                               <span className="notes-text">{visit.notes || 'No notes available'}</span>
                              </div>
+                             {visit.photoUrls && visit.photoUrls.length > 0 && (
+                               <div className="detail-item full-width">
+                                 <label>Photos</label>
+                                 <span>{visit.photoUrls.length} photo(s) attached</span>
+                               </div>
+                             )}
                            </div>
                          </div>
                        )}
@@ -215,13 +241,13 @@ const PersonDetails = () => {
        </div>
      ) : (
        <div className="empty-state">
-         <p>No form data available.</p>
-         <button 
+         <p>No visit data available.</p>
+         <button
            type="button"
-           onClick={() => navigate('/followups/new')} 
+           onClick={() => navigate('/visits/new')}
            className="collect-button"
          >
-           Start Collecting Data
+           Record a Visit
          </button>
        </div>
      )}

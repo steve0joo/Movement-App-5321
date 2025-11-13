@@ -97,9 +97,6 @@ export default function SyncPrompt() {
                 offline:
               </p>
               <ul className="sync-data-list">
-                {offlineDataSummary?.counts.followUps > 0 && (
-                  <li>📋 {offlineDataSummary.counts.followUps} Follow-ups</li>
-                )}
                 {offlineDataSummary?.counts.neighborhoods > 0 && (
                   <li>
                     🏘️ {offlineDataSummary.counts.neighborhoods} Neighborhoods

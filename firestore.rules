@@ -37,14 +37,9 @@ service cloud.firestore {
       return isRouteLeader() && getUserData().routeId == routeId;
     }
 
-    // Check if user can manage other users in their team
-    function canManageTeamUsers() {
-      return isSuperAdmin() || isTeamAdmin();
-    }
 
-    // ===========================
     // Teams Collection
-    // ===========================
+
     match /teams/{teamId} {
       // Allow anyone to read teams (needed for signup page dropdown)
       allow read: if true;
@@ -63,11 +58,18 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
 
       // Team admins can manage communities in their team
-      allow read, write: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
+      allow read, update, delete: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
+      allow create: if isTeamAdmin() && belongsToTeam(request.resource.data.teamId);
 
-      // Route leaders and volunteers can read communities in their team
-      allow read: if belongsToTeam(resource.data.teamId);
+      // Route leaders can read and create communities in their team
+      allow read: if isRouteLeader() && belongsToTeam(resource.data.teamId);
+      allow create: if isRouteLeader() && belongsToTeam(request.resource.data.teamId);
+
+      // Volunteers can read and create communities in their team
+      allow read: if isVolunteer() && belongsToTeam(resource.data.teamId);
+      allow create: if isVolunteer() && belongsToTeam(request.resource.data.teamId);
     }
+
 
     // Routes Collection
 
@@ -79,11 +81,17 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
 
       // Team admins can manage routes in their team
-      allow write: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
+      allow create: if isTeamAdmin() && belongsToTeam(request.resource.data.teamId);
+      allow update, delete: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
 
-      // Route leaders can update their assigned route
+      // Route leaders can create routes in their team and update their assigned route
+      allow create: if isRouteLeader() && belongsToTeam(request.resource.data.teamId);
       allow update: if isRouteLeaderOfRoute(routeId);
+
+      // Volunteers can create routes in their team
+      allow create: if isVolunteer() && belongsToTeam(request.resource.data.teamId);
     }
+
 
     // Buildings Collection
 
@@ -92,11 +100,13 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
 
       // Team admins can manage buildings in their team
-      allow read, write: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
+      allow create: if isTeamAdmin() && belongsToTeam(request.resource.data.teamId);
+      allow read, update, delete: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
 
-      // Route leaders can manage buildings in their route
-      allow read, write: if isRouteLeader() &&
-                          getUserData().routeId == resource.data.routeId;
+      // Route leaders can manage buildings in their team
+      // Changed from route-specific to team-wide access to support VisitForm auto-created routes
+      allow create: if isRouteLeader() && belongsToTeam(request.resource.data.teamId);
+      allow read, update, delete: if isRouteLeader() && belongsToTeam(resource.data.teamId);
 
       // Volunteers can create, read, and update buildings in their team (no delete)
       allow create: if isVolunteer() && belongsToTeam(request.resource.data.teamId);
@@ -104,6 +114,7 @@ service cloud.firestore {
 
 
       // Visits Subcollection
+
       // Visit schema includes people[] array for multiple people per visit
       // Each person: { name, age, phone, followUp, involvement }
 
@@ -115,22 +126,53 @@ service cloud.firestore {
         allow read, write: if isTeamAdmin() &&
                             belongsToTeam(get(/databases/$(database)/documents/buildings/$(buildingId)).data.teamId);
 
-        // Route leaders can manage visits in their route
+        // Route leaders can manage visits in their team
+        // Changed from route-specific to team-wide access to support VisitForm workflow
         allow read, write: if isRouteLeader() &&
-                            getUserData().routeId == get(/databases/$(database)/documents/buildings/$(buildingId)).data.routeId;
+                            belongsToTeam(get(/databases/$(database)/documents/buildings/$(buildingId)).data.teamId);
 
-        // Volunteers can create and read visits in their team
-        allow create: if isVolunteer() &&
-                       belongsToTeam(get(/databases/$(database)/documents/buildings/$(buildingId)).data.teamId);
-        allow read: if isVolunteer() &&
-                     belongsToTeam(get(/databases/$(database)/documents/buildings/$(buildingId)).data.teamId);
+        // Volunteers can create, read, and update visits in their team
+        // Added 'update' permission to allow editing visit data after initial entry
+        allow create, read, update: if isVolunteer() &&
+                                     belongsToTeam(get(/databases/$(database)/documents/buildings/$(buildingId)).data.teamId);
       }
+    }
+
+
+    // CollectionGroup Rules for Visits
+    // These rules apply when querying across all visit subcollections using collectionGroup()
+    // Used by PersonDetails.jsx and FollowUps.jsx
+
+    match /{path=**}/visits/{visitId} {
+      // Super admins can read all visits
+      allow read: if isSuperAdmin();
+
+      // Team admins can read visits in their team
+      // Must get parent building to check teamId
+      allow read: if isTeamAdmin() &&
+                    exists(/databases/$(database)/documents/$(path)) &&
+                    belongsToTeam(get(/databases/$(database)/documents/$(path)).data.teamId);
+
+      // Route leaders can read visits in their team
+      allow read: if isRouteLeader() &&
+                    exists(/databases/$(database)/documents/$(path)) &&
+                    belongsToTeam(get(/databases/$(database)/documents/$(path)).data.teamId);
+
+      // Volunteers can read visits in their team
+      allow read: if isVolunteer() &&
+                    exists(/databases/$(database)/documents/$(path)) &&
+                    belongsToTeam(get(/databases/$(database)/documents/$(path)).data.teamId);
     }
 
 
     // Users Collection
 
     match /users/{userId} {
+      // ===== READ RULES =====
+
+      // Allow unauthenticated users to read access code user documents (for login)
+      allow read: if resource.data.isAccessCodeUser == true;
+
       // Users can read their own profile
       allow read: if request.auth != null && request.auth.uid == userId;
 
@@ -158,6 +200,11 @@ service cloud.firestore {
                       belongsToTeam(request.resource.data.teamId) &&
                       request.resource.data.role != 'super_admin';
 
+      // Route leaders can create volunteer users (access code users)
+      allow create: if isRouteLeader() &&
+                      request.resource.data.role == 'volunteer' &&
+                      request.resource.data.isAccessCodeUser == true;
+
       // ===== UPDATE RULES =====
 
       // Users can update their own profile (except role and teamId)
@@ -183,30 +230,13 @@ service cloud.firestore {
       allow delete: if isTeamAdmin() &&
                       belongsToTeam(resource.data.teamId) &&
                       resource.data.role != 'super_admin';
+
+      // Route leaders can delete access code users they created
+      allow delete: if isRouteLeader() &&
+                      resource.data.role == 'volunteer' &&
+                      resource.data.isAccessCodeUser == true;
     }
 
 
-    // FollowUps Collection
-    // TEMPORARY: Permissive rules for OLD data model (team, block, unit as strings)
-    // TODO: Update FollowUpForm to use new model (teamId, routeId, buildingId)
-
-    match /followUps/{followUpId} {
-      // All authenticated users can read follow-ups
-      allow read: if request.auth != null;
-
-      // All authenticated users can create follow-ups
-      allow create: if request.auth != null;
-
-      // Users can update/delete their own follow-ups
-      allow update, delete: if request.auth != null &&
-                             resource.data.createdBy == request.auth.uid;
-
-      // Admins and route leaders can update/delete any follow-up
-      allow update, delete: if request.auth != null && (
-        getUserData().role == 'super_admin' ||
-        getUserData().role == 'team_admin' ||
-        getUserData().role == 'route_leader'
-      );
-    }
   }
 }

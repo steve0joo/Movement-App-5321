@@ -8,6 +8,7 @@ import {
   createUserWithEmailAndPassword,
 } from "firebase/auth";
 import { createUserProfile, getUserProfile } from "../services/userService";
+import { getAllTeams } from "../services/teamService";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "../services/firebase";
 import "./Login.css";
@@ -23,6 +24,8 @@ export default function Login() {
   const [displayName, setDisplayName] = useState("");
 
   const [role, setRole] = useState("volunteer");
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [teams, setTeams] = useState([]);
 
   const { login, signup, signInWithGoogleReturningNew } = useAuth();
   const { isOnline } = useSync();
@@ -45,6 +48,21 @@ export default function Login() {
 
   const offlineMode = !isOnline;
   useEffect(() => setError(""), [view]);
+
+  // Load teams when signup view is shown
+  useEffect(() => {
+    async function loadTeams() {
+      if (view === "signup" && isOnline) {
+        try {
+          const allTeams = await getAllTeams();
+          setTeams(allTeams);
+        } catch (err) {
+          console.error("Error loading teams:", err);
+        }
+      }
+    }
+    loadTeams();
+  }, [view, isOnline]);
 
   /* ---------------- Email login ---------------- */
   const handleEmailLogin = async (e) => {
@@ -78,7 +96,8 @@ export default function Login() {
 
     try {
       setLoading(true);
-      await signup(email, password, role, displayName);
+      // Pass teamId to signup (can be empty string for "Unassigned")
+      await signup(email, password, role, displayName, selectedTeamId || null);
       navigate("/");
     } catch (err) {
       console.error("Signup error:", err);
@@ -415,6 +434,21 @@ export default function Login() {
                 {role === "volunteer" && "Basic access to record and view data in the team"}
                 {role === "route_leader" && "Manage a route and its volunteers"}
                 {role === "team_admin" && "Full administrative access"}
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="team">Team (Optional)</label>
+              <select id="team" value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)} className="role-select input">
+                <option value="">Unassigned - Admin will assign later</option>
+                {teams.map(team => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+              <small className="form-hint">
+                Choose your team now, or an administrator can assign you later.
               </small>
             </div>
 

@@ -5,7 +5,6 @@
  */
 
 const OFFLINE_STORAGE_KEYS = {
-  FOLLOW_UPS: 'offline_followups',
   NEIGHBORHOODS: 'offline_neighborhoods',
   VISITS: 'offline_visits',
   OFFLINE_MODE: 'offline_mode_active',
@@ -83,38 +82,6 @@ export function getOfflineUser() {
   }
 }
 
-/**
- * Save follow-up to offline storage
- */
-export function saveOfflineFollowUp(followUpData) {
-  try {
-    const existing = getOfflineFollowUps();
-    const newItem = {
-      ...followUpData,
-      id: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date().toISOString(),
-      isOffline: true,
-    };
-    existing.push(newItem);
-    localStorage.setItem(OFFLINE_STORAGE_KEYS.FOLLOW_UPS, JSON.stringify(existing));
-    return { success: true, id: newItem.id, data: newItem };
-  } catch (error) {
-    console.error('Failed to save offline follow-up:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Get all offline follow-ups
- */
-export function getOfflineFollowUps() {
-  try {
-    const data = localStorage.getItem(OFFLINE_STORAGE_KEYS.FOLLOW_UPS);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-}
 
 /**
  * Save data to offline storage
@@ -191,10 +158,6 @@ export function deleteOfflineItem(id, type) {
     let getter;
 
     switch (type) {
-      case 'followup':
-        key = OFFLINE_STORAGE_KEYS.FOLLOW_UPS;
-        getter = getOfflineFollowUps;
-        break;
       case 'neighborhood':
         key = OFFLINE_STORAGE_KEYS.NEIGHBORHOODS;
         getter = getOfflineNeighborhoods;
@@ -222,13 +185,9 @@ export function deleteOfflineItem(id, type) {
  */
 export function getOfflineItemsCount() {
   return {
-    followUps: getOfflineFollowUps().length,
     neighborhoods: getOfflineNeighborhoods().length,
     visits: getOfflineVisits().length,
-    total:
-      getOfflineFollowUps().length +
-      getOfflineNeighborhoods().length +
-      getOfflineVisits().length,
+    total: getOfflineNeighborhoods().length + getOfflineVisits().length,
   };
 }
 
@@ -237,7 +196,6 @@ export function getOfflineItemsCount() {
  */
 export function clearOfflineData() {
   try {
-    localStorage.removeItem(OFFLINE_STORAGE_KEYS.FOLLOW_UPS);
     localStorage.removeItem(OFFLINE_STORAGE_KEYS.NEIGHBORHOODS);
     localStorage.removeItem(OFFLINE_STORAGE_KEYS.VISITS);
     localStorage.removeItem(OFFLINE_STORAGE_KEYS.SYNC_QUEUE);
@@ -267,7 +225,6 @@ export function exitOfflineMode() {
  */
 export function getAllOfflineDataForSync() {
   return {
-    followUps: getOfflineFollowUps(),
     neighborhoods: getOfflineNeighborhoods(),
     visits: getOfflineVisits(),
   };
@@ -282,10 +239,6 @@ export function updateOfflineItem(id, updates, type) {
     let getter;
 
     switch (type) {
-      case 'followup':
-        key = OFFLINE_STORAGE_KEYS.FOLLOW_UPS;
-        getter = getOfflineFollowUps;
-        break;
       case 'neighborhood':
         key = OFFLINE_STORAGE_KEYS.NEIGHBORHOODS;
         getter = getOfflineNeighborhoods;
@@ -319,22 +272,6 @@ export function updateOfflineItem(id, updates, type) {
   }
 }
 
-/**
- * Search offline follow-ups (updated for new data model)
- */
-export function searchOfflineFollowUps(searchTerm) {
-  const followUps = getOfflineFollowUps();
-  if (!searchTerm) return followUps;
-
-  const term = searchTerm.toLowerCase();
-  return followUps.filter(
-    (item) =>
-      (item.buildingId || '').toLowerCase().includes(term) ||
-      (item.unitNumber || item.unit || '').toLowerCase().includes(term) ||
-      (item.description || item.followUp || '').toLowerCase().includes(term) ||
-      (item.teamId || item.team || '').toLowerCase().includes(term)
-  );
-}
 
 /**
  * Export offline data as JSON (for backup)
@@ -355,13 +292,11 @@ export function exportOfflineData() {
  */
 export function getStorageInfo() {
   try {
-    const followUps = JSON.stringify(getOfflineFollowUps()).length;
     const neighborhoods = JSON.stringify(getOfflineNeighborhoods()).length;
     const visits = JSON.stringify(getOfflineVisits()).length;
-    const total = followUps + neighborhoods + visits;
+    const total = neighborhoods + visits;
 
     return {
-      followUps: `${(followUps / 1024).toFixed(2)} KB`,
       neighborhoods: `${(neighborhoods / 1024).toFixed(2)} KB`,
       visits: `${(visits / 1024).toFixed(2)} KB`,
       total: `${(total / 1024).toFixed(2)} KB`,

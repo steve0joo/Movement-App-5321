@@ -196,17 +196,41 @@ export async function updateRoute(routeId, updates) {
 
 /**
  * Assign a route leader to a route
+ * Updates BOTH the route document and the user document to maintain data consistency
  * @param {string} routeId - Route ID
- * @param {string} routeLeaderId - User ID of the route leader
+ * @param {string} routeLeaderId - User ID of the route leader (or null to unassign)
  * @returns {Promise<void>}
  */
 export async function assignRouteLeader(routeId, routeLeaderId) {
   try {
+    // First, get the current route to find the old route leader
     const routeRef = doc(db, ROUTES_COLLECTION, routeId);
+    const routeSnap = await getDoc(routeRef);
+    const oldRouteLeaderId = routeSnap.exists() ? routeSnap.data().routeLeaderId : null;
+
+    // Update the route document with new route leader
     await updateDoc(routeRef, {
       routeLeaderId,
       updatedAt: serverTimestamp(),
     });
+
+    // Update the old route leader's routeId to null (if they exist)
+    if (oldRouteLeaderId && oldRouteLeaderId !== routeLeaderId) {
+      const oldLeaderRef = doc(db, 'users', oldRouteLeaderId);
+      await updateDoc(oldLeaderRef, {
+        routeId: null,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    // Update the new route leader's routeId (if they exist)
+    if (routeLeaderId) {
+      const newLeaderRef = doc(db, 'users', routeLeaderId);
+      await updateDoc(newLeaderRef, {
+        routeId: routeId,
+        updatedAt: serverTimestamp(),
+      });
+    }
   } catch (error) {
     console.error('Error assigning route leader:', error);
     throw error;

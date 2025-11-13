@@ -201,17 +201,27 @@ export async function addUnit(buildingId, unitNumber) {
 }
 
 /**
- * Soft delete a building (set isActive to false)
+ * Hard delete a building and all its visits (PERMANENT)
+ * WARNING: This permanently deletes the building document and all visit subcollections
  * @param {string} buildingId - Building ID
  * @returns {Promise<void>}
  */
 export async function deleteBuilding(buildingId) {
   try {
+    // First, delete all visits in the subcollection
+    const visitsRef = collection(db, BUILDINGS_COLLECTION, buildingId, VISITS_SUBCOLLECTION);
+    const visitsSnapshot = await getDocs(visitsRef);
+
+    // Delete each visit document
+    const deletePromises = visitsSnapshot.docs.map((visitDoc) =>
+      deleteDoc(doc(db, BUILDINGS_COLLECTION, buildingId, VISITS_SUBCOLLECTION, visitDoc.id))
+    );
+
+    await Promise.all(deletePromises);
+
+    // Then delete the building document itself
     const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
-    await updateDoc(buildingRef, {
-      isActive: false,
-      deletedAt: serverTimestamp(),
-    });
+    await deleteDoc(buildingRef);
   } catch (error) {
     console.error('Error deleting building:', error);
     throw error;

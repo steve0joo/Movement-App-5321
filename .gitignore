@@ -28,6 +28,7 @@ CLAUDE.md
 PROGRESS.md
 OFFLINE_SYNC.md
 *.md
+.taskmaster/*
 
 .env.local
 
