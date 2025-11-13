@@ -23,10 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Claude Code
-CLAUDE.md
-PROGRESS.md
-OFFLINE_SYNC.md
+# Addiotnal files
 *.md
 .taskmaster/*
 
