@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getAllTeams } from '../../services/teamService';
 import { getCommunitiesByTeam } from '../../services/communityService';
 import { getRoutesByCommunity } from '../../services/routeService';
+import '../../pages/AdminStyles.css';
 import { getBuildingsByRoute, updateBuilding, deleteBuilding } from '../../services/buildingService';
 
 export default function BuildingManagementTab() {
@@ -223,7 +224,7 @@ export default function BuildingManagementTab() {
   }
 
   return (
-    <div>
+    <div className="admin-page">
       {error && (
         <div className="error-message" style={{ marginBottom: '15px' }}>
           {error}
@@ -320,7 +321,7 @@ export default function BuildingManagementTab() {
         <div className="user-list">
           {buildings.map((building) => (
             <div key={building.id} className="user-item">
-              <div className="user-info">
+              <div>
                 <div className="user-name">{building.name}</div>
                 {building.address && (
                   <div className="user-email">{building.address}</div>
@@ -459,14 +460,14 @@ export default function BuildingManagementTab() {
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="btn-secondary"
+                  className="btn-cancel"
                   disabled={updating}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary"
+                  className="btn-confirm"
                   disabled={updating}
                 >
                   {updating ? 'Updating...' : 'Update Building'}
@@ -514,14 +515,14 @@ export default function BuildingManagementTab() {
             <div className="modal-actions">
               <button
                 onClick={handleCancelDelete}
-                className="btn-secondary"
+                className="btn-cancel"
                 disabled={deleting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="btn-danger"
+                className="btn-delete"
                 disabled={deleting}
               >
                 {deleting ? 'Deleting...' : 'Delete Building'}

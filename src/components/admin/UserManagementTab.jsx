@@ -8,6 +8,9 @@ import {
 } from '../../services/userService';
 import { getAllTeams } from '../../services/teamService';
 import { getRoutesByTeam, assignRouteLeader } from '../../services/routeService';
+import '../../pages/AdminStyles.css';
+import editIcon from '../../assets/edit-button.png';
+import trashIcon from '../../assets/trash-button.png';
 
 export default function UserManagementTab() {
   const { role, teamId: userTeamId } = useAuth();
@@ -189,15 +192,15 @@ export default function UserManagementTab() {
 
   if (loading) {
     return (
-      <div className="admin-tab-content">
+      <div className="admin-page">
         <div className="loading">Loading users...</div>
       </div>
     );
   }
 
   return (
-    <div className="admin-tab-content">
-      <div className="admin-section-header">
+    <div className="admin-page">
+      <div>
         <h2>Users</h2>
       </div>
 
@@ -205,13 +208,13 @@ export default function UserManagementTab() {
       {success && <div className="success-message">{success}</div>}
 
       {/* Search Bar */}
-      <div className="filter-section">
+      <div className="search-row" >
         <input
-          type="text"
+          type="search"
           placeholder="Search by name, email, role, or team..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="text-input"
+          className="search-input"
           style={{ width: '100%' }}
         />
       </div>
@@ -222,8 +225,8 @@ export default function UserManagementTab() {
           <p>{searchTerm ? 'No users match your search.' : 'No users found.'}</p>
         </div>
       ) : (
-        <div className="data-table-container">
-          <table className="data-table">
+        <div className="users-table">
+          <table>
             <thead>
               <tr>
                 <th>Email</th>
@@ -241,32 +244,32 @@ export default function UserManagementTab() {
                   <td>{user.email}</td>
                   <td>{user.displayName || '-'}</td>
                   <td>
-                    <span className={`role-badge role-${user.role}`}>
+                    {/* <span className={`role-badge role-${user.role}`}> */}
                       {user.role}
-                    </span>
+                    {/* </span> */}
                   </td>
                   <td>{getTeamName(user.teamId)}</td>
-                  <td style={{ fontSize: '12px', fontFamily: 'monospace' }}>
-                    {user.routeId ? user.routeId.substring(0, 8) + '...' : '-'}
+                  <td style={{ fontSize: '12px'}}>
+                    {user.routeId ? user.routeId: '-'} {/* .substring(0, 8) + '...' */}
                   </td>
                   <td>
                     <span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>
                       {user.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="actions-cell">
+                  <td>
                     <button
-                      className="btn-secondary btn-sm"
+                      className="btn-edit"
                       onClick={() => openEditModal(user)}
                     >
-                      Edit
+                      <img src={editIcon} alt="Edit" />
                     </button>
                     {user.role !== 'super_admin' && (
                       <button
-                        className="btn-danger btn-sm"
+                        className="btn-delete"
                         onClick={() => setDeleteConfirm(user)}
                       >
-                        Delete
+                        <img src={trashIcon} alt="Delete" />
                       </button>
                     )}
                   </td>
@@ -282,10 +285,7 @@ export default function UserManagementTab() {
         <div className="modal-overlay" onClick={() => !updating && setEditingUser(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Edit User: {editingUser.email}</h3>
-              <button className="modal-close" onClick={() => setEditingUser(null)}>
-                ×
-              </button>
+              <h3>Edit User: {editingUser.displayName}</h3>
             </div>
             <form onSubmit={handleUpdateUser}>
               <div className="form-group">
@@ -354,13 +354,13 @@ export default function UserManagementTab() {
               <div className="modal-actions">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-cancel"
                   onClick={() => setEditingUser(null)}
                   disabled={updating}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" disabled={updating}>
+                <button type="submit" className="btn-confirm" disabled={updating}>
                   {updating ? 'Updating...' : 'Update User'}
                 </button>
               </div>
@@ -375,9 +375,6 @@ export default function UserManagementTab() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Delete User</h3>
-              <button className="modal-close" onClick={() => setDeleteConfirm(null)}>
-                ×
-              </button>
             </div>
             <div className="modal-body">
               <p>
@@ -390,7 +387,7 @@ export default function UserManagementTab() {
             <div className="modal-actions">
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-cancel"
                 onClick={() => setDeleteConfirm(null)}
                 disabled={deleting}
               >
@@ -398,7 +395,7 @@ export default function UserManagementTab() {
               </button>
               <button
                 type="button"
-                className="btn-danger"
+                className="btn-delete"
                 onClick={handleDeleteUser}
                 disabled={deleting}
               >

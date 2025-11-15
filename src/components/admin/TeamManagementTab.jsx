@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getAllTeams, createTeam, updateTeam, deleteTeam } from '../../services/teamService';
 import { getUsersByTeam } from '../../services/userService';
-
+import '../../pages/AdminStyles.css';
 export default function TeamManagementTab() {
   const { currentUser } = useAuth();
 
@@ -186,7 +186,11 @@ export default function TeamManagementTab() {
   }
 
   return (
-    <div>
+    <div className='admin-page'>
+      <div>
+        <h2>Teams</h2>
+      </div>
+      
       {error && (
         <div className="error-message" style={{ marginBottom: '15px' }}>
           {error}
@@ -209,9 +213,9 @@ export default function TeamManagementTab() {
       <div style={{ marginBottom: '20px' }}>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="btn-primary"
+          className="btns-primary"
         >
-          + Create New Team
+        Create New Team
         </button>
       </div>
 
@@ -227,7 +231,7 @@ export default function TeamManagementTab() {
         <div className="user-list">
           {teams.map((team) => (
             <div key={team.id} className="user-item">
-              <div className="user-info">
+              <div>
                 <div className="user-name">{team.name}</div>
                 <div className="user-email">
                   {team.city && team.country
@@ -311,14 +315,14 @@ export default function TeamManagementTab() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="btn-secondary"
+                  className="btn-cancel"
                   disabled={creating}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary"
+                  className="btn-confirm"
                   disabled={creating}
                 >
                   {creating ? 'Creating...' : 'Create Team'}
@@ -374,14 +378,14 @@ export default function TeamManagementTab() {
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="btn-secondary"
+                  className="btn-cancel"
                   disabled={updating}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary"
+                  className="btn-confirm"
                   disabled={updating}
                 >
                   {updating ? 'Updating...' : 'Update Team'}
@@ -479,14 +483,14 @@ export default function TeamManagementTab() {
             <div className="modal-actions">
               <button
                 onClick={handleCancelDelete}
-                className="btn-secondary"
+                className="btn-cancel"
                 disabled={deleting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="btn-danger"
+                className="btn-delete"
                 disabled={deleting}
               >
                 {deleting ? 'Deleting...' : 'Delete Team'}

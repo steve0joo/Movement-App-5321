@@ -55,7 +55,7 @@ export default function Dashboard() {
             {/* Unified Admin Panel - Single entry point for all admin features */}
             {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
               <button
-                className="action-card admin-card"
+                className="action-card admins-card"
                 onClick={() => navigate('/admin')}
               >
                 <span className="action-icon">⚙️</span>
@@ -66,7 +66,7 @@ export default function Dashboard() {
 
             {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
               <button
-                className="action-card admin-card"
+                className="action-card admins-card"
                 onClick={() => navigate('/access')}
               >
                 <span className="action-icon">🔑</span>
@@ -77,7 +77,7 @@ export default function Dashboard() {
 
             {role === 'super_admin' && (
               <button
-                className="action-card admin-card"
+                className="action-card admins-card"
                 onClick={() => navigate('/admin/seed-data')}
               >
                 <span className="action-icon">🌱</span>

@@ -6,6 +6,9 @@ import {
   updateCommunity,
   deleteCommunity
 } from '../../services/communityService';
+import '../../pages/AdminStyles.css';
+import editIcon from '../../assets/edit-button.png';
+import trashIcon from '../../assets/trash-button.png';
 import { getAllTeams } from '../../services/teamService';
 
 export default function CommunityManagementTab() {
@@ -182,36 +185,35 @@ export default function CommunityManagementTab() {
   const isSuperAdmin = role === 'super_admin';
 
   return (
-    <div className="admin-tab-content">
-      <div className="admin-section-header">
+    <div className="admin-page">
         <h2>Communities</h2>
-        <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
-          + Create Community
+        <button className="btns-primary" onClick={() => setShowCreateModal(true)}>
+        Create New Community
         </button>
-      </div>
 
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
       {/* Team selector for super_admin */}
       {isSuperAdmin && (
-        <div className="filter-section">
-          <label>
-            <span>Team:</span>
+        // <div className="filters-panel">
+          <div className='filter-row'>
+          <label style={{fontSize: '18px'}}>Team:</label>
             <select
               value={selectedTeamId}
               onChange={(e) => setSelectedTeamId(e.target.value)}
-              className="select-input"
+              className="sort-select"
             >
-              <option value="">Select a team</option>
+              <option value=""> Select a team </option>
               {teams.map(team => (
                 <option key={team.id} value={team.id}>
                   {team.name}
                 </option>
               ))}
             </select>
-          </label>
-        </div>
+          
+          </div>
+        // </div>
       )}
 
       {loading ? (
@@ -222,7 +224,8 @@ export default function CommunityManagementTab() {
           <p>Create one to get started!</p>
         </div>
       ) : (
-        <div className="data-table-container">
+        // <div className="data-table-container">
+        <div className="users-table">
           <table className="data-table">
             <thead>
               <tr>
@@ -240,18 +243,18 @@ export default function CommunityManagementTab() {
                       ? community.createdAt.toDate().toLocaleDateString()
                       : 'N/A'}
                   </td>
-                  <td className="actions-cell">
+                  <td>
                     <button
-                      className="btn-secondary btn-sm"
+                      className="btn-edit"
                       onClick={() => openEditModal(community)}
                     >
-                      Edit
+                      <img src={editIcon} alt="Edit" />
                     </button>
                     <button
-                      className="btn-danger btn-sm"
+                      className="btn-delete"
                       onClick={() => openDeleteModal(community)}
                     >
-                      Delete
+                      <img src={trashIcon} alt="Delete" />
                     </button>
                   </td>
                 </tr>
@@ -267,9 +270,6 @@ export default function CommunityManagementTab() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Create Community</h3>
-              <button className="modal-close" onClick={() => setShowCreateModal(false)}>
-                ×
-              </button>
             </div>
             <form onSubmit={handleCreateCommunity}>
               <div className="form-group">
@@ -286,13 +286,13 @@ export default function CommunityManagementTab() {
               <div className="modal-actions">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-cancel"
                   onClick={() => setShowCreateModal(false)}
                   disabled={creating}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" disabled={creating}>
+                <button type="submit" className="btn-confirm" disabled={creating}>
                   {creating ? 'Creating...' : 'Create'}
                 </button>
               </div>
@@ -307,9 +307,6 @@ export default function CommunityManagementTab() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Edit Community</h3>
-              <button className="modal-close" onClick={() => setShowEditModal(false)}>
-                ×
-              </button>
             </div>
             <form onSubmit={handleEditCommunity}>
               <div className="form-group">
@@ -325,13 +322,13 @@ export default function CommunityManagementTab() {
               <div className="modal-actions">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-cancel"
                   onClick={() => setShowEditModal(false)}
                   disabled={updating}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" disabled={updating}>
+                <button type="submit" className="btn-confirm" disabled={updating}>
                   {updating ? 'Updating...' : 'Update'}
                 </button>
               </div>
@@ -346,9 +343,6 @@ export default function CommunityManagementTab() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Delete Community</h3>
-              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>
-                ×
-              </button>
             </div>
             <div className="modal-body">
               <p>
@@ -361,7 +355,7 @@ export default function CommunityManagementTab() {
             <div className="modal-actions">
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-cancel"
                 onClick={() => setShowDeleteModal(false)}
                 disabled={deleting}
               >
@@ -369,7 +363,7 @@ export default function CommunityManagementTab() {
               </button>
               <button
                 type="button"
-                className="btn-danger"
+                className="btn-delete"
                 onClick={handleDeleteCommunity}
                 disabled={deleting}
               >
