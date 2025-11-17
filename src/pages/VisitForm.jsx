@@ -213,18 +213,25 @@ export default function VisitForm({ onClose, onSaved }) {
   }
 
   async function fetchBuildings(searchTerm) {
-    if (!selectedRoute?.id) return [];
+    if (!selectedRoute?.id) {
+      console.log('fetchBuildings: No route selected');
+      return [];
+    }
 
+    console.log('fetchBuildings: Fetching buildings for route', selectedRoute.id, selectedRoute.name);
     const buildings = await getBuildingsByRoute(selectedRoute.id);
+    console.log('fetchBuildings: Found', buildings.length, 'buildings:', buildings);
 
     if (!searchTerm) return buildings;
 
     const lowerSearch = searchTerm.toLowerCase();
-    return buildings.filter(
+    const filtered = buildings.filter(
       (b) =>
         b.name.toLowerCase().includes(lowerSearch) ||
         b.address?.toLowerCase().includes(lowerSearch)
     );
+    console.log('fetchBuildings: Filtered to', filtered.length, 'buildings matching', searchTerm);
+    return filtered;
   }
 
   // Create functions for Autocomplete

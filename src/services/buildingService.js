@@ -264,6 +264,17 @@ export async function createVisit(buildingId, visitData, createdBy) {
       throw new Error('Each person must have a name');
     }
 
+    // Fetch building data to get hierarchy fields (teamId, routeId, communityId)
+    const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
+    const buildingSnap = await getDoc(buildingRef);
+
+    if (!buildingSnap.exists()) {
+      throw new Error('Building not found');
+    }
+
+    const buildingData = buildingSnap.data();
+    const currentCount = buildingData?.visitCount || 0;
+
     const visitsRef = collection(
       db,
       BUILDINGS_COLLECTION,
@@ -273,6 +284,9 @@ export async function createVisit(buildingId, visitData, createdBy) {
 
     const visitRef = await addDoc(visitsRef, {
       buildingId, // Store parent building reference
+      teamId: buildingData.teamId, 
+      routeId: buildingData.routeId, 
+      communityId: buildingData.communityId, 
       unitNumber: visitData.unitNumber,
       routeLeaderId: visitData.routeLeaderId || null,
       people: visitData.people.map((person) => ({
@@ -291,10 +305,6 @@ export async function createVisit(buildingId, visitData, createdBy) {
     });
 
     // Update building's lastVisitDate and visitCount
-    const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
-    const building = await getDoc(buildingRef);
-    const currentCount = building.data()?.visitCount || 0;
-
     await updateDoc(buildingRef, {
       lastVisitDate: serverTimestamp(),
       visitCount: currentCount + 1,
@@ -303,6 +313,9 @@ export async function createVisit(buildingId, visitData, createdBy) {
     return {
       id: visitRef.id,
       buildingId,
+      teamId: buildingData.teamId,
+      routeId: buildingData.routeId,
+      communityId: buildingData.communityId,
       ...visitData,
     };
   } catch (error) {
