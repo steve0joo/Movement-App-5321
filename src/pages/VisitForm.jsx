@@ -414,7 +414,7 @@ export default function VisitForm({ onClose, onSaved }) {
   function handleMenuSelect(item) {
     setMenuOpen(false);
     if (item === 'Dashboard') navigate('/');
-    if (item === 'Follow-ups') navigate('/followups');
+    if (item === 'Follow-ups') navigate('/visit-history');
   }
 
   // Field locking

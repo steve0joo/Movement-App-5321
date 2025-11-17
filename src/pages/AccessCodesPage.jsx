@@ -47,17 +47,13 @@ export default function AccessCodesPage() {
 
   function handleMenuSelect(item) {
     setMenuOpen(false);
-    if (item === "Dashboard") navigate("/followups");
+    if (item === "Dashboard") navigate("/");
     // keep other items as placeholders
   }
 
-  const [codes, setCodes] = useState([
-    { id: "1", code: "23456", team: "Nigeria" },
-    { id: "2", code: "23456", team: "Atlanta, GA" },
-    { id: "3", code: "23456", team: "Houston, TX" },
-    { id: "4", code: "23456", team: "NYC, NY" },
-    { id: "5", code: "23456", team: "Argentina" },
-  ]);
+  // TODO: Load access codes from Firestore instead of hardcoded data
+  // For now, initialize with empty array until backend integration is complete
+  const [codes, setCodes] = useState([]);
   const [q, setQ] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [copiedId, setCopiedId] = useState(null);

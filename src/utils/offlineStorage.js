@@ -1,15 +1,14 @@
 /**
  * Offline Storage Manager
- * Handles local data storage when user is in offline mode
- * Syncs data to Firestore when connection is restored
+ * Handles offline mode state and user information
+ *
+ * Note: Firebase Firestore's automatic offline persistence handles data caching.
+ * This file only manages the offline mode flag and user info for UI purposes.
  */
 
 const OFFLINE_STORAGE_KEYS = {
-  NEIGHBORHOODS: 'offline_neighborhoods',
-  VISITS: 'offline_visits',
   OFFLINE_MODE: 'offline_mode_active',
   OFFLINE_USER: 'offline_user_info',
-  SYNC_QUEUE: 'offline_sync_queue',
 };
 
 /**
@@ -83,128 +82,6 @@ export function getOfflineUser() {
 }
 
 
-/**
- * Save data to offline storage
- */
-export function saveOfflineNeighborhood(neighborhoodData) {
-  try {
-    const existing = getOfflineNeighborhoods();
-    const newItem = {
-      ...neighborhoodData,
-      id: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date().toISOString(),
-      isOffline: true,
-    };
-    existing.push(newItem);
-    localStorage.setItem(OFFLINE_STORAGE_KEYS.NEIGHBORHOODS, JSON.stringify(existing));
-    return { success: true, id: newItem.id, data: newItem };
-  } catch (error) {
-    console.error('Failed to save offline neighborhood:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Get all offline data
- */
-export function getOfflineNeighborhoods() {
-  try {
-    const data = localStorage.getItem(OFFLINE_STORAGE_KEYS.NEIGHBORHOODS);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Save visit to offline storage
- */
-export function saveOfflineVisit(visitData) {
-  try {
-    const existing = getOfflineVisits();
-    const newItem = {
-      ...visitData,
-      id: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date().toISOString(),
-      isOffline: true,
-    };
-    existing.push(newItem);
-    localStorage.setItem(OFFLINE_STORAGE_KEYS.VISITS, JSON.stringify(existing));
-    return { success: true, id: newItem.id, data: newItem };
-  } catch (error) {
-    console.error('Failed to save offline visit:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Get all offline visits
- */
-export function getOfflineVisits() {
-  try {
-    const data = localStorage.getItem(OFFLINE_STORAGE_KEYS.VISITS);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Delete a specific offline item
- */
-export function deleteOfflineItem(id, type) {
-  try {
-    let key;
-    let getter;
-
-    switch (type) {
-      case 'neighborhood':
-        key = OFFLINE_STORAGE_KEYS.NEIGHBORHOODS;
-        getter = getOfflineNeighborhoods;
-        break;
-      case 'visit':
-        key = OFFLINE_STORAGE_KEYS.VISITS;
-        getter = getOfflineVisits;
-        break;
-      default:
-        return { success: false, error: 'Invalid type' };
-    }
-
-    const items = getter();
-    const filtered = items.filter((item) => item.id !== id);
-    localStorage.setItem(key, JSON.stringify(filtered));
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to delete offline item:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Get count of all offline items
- */
-export function getOfflineItemsCount() {
-  return {
-    neighborhoods: getOfflineNeighborhoods().length,
-    visits: getOfflineVisits().length,
-    total: getOfflineNeighborhoods().length + getOfflineVisits().length,
-  };
-}
-
-/**
- * Clear all offline data (after successful sync)
- */
-export function clearOfflineData() {
-  try {
-    localStorage.removeItem(OFFLINE_STORAGE_KEYS.NEIGHBORHOODS);
-    localStorage.removeItem(OFFLINE_STORAGE_KEYS.VISITS);
-    localStorage.removeItem(OFFLINE_STORAGE_KEYS.SYNC_QUEUE);
-    return true;
-  } catch (error) {
-    console.error('Failed to clear offline data:', error);
-    return false;
-  }
-}
 
 /**
  * Clear all offline mode data including user info
@@ -220,90 +97,3 @@ export function exitOfflineMode() {
   }
 }
 
-/**
- * Get all offline data for syncing
- */
-export function getAllOfflineDataForSync() {
-  return {
-    neighborhoods: getOfflineNeighborhoods(),
-    visits: getOfflineVisits(),
-  };
-}
-
-/**
- * Update offline item
- */
-export function updateOfflineItem(id, updates, type) {
-  try {
-    let key;
-    let getter;
-
-    switch (type) {
-      case 'neighborhood':
-        key = OFFLINE_STORAGE_KEYS.NEIGHBORHOODS;
-        getter = getOfflineNeighborhoods;
-        break;
-      case 'visit':
-        key = OFFLINE_STORAGE_KEYS.VISITS;
-        getter = getOfflineVisits;
-        break;
-      default:
-        return { success: false, error: 'Invalid type' };
-    }
-
-    const items = getter();
-    const index = items.findIndex((item) => item.id === id);
-
-    if (index === -1) {
-      return { success: false, error: 'Item not found' };
-    }
-
-    items[index] = {
-      ...items[index],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem(key, JSON.stringify(items));
-    return { success: true, data: items[index] };
-  } catch (error) {
-    console.error('Failed to update offline item:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-
-/**
- * Export offline data as JSON (for backup)
- */
-export function exportOfflineData() {
-  const data = {
-    exportDate: new Date().toISOString(),
-    user: getOfflineUser(),
-    counts: getOfflineItemsCount(),
-    data: getAllOfflineDataForSync(),
-  };
-
-  return JSON.stringify(data, null, 2);
-}
-
-/**
- * Get storage usage info
- */
-export function getStorageInfo() {
-  try {
-    const neighborhoods = JSON.stringify(getOfflineNeighborhoods()).length;
-    const visits = JSON.stringify(getOfflineVisits()).length;
-    const total = neighborhoods + visits;
-
-    return {
-      neighborhoods: `${(neighborhoods / 1024).toFixed(2)} KB`,
-      visits: `${(visits / 1024).toFixed(2)} KB`,
-      total: `${(total / 1024).toFixed(2)} KB`,
-      percentUsed:
-        typeof navigator.storage !== 'undefined' ? 'Calculating...' : 'N/A',
-    };
-  } catch {
-    return null;
-  }
-}

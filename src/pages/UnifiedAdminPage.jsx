@@ -46,7 +46,7 @@ export default function UnifiedAdminPage() {
 
   function handleMenuSelect(item) {
     setMenuOpen(false);
-    if (item === "Dashboard") navigate("/followups");
+    if (item === "Dashboard") navigate("/");
     // keep other items as placeholders
   }
 

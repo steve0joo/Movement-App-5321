@@ -2,16 +2,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { SyncProvider } from './context/SyncContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import SyncPrompt from './components/SyncPrompt';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import UnifiedAdminPage from './pages/UnifiedAdminPage';
 import AddLeaderPage from './pages/AddLeaderPage';
 import SeedDataPage from './pages/SeedDataPage';
-import FollowUps from './pages/FollowUps';
 import VisitForm from './pages/VisitForm';
-import PersonDetails from './pages/personDetails';
 import VisitHistory from './pages/VisitHistory';
 import AccessCodesPage from './pages/AccessCodesPage';
 import './App.css';
@@ -20,7 +17,6 @@ function App() {
     <Router>
       <AuthProvider>
         <SyncProvider>
-          <SyncPrompt />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
