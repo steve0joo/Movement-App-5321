@@ -141,7 +141,7 @@ service cloud.firestore {
 
     // CollectionGroup Rules for Visits
     // These rules apply when querying across all visit subcollections using collectionGroup()
-    // Used by PersonDetails.jsx and FollowUps.jsx
+    // Used by VisitHistory.jsx
 
     match /{path=**}/visits/{visitId} {
       // Super admins can read all visits
