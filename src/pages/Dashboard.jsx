@@ -64,17 +64,6 @@ export default function Dashboard() {
               </button>
             )}
 
-            {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
-              <button
-                className="action-card admins-card"
-                onClick={() => navigate('/access')}
-              >
-                <span className="action-icon">🔑</span>
-                <h3>Access Codes</h3>
-                <p>Add/manage access codes</p>
-              </button>
-            )}
-
             {role === 'super_admin' && (
               <button
                 className="action-card admins-card"
