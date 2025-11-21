@@ -95,7 +95,6 @@ export default function VisitForm({ onClose, onSaved }) {
     { name: '', age: '', phone: '', followUp: '', involvement: '' },
     { name: '', age: '', phone: '', followUp: '', involvement: '' },
   ]);
-
   // UI state
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -218,7 +217,11 @@ export default function VisitForm({ onClose, onSaved }) {
       return [];
     }
 
-    console.log('fetchBuildings: Fetching buildings for route', selectedRoute.id, selectedRoute.name);
+    console.log(
+      'fetchBuildings: Fetching buildings for route',
+      selectedRoute.id,
+      selectedRoute.name
+    );
     const buildings = await getBuildingsByRoute(selectedRoute.id);
     console.log('fetchBuildings: Found', buildings.length, 'buildings:', buildings);
 
@@ -230,7 +233,12 @@ export default function VisitForm({ onClose, onSaved }) {
         b.name.toLowerCase().includes(lowerSearch) ||
         b.address?.toLowerCase().includes(lowerSearch)
     );
-    console.log('fetchBuildings: Filtered to', filtered.length, 'buildings matching', searchTerm);
+    console.log(
+      'fetchBuildings: Filtered to',
+      filtered.length,
+      'buildings matching',
+      searchTerm
+    );
     return filtered;
   }
 
@@ -310,13 +318,24 @@ export default function VisitForm({ onClose, onSaved }) {
     ]);
   }
 
+  // Lock/unlock a person row for editing
+  function togglePersonEdit(index) {
+    setPeople((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, locked: !p.locked } : p))
+    );
+  }
+
   function handleRemovePerson(index) {
+    // Don't allow removing a row that has been saved/locked
+    if (people[index]?.locked) return;
     if (people.length > 1) {
       setPeople(people.filter((_, i) => i !== index));
     }
   }
 
   function handlePersonChange(index, field, value) {
+    // Prevent editing locked (saved) rows
+    if (people[index]?.locked) return;
     const newPeople = [...people];
     newPeople[index] = { ...newPeople[index], [field]: value };
     setPeople(newPeople);
@@ -383,6 +402,13 @@ export default function VisitForm({ onClose, onSaved }) {
       };
 
       await createVisit(buildingId, visitData, currentUser.uid);
+
+      // Lock rows that were filled so they become uneditable after save
+      setPeople((prev) =>
+        prev.map((p) =>
+          p.name && p.name.trim() !== '' ? { ...p, locked: true } : p
+        )
+      );
 
       // Success
       onSaved?.();
@@ -500,17 +526,20 @@ export default function VisitForm({ onClose, onSaved }) {
         <form className="visit-form-card" onSubmit={handleSubmit}>
           {/* Warning banner for users without team assignment */}
           {role !== 'super_admin' && !userTeamId && (
-            <div style={{
-              backgroundColor: '#FEF2F2',
-              border: '1px solid #FCA5A5',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              marginBottom: '16px',
-              color: '#991B1B'
-            }}>
+            <div
+              style={{
+                backgroundColor: '#FEF2F2',
+                border: '1px solid #FCA5A5',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                color: '#991B1B',
+              }}
+            >
               <strong>⚠️ Team Assignment Required</strong>
               <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
-                You haven't been assigned to a team yet. Please contact your administrator to assign you to a team before recording visits.
+                You haven't been assigned to a team yet. Please contact your
+                administrator to assign you to a team before recording visits.
               </p>
             </div>
           )}
@@ -663,6 +692,8 @@ export default function VisitForm({ onClose, onSaved }) {
                     onChange={(e) =>
                       handlePersonChange(index, 'name', e.target.value)
                     }
+                    readOnly={!!person.locked}
+                    disabled={!!person.locked}
                   />
                   <input
                     className="visit-input visit-col-age"
@@ -674,6 +705,8 @@ export default function VisitForm({ onClose, onSaved }) {
                     onChange={(e) =>
                       handlePersonChange(index, 'age', e.target.value)
                     }
+                    readOnly={!!person.locked}
+                    disabled={!!person.locked}
                   />
                   <input
                     className="visit-input visit-col-phone"
@@ -683,6 +716,8 @@ export default function VisitForm({ onClose, onSaved }) {
                     onChange={(e) =>
                       handlePersonChange(index, 'phone', e.target.value)
                     }
+                    readOnly={!!person.locked}
+                    disabled={!!person.locked}
                   />
                   <input
                     className="visit-input visit-col-followup"
@@ -691,6 +726,8 @@ export default function VisitForm({ onClose, onSaved }) {
                     onChange={(e) =>
                       handlePersonChange(index, 'followUp', e.target.value)
                     }
+                    readOnly={!!person.locked}
+                    disabled={!!person.locked}
                   />
                   <input
                     className="visit-input visit-col-involvement"
@@ -699,12 +736,28 @@ export default function VisitForm({ onClose, onSaved }) {
                     onChange={(e) =>
                       handlePersonChange(index, 'involvement', e.target.value)
                     }
+                    readOnly={!!person.locked}
+                    disabled={!!person.locked}
                   />
+
+                  {/* Edit button: shown when the row is locked so user can unlock for editing */}
+                  {person.locked && (
+                    <button
+                      type="button"
+                      className="visit-delete-btn"
+                      onClick={() => togglePersonEdit(index)}
+                      aria-label="Edit person"
+                      title="Edit"
+                    >
+                      Edit
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     className="visit-delete-btn"
                     onClick={() => handleRemovePerson(index)}
-                    disabled={people.length <= 1}
+                    disabled={people.length <= 1 || !!person.locked}
                     aria-label="Delete person"
                   >
                     <IconTrash style={{ width: 16, height: 16 }} />
