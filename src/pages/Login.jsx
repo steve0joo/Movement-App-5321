@@ -1,20 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSync } from "../context/SyncContext";
 import { enableOfflineMode, setOfflineUser } from "../utils/offlineStorage";
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-} from "firebase/auth";
 import { createUserProfile, getUserProfile } from "../services/userService";
 import { getAllTeams } from "../services/teamService";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, db } from "../services/firebase";
 import "./Login.css";
 
 export default function Login() {
-  // views: "welcome" | "login" | "signup" | "code"
+  // views: "welcome" | "login" | "signup"
   const [view, setView] = useState("welcome");
 
   // email auth fields
@@ -34,10 +28,6 @@ export default function Login() {
   // status
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // access code UI
-  const [code, setCode] = useState(Array(5).fill(""));
-  const codeRefs = useRef([]);
 
   // Google new-user role flow
   const [googleRole, setGoogleRole] = useState("volunteer");
@@ -105,109 +95,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  /* ---------------- Access code logic ---------------- */
-  const handleAccessCodeLogin = async (joinedCode) => {
-    const accessCode = (joinedCode || "").trim();
-    if (!accessCode) {
-      setError("Enter the 5-digit code.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-
-    try {
-      const accessCodeRef = doc(db, "users", accessCode);
-      let snap;
-      try {
-        snap = await getDoc(accessCodeRef);
-      } catch {
-        throw new Error("Access code does not exist. Please check your code and try again.");
-      }
-      if (!snap.exists()) throw new Error("Access code does not exist. Please check your code and try again.");
-
-      const userData = snap.data();
-      if (!userData.isAccessCodeUser || !userData.isActive || userData.role !== "volunteer") {
-        throw new Error("Invalid or inactive access code. Please contact your administrator.");
-      }
-
-      const tempEmail = `volunteer_${accessCode}@temp.movement.app`;
-      const tempPassword = `volunteer${accessCode}123`;
-      let firebaseUser;
-
-      try {
-        const cred = await signInWithEmailAndPassword(auth, tempEmail, tempPassword);
-        firebaseUser = cred.user;
-      } catch (signInErr) {
-        if (signInErr.code === "auth/user-not-found" || signInErr.code === "auth/invalid-credential") {
-          const cred = await createUserWithEmailAndPassword(auth, tempEmail, tempPassword);
-          firebaseUser = cred.user;
-        } else {
-          throw new Error("Wrong access code. Please check your code and try again.");
-        }
-      }
-
-      const profile = {
-        email: tempEmail,
-        role: "volunteer",
-        displayName: `Volunteer ${accessCode}`,
-        isActive: true,
-        accessCode,
-        isAccessCodeUser: true,
-        teamId: userData.teamId || "",
-        createdAt: userData.createdAt || new Date(),
-        updatedAt: new Date(),
-      };
-      await setDoc(doc(db, "users", firebaseUser.uid), profile);
-      navigate("/");
-    } catch (err) {
-      console.error("Access code login error:", err);
-      if (String(err?.message).includes("Missing or insufficient permissions")) {
-        setError("Access code does not exist. Please check your code and try again.");
-      } else {
-        setError(err?.message || "Access code login failed. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* ---------------- Access code inputs ---------------- */
-  const handleCodeChange = (idx, e) => {
-    const val = e.target.value.replace(/\D/g, "").slice(0, 1);
-    if (val === "" && code[idx] === "") return;
-    const next = [...code];
-    next[idx] = val;
-    setCode(next);
-    if (val && idx < 4) codeRefs.current[idx + 1]?.focus();
-  };
-  const handleCodeKeyDown = (idx, e) => {
-    if (e.key === "Backspace") {
-      if (code[idx]) {
-        const next = [...code];
-        next[idx] = "";
-        setCode(next);
-        return;
-      }
-      if (idx > 0) codeRefs.current[idx - 1]?.focus();
-    }
-    if (e.key === "ArrowLeft" && idx > 0) codeRefs.current[idx - 1]?.focus();
-    if (e.key === "ArrowRight" && idx < 4) codeRefs.current[idx + 1]?.focus();
-  };
-  const handleCodePaste = (e) => {
-    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 5);
-    if (!text) return;
-    const next = Array(5).fill("");
-    for (let i = 0; i < text.length; i++) next[i] = text[i];
-    setCode(next);
-    codeRefs.current[Math.min(text.length, 4)]?.focus();
-  };
-  const submitAccessCode = (e) => {
-    e.preventDefault();
-    const joined = code.join("");
-    if (joined.length !== 5) return setError("Enter the 5-digit code.");
-    return handleAccessCodeLogin(joined);
   };
 
   /* ---------------- Google sign-in ---------------- */
@@ -316,9 +203,6 @@ export default function Login() {
           <div className="cta-stack">
             <button className="btn-pill btn-primary-mint" onClick={() => setView("login")}>
               Log in
-            </button>
-            <button className="btn-pill btn-primary-mint" onClick={() => setView("code")}>
-              Access Code
             </button>
           </div>
         </div>
@@ -464,42 +348,6 @@ export default function Login() {
                 Log In
               </button>
             </div>
-          </form>
-        </div>
-      )}
-
-      {/* ---------------- ACCESS CODE ---------------- */}
-      {view === "code" && (
-        <div className="auth-card code-card">
-          <div className="code-header">
-            <label className="code-label">Insert access code</label>
-          </div>
-
-          <form onSubmit={submitAccessCode} onPaste={handleCodePaste}>
-            <div className="code-boxes">
-              {code.map((v, i) => (
-                <input
-                  key={i}
-                  ref={(el) => (codeRefs.current[i] = el)}
-                  className="code-input"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={1}
-                  value={v}
-                  onChange={(e) => handleCodeChange(i, e)}
-                  onKeyDown={(e) => handleCodeKeyDown(i, e)}
-                />
-              ))}
-            </div>
-
-            <div className="code-actions">
-              <button className="btn-pill btn-primary-mint code-submit" disabled={loading}>
-                {loading ? "Verifying..." : "Enter"}
-              </button>
-            </div>
-
-            {error && <div className="error mt">{error}</div>}
           </form>
         </div>
       )}

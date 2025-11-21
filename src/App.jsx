@@ -10,7 +10,6 @@ import AddLeaderPage from './pages/AddLeaderPage';
 import SeedDataPage from './pages/SeedDataPage';
 import VisitForm from './pages/VisitForm';
 import VisitHistory from './pages/VisitHistory';
-import AccessCodesPage from './pages/AccessCodesPage';
 import './App.css';
 function App() {
   return (
@@ -90,14 +89,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <VisitForm />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/access"
-              element={
-                <ProtectedRoute>
-                  <AccessCodesPage />
                 </ProtectedRoute>
               }
             />
