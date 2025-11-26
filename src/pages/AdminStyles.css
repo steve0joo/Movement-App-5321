@@ -519,4 +519,9 @@
   padding: 6px 8px;
 }
 
-
+/* Force light theme / ignore dark mode */
+:root, html, body {
+  color-scheme: light; /* tell browsers to render form controls in light style */
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}

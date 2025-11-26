@@ -198,7 +198,7 @@ export default function CommunityManagementTab() {
       {isSuperAdmin && (
         // <div className="filters-panel">
           <div className='filter-row'>
-          <label style={{fontSize: '18px'}}>Team:</label>
+          <label style={{fontSize: '18px'}}>Team: </label>
             <select
               value={selectedTeamId}
               onChange={(e) => setSelectedTeamId(e.target.value)}

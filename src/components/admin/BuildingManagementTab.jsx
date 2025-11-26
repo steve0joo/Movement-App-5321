@@ -225,6 +225,7 @@ export default function BuildingManagementTab() {
 
   return (
     <div className="admin-page">
+      <h2>Building Management</h2>
       {error && (
         <div className="error-message" style={{ marginBottom: '15px' }}>
           {error}
