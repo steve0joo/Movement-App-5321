@@ -7,7 +7,6 @@ import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import UnifiedAdminPage from './pages/UnifiedAdminPage';
 import AddLeaderPage from './pages/AddLeaderPage';
-import SeedDataPage from './pages/SeedDataPage';
 import VisitForm from './pages/VisitForm';
 import VisitHistory from './pages/VisitHistory';
 import './App.css';
@@ -55,14 +54,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AddLeaderPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/seed-data"
-              element={
-                <ProtectedRoute>
-                  <SeedDataPage />
                 </ProtectedRoute>
               }
             />
