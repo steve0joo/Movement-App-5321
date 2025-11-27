@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import menuIcon from '../assets/menu-button.png';
 import Autocomplete from '../components/Autocomplete';
 import MemberRecord from './MemberRecord';
+import MemberRecordsList from './MemberRecordsList';
 import {
   createVisit,
   getPastPeopleAtUnit,
@@ -102,6 +103,7 @@ export default function VisitForm({ onClose, onSaved }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingPastPeople, setLoadingPastPeople] = useState(false);
   const [selectedPersonForRecord, setSelectedPersonForRecord] = useState(null);
+  const [showRecordsList, setShowRecordsList] = useState(false);
 
   const menuRef = useRef(null);
 
@@ -671,8 +673,20 @@ export default function VisitForm({ onClose, onSaved }) {
 
           {/* People table */}
           <div className="visit-people-section">
-            <div className="visit-people-label">
-              People (at least one required)
+            <div className="visit-people-header-row">
+              <div className="visit-people-label">
+                People (at least one required)
+              </div>
+              {selectedBuilding && unitNumber && (
+                <button
+                  type="button"
+                  className="visit-view-past-records-btn"
+                  onClick={() => setShowRecordsList(true)}
+                  title="View past member records for this unit"
+                >
+                  📋 View Past Records
+                </button>
+              )}
             </div>
 
             <div className="visit-people-table">
@@ -819,6 +833,15 @@ export default function VisitForm({ onClose, onSaved }) {
           buildingId={selectedBuilding.id}
           unitNumber={unitNumber}
           onClose={() => setSelectedPersonForRecord(null)}
+        />
+      )}
+
+      {/* Member Records List Modal */}
+      {showRecordsList && selectedBuilding && unitNumber && (
+        <MemberRecordsList
+          buildingId={selectedBuilding.id}
+          unitNumber={unitNumber}
+          onClose={() => setShowRecordsList(false)}
         />
       )}
     </div>

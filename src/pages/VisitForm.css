@@ -265,6 +265,37 @@
   margin-bottom: 12px;
 }
 
+/* People section header row with "View Past Records" button */
+.visit-people-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.visit-view-past-records-btn {
+  background: #4a8f8c;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.visit-view-past-records-btn:hover {
+  background: #3d7a77;
+}
+
+.visit-view-past-records-btn:active {
+  background: #2f5f5c;
+}
+
 .visit-people-table {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
