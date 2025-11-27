@@ -35,6 +35,19 @@ const VISITS_SUBCOLLECTION = 'visits';
  */
 export async function createBuilding(buildingData, createdBy) {
   try {
+    // Check for duplicate building name within the same community
+    const duplicateQuery = query(
+      collection(db, BUILDINGS_COLLECTION),
+      where('communityId', '==', buildingData.communityId),
+      where('name', '==', buildingData.name),
+      where('isActive', '==', true)
+    );
+    const duplicateSnapshot = await getDocs(duplicateQuery);
+
+    if (!duplicateSnapshot.empty) {
+      throw new Error(`A building with the name "${buildingData.name}" already exists in this community`);
+    }
+
     const buildingRef = await addDoc(collection(db, BUILDINGS_COLLECTION), {
       name: buildingData.name,
       address: buildingData.address || '',
@@ -190,10 +203,14 @@ export async function addUnit(buildingId, unitNumber) {
     }
 
     const units = building.units || [];
-    if (!units.includes(unitNumber)) {
-      units.push(unitNumber);
-      await updateBuilding(buildingId, { units });
+
+    // Check for the duplicated unit number in the building
+    if (units.includes(unitNumber)) {
+      throw new Error(`Unit "${unitNumber}" already exists in this building`);
     }
+
+    units.push(unitNumber);
+    await updateBuilding(buildingId, { units });
   } catch (error) {
     console.error('Error adding unit:', error);
     throw error;

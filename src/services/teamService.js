@@ -28,6 +28,18 @@ const TEAMS_COLLECTION = 'teams';
  */
 export async function createTeam(teamName, createdBy) {
   try {
+    // Check for the duplicated team name
+    const duplicateQuery = query(
+      collection(db, TEAMS_COLLECTION),
+      where('name', '==', teamName),
+      where('isActive', '==', true)
+    );
+    const duplicateSnapshot = await getDocs(duplicateQuery);
+
+    if (!duplicateSnapshot.empty) {
+      throw new Error(`A team with the name "${teamName}" already exists`);
+    }
+
     const teamRef = await addDoc(collection(db, TEAMS_COLLECTION), {
       name: teamName,
       createdBy,
@@ -127,4 +139,3 @@ export async function deleteTeam(teamId) {
     throw error;
   }
 }
-

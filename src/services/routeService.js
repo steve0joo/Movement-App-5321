@@ -29,8 +29,29 @@ const ROUTES_COLLECTION = 'routes';
  * @param {string} routeLeaderId - User ID of the route leader (optional)
  * @returns {Promise<Object>} Created route with ID
  */
-export async function createRoute(routeName, communityId, teamId, createdBy, routeLeaderId = null) {
+export async function createRoute(
+  routeName,
+  communityId,
+  teamId,
+  createdBy,
+  routeLeaderId = null
+) {
   try {
+    // Check for the duplicated route name within the same community
+    const duplicateQuery = query(
+      collection(db, ROUTES_COLLECTION),
+      where('communityId', '==', communityId),
+      where('name', '==', routeName),
+      where('isActive', '==', true)
+    );
+    const duplicateSnapshot = await getDocs(duplicateQuery);
+
+    if (!duplicateSnapshot.empty) {
+      throw new Error(
+        `A route with the name "${routeName}" already exists in this community`
+      );
+    }
+
     const routeRef = await addDoc(collection(db, ROUTES_COLLECTION), {
       name: routeName,
       communityId,
@@ -206,7 +227,9 @@ export async function assignRouteLeader(routeId, routeLeaderId) {
     // First, get the current route to find the old route leader
     const routeRef = doc(db, ROUTES_COLLECTION, routeId);
     const routeSnap = await getDoc(routeRef);
-    const oldRouteLeaderId = routeSnap.exists() ? routeSnap.data().routeLeaderId : null;
+    const oldRouteLeaderId = routeSnap.exists()
+      ? routeSnap.data().routeLeaderId
+      : null;
 
     // Update the route document with new route leader
     await updateDoc(routeRef, {

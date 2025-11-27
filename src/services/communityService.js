@@ -29,6 +29,21 @@ const COMMUNITIES_COLLECTION = 'communities';
  */
 export async function createCommunity(communityName, teamId, createdBy) {
   try {
+    // Check for the duplicated community name within the same team
+    const duplicateQuery = query(
+      collection(db, COMMUNITIES_COLLECTION),
+      where('teamId', '==', teamId),
+      where('name', '==', communityName),
+      where('isActive', '==', true)
+    );
+    const duplicateSnapshot = await getDocs(duplicateQuery);
+
+    if (!duplicateSnapshot.empty) {
+      throw new Error(
+        `A community with the name "${communityName}" already exists in this team`
+      );
+    }
+
     const communityRef = await addDoc(collection(db, COMMUNITIES_COLLECTION), {
       name: communityName,
       teamId,
