@@ -1,5 +1,39 @@
 /* VisitForm.css - Styling for the Visit Form modal */
 
+/* Name field wrapper for member record button */
+.visit-name-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.visit-name-wrapper .visit-input {
+  flex: 1;
+}
+
+.visit-view-record-btn {
+  background: #4a8f8c;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.visit-view-record-btn:hover {
+  background: #3d7a77;
+}
+
+.visit-view-record-btn:active {
+  background: #2f5f5c;
+}
+
 .visit-form-overlay {
   position: fixed;
   top: 0;

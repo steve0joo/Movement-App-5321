@@ -229,6 +229,15 @@ service cloud.firestore {
                       resource.data.isAccessCodeUser == true;
     }
 
+    // Member Records Collection
+    match /memberRecords/{recordId} {
+      // Super admins can do anything
+      allow read, write: if isSuperAdmin();
+
+      // Team admins, route leaders, and volunteers can read and write member records
+      // Member records are tied to buildings/units, not directly to teams, so we allow broader access
+      allow read, write: if request.auth != null;
+    }
 
   }
 }

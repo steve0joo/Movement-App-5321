@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import menuIcon from '../assets/menu-button.png';
 import Autocomplete from '../components/Autocomplete';
+import MemberRecord from './MemberRecord';
 import {
   createVisit,
   getPastPeopleAtUnit,
@@ -100,6 +101,7 @@ export default function VisitForm({ onClose, onSaved }) {
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingPastPeople, setLoadingPastPeople] = useState(false);
+  const [selectedPersonForRecord, setSelectedPersonForRecord] = useState(null);
 
   const menuRef = useRef(null);
 
@@ -685,16 +687,28 @@ export default function VisitForm({ onClose, onSaved }) {
 
               {people.map((person, index) => (
                 <div key={index} className="visit-people-row">
-                  <input
-                    className="visit-input visit-col-name"
-                    placeholder="Name"
-                    value={person.name}
-                    onChange={(e) =>
-                      handlePersonChange(index, 'name', e.target.value)
-                    }
-                    readOnly={!!person.locked}
-                    disabled={!!person.locked}
-                  />
+                  <div className="visit-col-name visit-name-wrapper">
+                    <input
+                      className="visit-input"
+                      placeholder="Name"
+                      value={person.name}
+                      onChange={(e) =>
+                        handlePersonChange(index, 'name', e.target.value)
+                      }
+                      readOnly={!!person.locked}
+                      disabled={!!person.locked}
+                    />
+                    {person.name && selectedBuilding && unitNumber && (
+                      <button
+                        type="button"
+                        className="visit-view-record-btn"
+                        onClick={() => setSelectedPersonForRecord(person)}
+                        title="View member record"
+                      >
+                        📋
+                      </button>
+                    )}
+                  </div>
                   <input
                     className="visit-input visit-col-age"
                     placeholder="Age"
@@ -797,6 +811,16 @@ export default function VisitForm({ onClose, onSaved }) {
           </button>
         </form>
       </main>
+
+      {/* Member Record Modal */}
+      {selectedPersonForRecord && selectedBuilding && unitNumber && (
+        <MemberRecord
+          person={selectedPersonForRecord}
+          buildingId={selectedBuilding.id}
+          unitNumber={unitNumber}
+          onClose={() => setSelectedPersonForRecord(null)}
+        />
+      )}
     </div>
   );
 }
