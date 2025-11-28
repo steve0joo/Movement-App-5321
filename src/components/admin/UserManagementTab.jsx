@@ -13,7 +13,7 @@ import editIcon from '../../assets/edit-button.png';
 import trashIcon from '../../assets/trash-button.png';
 
 export default function UserManagementTab() {
-  const { role, teamId: userTeamId } = useAuth();
+  const { currentUser, role, teamId: userTeamId } = useAuth();
 
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -37,6 +37,74 @@ export default function UserManagementTab() {
   const [updating, setUpdating] = useState(false);
 
   const isSuperAdmin = role === 'super_admin';
+
+  // Helper function: Check if current user can edit a target user
+  const canEditUser = (targetUser) => {
+    // Super admin can edit anyone
+    if (isSuperAdmin) {
+      return true;
+    }
+
+    // Cannot edit yourself
+    if (targetUser.id === currentUser?.uid) {
+      return false;
+    }
+
+    // Cannot edit super admins
+    if (targetUser.role === 'super_admin') {
+      return false;
+    }
+
+    // Team admin can edit users in their team (except super admins and themselves)
+    if (role === 'team_admin') {
+      return targetUser.teamId === userTeamId;
+    }
+
+    // Route leaders and volunteers cannot edit anyone
+    return false;
+  };
+
+  // Helper function: Check if current user can delete a target user
+  const canDeleteUser = (targetUser) => {
+    // Super admin can delete anyone except other super admins
+    if (isSuperAdmin) {
+      return targetUser.role !== 'super_admin';
+    }
+
+    // Can delete yourself (but not edit)
+    if (targetUser.id === currentUser?.uid) {
+      return true;
+    }
+
+    // Cannot delete super admins
+    if (targetUser.role === 'super_admin') {
+      return false;
+    }
+
+    // Cannot delete supervisors (higher roles)
+    const roleHierarchy = {
+      'volunteer': 0,
+      'route_leader': 1,
+      'team_admin': 2,
+      'super_admin': 3
+    };
+
+    const currentRoleLevel = roleHierarchy[role] || 0;
+    const targetRoleLevel = roleHierarchy[targetUser.role] || 0;
+
+    // Cannot delete users with higher or equal role
+    if (targetRoleLevel >= currentRoleLevel) {
+      return targetUser.id === currentUser?.uid; // Can only delete self
+    }
+
+    // Team admin can delete lower-level users in their team
+    if (role === 'team_admin') {
+      return targetUser.teamId === userTeamId;
+    }
+
+    // Route leaders and volunteers can only delete themselves
+    return false;
+  };
 
   useEffect(() => {
     loadTeams();
@@ -258,13 +326,15 @@ export default function UserManagementTab() {
                     </span>
                   </td>
                   <td>
-                    <button
-                      className="btn-edit"
-                      onClick={() => openEditModal(user)}
-                    >
-                      <img src={editIcon} alt="Edit" />
-                    </button>
-                    {user.role !== 'super_admin' && (
+                    {canEditUser(user) && (
+                      <button
+                        className="btn-edit"
+                        onClick={() => openEditModal(user)}
+                      >
+                        <img src={editIcon} alt="Edit" />
+                      </button>
+                    )}
+                    {canDeleteUser(user) && (
                       <button
                         className="btn-delete"
                         onClick={() => setDeleteConfirm(user)}

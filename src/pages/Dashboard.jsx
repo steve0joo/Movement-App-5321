@@ -4,8 +4,31 @@ import SyncIndicator from '../components/SyncIndicator';
 import './Dashboard.css';
 
 export default function Dashboard() {
-  const { logout, currentUser, role } = useAuth();
+  const { logout, currentUser, role, teamId, routeId } = useAuth();
   const navigate = useNavigate();
+
+  // Check if user can access admin panel based on their assignments
+  const canAccessAdminPanel = () => {
+    // Super admin can always access
+    if (role === 'super_admin') {
+      return true;
+    }
+
+    // Team admin needs team assignment
+    if (role === 'team_admin') {
+      return !!teamId;
+    }
+
+    // Route leader needs both team and route assignment
+    if (role === 'route_leader') {
+      return !!teamId && !!routeId;
+    }
+
+    // Volunteers cannot access admin panel
+    return false;
+  };
+
+  const adminPanelEnabled = canAccessAdminPanel();
 
   async function handleLogout() {
     try {
@@ -55,12 +78,26 @@ export default function Dashboard() {
             {/* Unified Admin Panel - Single entry point for all admin features */}
             {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
               <button
-                className="action-card admins-card"
-                onClick={() => navigate('/admin')}
+                className={`action-card admins-card ${!adminPanelEnabled ? 'disabled' : ''}`}
+                onClick={() => adminPanelEnabled && navigate('/admin')}
+                disabled={!adminPanelEnabled}
+                title={
+                  !adminPanelEnabled
+                    ? role === 'team_admin'
+                      ? 'Please wait for a supervisor to assign you to a team'
+                      : role === 'route_leader'
+                      ? 'Please wait for a supervisor to assign you to a team and route'
+                      : ''
+                    : 'Access admin panel'
+                }
               >
                 <span className="action-icon">⚙️</span>
                 <h3>Admin Panel</h3>
-                <p>Manage users, teams, and buildings</p>
+                <p>
+                  {!adminPanelEnabled
+                    ? 'Waiting for assignment...'
+                    : 'Manage users, teams, and buildings'}
+                </p>
               </button>
             )}
           </div>
