@@ -14,6 +14,35 @@ const VisitHistory = () => {
   const navigate = useNavigate();
   const { currentUser, role, teamId: userTeamId, routeId: userRouteId } = useAuth();
 
+  // Check if user can edit a visit based on their assignments
+  const canEditVisit = (visit) => {
+    // Super admin can edit everything
+    if (role === 'super_admin') {
+      return true;
+    }
+
+    // Check if user has team assignment
+    if (!userTeamId) {
+      return false; // Not assigned to any team
+    }
+
+    // Team admin can edit visits in their team
+    if (role === 'team_admin') {
+      return visit.teamId === userTeamId;
+    }
+
+    // Route leader must have route assignment and visit must be in their route
+    if (role === 'route_leader') {
+      if (!userRouteId) {
+        return false; // Not assigned to any route
+      }
+      return visit.routeId === userRouteId && visit.teamId === userTeamId;
+    }
+
+    // Volunteers cannot edit
+    return false;
+  };
+
   // Data state
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -889,7 +918,7 @@ const VisitHistory = () => {
                                                 {person.age && <span> (Age: {person.age})</span>}
                                                 {person.phone && <span> • Phone: {person.phone}</span>}
                                               </div>
-                                              {role !== 'volunteer' && (
+                                              {canEditVisit(visit) && (
                                                 <button
                                                   onClick={(e) => {
                                                     e.stopPropagation();
