@@ -19,7 +19,9 @@ import {
 } from '../services/communityService';
 import { getRoutesByCommunity, createRoute } from '../services/routeService';
 import { getBuildingsByRoute } from '../services/buildingService';
+import './header.css';
 import './VisitForm.css';
+import logoHome from "../assets/logo-home-button.png";
 
 // Inline icons
 const IconBack = (p) => (
@@ -450,8 +452,9 @@ export default function VisitForm({ onClose, onSaved }) {
 
   function handleMenuSelect(item) {
     setMenuOpen(false);
-    if (item === 'Dashboard') navigate('/');
-    if (item === 'Follow-ups') navigate('/visit-history');
+    if (item === "Home") navigate("/");
+    if (item === "Visit History") navigate("/visit-history");
+    if (item === "Admin Page") navigate("/admin");
   }
 
   // Field locking
@@ -461,68 +464,42 @@ export default function VisitForm({ onClose, onSaved }) {
   return (
     <div className="visit-form-overlay" role="dialog" aria-modal="true">
       {/* Top bar */}
-      <header className="visit-form-topbar">
+      <header className="all-header">
         <div className="menu-container" ref={menuRef}>
           <button
             className="menu-button"
+            onClick={toggleMenu}
             aria-haspopup="true"
             aria-expanded={menuOpen}
             aria-label="Open menu"
             type="button"
-            onClick={toggleMenu}
           >
-            <img
-              src={menuIcon}
-              alt="Menu"
-              style={{ height: 18, display: 'block' }}
-            />
+            <img src={menuIcon} alt="Menu" />
           </button>
 
           {menuOpen && (
-            <div
-              className="menu-dropdown"
-              role="menu"
-              aria-orientation="vertical"
-            >
-              <button
-                type="button"
-                className="menu-item"
-                onClick={() => handleMenuSelect('Dashboard')}
-                role="menuitem"
-              >
-                Dashboard
+            <div className="menu-dropdown" role="menu" aria-orientation="vertical">
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Home")} role="menuitem">
+                Home
               </button>
-              <button
-                type="button"
-                className="menu-item"
-                onClick={() => handleMenuSelect('Follow-ups')}
-                role="menuitem"
-              >
-                Follow-ups
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Visit History")} role="menuitem">
+                Visit History
               </button>
+              {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Admin Page")} role="menuitem">
+                Admin Page
+              </button>)}
             </div>
           )}
         </div>
-
-        <div className="visit-form-titlewrap">
-          <div className="visit-form-title">New Visit</div>
-        </div>
-
         <button
-          className="icon-btn"
-          aria-label="back"
-          type="button"
-          onClick={onClose}
+          className="logo-home"
+          onClick={() => navigate("/")}
+          title="Home"
+          aria-label="Go to dashboard"
+          style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
         >
-          <IconBack
-            className="visit-icon"
-            style={{
-              width: 18,
-              height: 18,
-              color: '#374151',
-              display: 'block',
-            }}
-          />
+          <img src={logoHome} alt="Home" style={{ height: 36, display: "block" }} />
         </button>
       </header>
 

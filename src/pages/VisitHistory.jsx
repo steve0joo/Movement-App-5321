@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
 import { collectionGroup, getDocs, query, orderBy } from 'firebase/firestore';
@@ -8,11 +8,46 @@ import { getAllTeams } from '../services/teamService';
 import { getCommunitiesByTeam } from '../services/communityService';
 import { getRoutesByCommunity, getRoutesByTeam } from '../services/routeService';
 import { getBuildingsByRoute } from '../services/buildingService';
+import './header.css';
 import './VisitHistory.css';
+import menuIcon from "../assets/menu-button.png";
+import logoHome from "../assets/logo-home-button.png";
+
 
 const VisitHistory = () => {
   const navigate = useNavigate();
   const { currentUser, role, teamId: userTeamId, routeId: userRouteId } = useAuth();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    function onKey(e) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  function toggleMenu(e) {
+    e?.stopPropagation();
+    setMenuOpen((s) => !s);
+  }
+
+  function handleMenuSelect(item) {
+    setMenuOpen(false);
+    if (item === "Home") navigate("/");
+    if (item === "New Visit") navigate("/visits/new");
+    if (item === "Admin Page") navigate("/admin");
+  }
 
   // Check if user can edit a visit based on their assignments
   const canEditVisit = (visit) => {
@@ -430,546 +465,577 @@ const VisitHistory = () => {
   }
 
   return (
-    <div className="visit-history-page">
-      <div className="page-header">
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          className="back-button"
-        >
-          ← Back to Dashboard
-        </button>
-        <h1>Visit History</h1>
-      </div>
-
-      {/* Filters Section */}
-      <div className="filters-section">
-        <div className="filters-header">
-          <h2>Filters</h2>
+    <div className="all-page">
+      <header className="all-header">
+        <div className="menu-container" ref={menuRef}>
           <button
-            className="clear-filters-btn"
-            onClick={() => {
-              if (role !== 'super_admin') {
-                setSelectedTeamId(userTeamId || '');
-              } else {
-                setSelectedTeamId('');
-              }
-              setSelectedCommunityId('');
-              if (role !== 'route_leader') {
-                setSelectedRouteId('');
-              } else {
-                setSelectedRouteId(userRouteId || '');
-              }
-              setSelectedBuildingId('');
-              setSearchText('');
-            }}
+            className="menu-button"
+            onClick={toggleMenu}
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+            aria-label="Open menu"
+            type="button"
           >
-            Clear Filters
+            <img src={menuIcon} alt="Menu" />
           </button>
+
+          {menuOpen && (
+            <div className="menu-dropdown" role="menu" aria-orientation="vertical">
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Home")} role="menuitem">
+                Home
+              </button>
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("New Visit")} role="menuitem">
+                New Visit
+              </button>
+              {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Admin Page")} role="menuitem">
+                Admin Page
+              </button>)}
+            </div>
+          )}
         </div>
 
-        <div className="filter-controls">
-          {/* Team Filter - only for super_admin */}
-          {role === 'super_admin' && (
+        <button
+          className="logo-home"
+          onClick={() => navigate("/")}
+          title="Home"
+          aria-label="Go to dashboard"
+          style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
+        >
+          <img src={logoHome} alt="Home" style={{ height: 36, display: "block" }} />
+        </button>
+      </header>
+      
+      {/* Filters Section */}
+      <div className="visit-history-page">
+        <div className="filters-section">
+          <div className="filters-header">
+            <h2>Filters</h2>
+            <button
+              className="clear-filters-btn"
+              onClick={() => {
+                if (role !== 'super_admin') {
+                  setSelectedTeamId(userTeamId || '');
+                } else {
+                  setSelectedTeamId('');
+                }
+                setSelectedCommunityId('');
+                if (role !== 'route_leader') {
+                  setSelectedRouteId('');
+                } else {
+                  setSelectedRouteId(userRouteId || '');
+                }
+                setSelectedBuildingId('');
+                setSearchText('');
+              }}
+            >
+              Clear Filters
+            </button>
+          </div>
+
+          <div className="filter-controls">
+            {/* Team Filter - only for super_admin */}
+            {role === 'super_admin' && (
+              <div className="filter-group">
+                <label htmlFor="team-filter">Team</label>
+                <select
+                  id="team-filter"
+                  value={selectedTeamId}
+                  onChange={(e) => setSelectedTeamId(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">All Teams</option>
+                  {teams.map(team => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Community Filter */}
             <div className="filter-group">
-              <label htmlFor="team-filter">Team</label>
+              <label htmlFor="community-filter">Community</label>
               <select
-                id="team-filter"
-                value={selectedTeamId}
-                onChange={(e) => setSelectedTeamId(e.target.value)}
+                id="community-filter"
+                value={selectedCommunityId}
+                onChange={(e) => setSelectedCommunityId(e.target.value)}
                 className="filter-select"
+                disabled={!selectedTeamId && role === 'super_admin'}
               >
-                <option value="">All Teams</option>
-                {teams.map(team => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
+                <option value="">All Communities</option>
+                {communities.map(community => (
+                  <option key={community.id} value={community.id}>
+                    {community.name}
                   </option>
                 ))}
               </select>
             </div>
-          )}
 
-          {/* Community Filter */}
-          <div className="filter-group">
-            <label htmlFor="community-filter">Community</label>
-            <select
-              id="community-filter"
-              value={selectedCommunityId}
-              onChange={(e) => setSelectedCommunityId(e.target.value)}
-              className="filter-select"
-              disabled={!selectedTeamId && role === 'super_admin'}
-            >
-              <option value="">All Communities</option>
-              {communities.map(community => (
-                <option key={community.id} value={community.id}>
-                  {community.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Route Filter - locked for route_leader */}
-          <div className="filter-group">
-            <label htmlFor="route-filter">Route</label>
-            <select
-              id="route-filter"
-              value={selectedRouteId}
-              onChange={(e) => setSelectedRouteId(e.target.value)}
-              className="filter-select"
-              disabled={role === 'route_leader'}
-            >
-              <option value="">All Routes</option>
-              {routes.map(route => (
-                <option key={route.id} value={route.id}>
-                  {route.name}
-                </option>
-              ))}
-            </select>
-            {role === 'route_leader' && (
-              <small className="filter-note">Locked to your assigned route</small>
-            )}
-          </div>
-
-          {/* Building Filter */}
-          <div className="filter-group">
-            <label htmlFor="building-filter">Building</label>
-            <select
-              id="building-filter"
-              value={selectedBuildingId}
-              onChange={(e) => setSelectedBuildingId(e.target.value)}
-              className="filter-select"
-              disabled={!selectedRouteId}
-            >
-              <option value="">All Buildings</option>
-              {buildings.map(building => (
-                <option key={building.id} value={building.id}>
-                  {building.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search */}
-          <div className="filter-group">
-            <label htmlFor="search-filter">Search</label>
-            <input
-              id="search-filter"
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search building, unit, notes..."
-              className="filter-input"
-            />
-          </div>
-        </div>
-
-        {/* Group By Options */}
-        <div className="view-options">
-          <label>Group By:</label>
-          <div className="radio-group">
-            <label className="radio-label">
-              <input
-                type="radio"
-                value="building"
-                checked={groupBy === 'building'}
-                onChange={(e) => setGroupBy(e.target.value)}
-              />
-              Building
-            </label>
-            <label className="radio-label">
-              <input
-                type="radio"
-                value="route"
-                checked={groupBy === 'route'}
-                onChange={(e) => setGroupBy(e.target.value)}
-              />
-              Route
-            </label>
-            <label className="radio-label">
-              <input
-                type="radio"
-                value="flat"
-                checked={groupBy === 'flat'}
-                onChange={(e) => setGroupBy(e.target.value)}
-              />
-              Flat List
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Results Summary */}
-      <div className="results-summary">
-        <p>
-          Showing <strong>{filteredVisits.length}</strong> visit{filteredVisits.length !== 1 ? 's' : ''}
-          {groupBy !== 'flat' && ` in ${Object.keys(groupedVisits).length} ${groupBy === 'building' ? 'unit' : 'route'}${Object.keys(groupedVisits).length !== 1 ? 's' : ''}`}
-        </p>
-      </div>
-
-      {/* Visits Display */}
-      {filteredVisits.length === 0 ? (
-        <div className="empty-state">
-          <p>No visits found matching your filters.</p>
-          <button
-            type="button"
-            onClick={() => navigate('/visits/new')}
-            className="primary-button"
-          >
-            Record a Visit
-          </button>
-        </div>
-      ) : groupBy === 'flat' ? (
-        // Flat list view
-        <div className="visits-list">
-          {filteredVisits.map(visit => (
-            <div key={visit.id} className="visit-card">
-              <div
-                className="visit-header"
-                onClick={() => toggleVisit(visit.id)}
+            {/* Route Filter - locked for route_leader */}
+            <div className="filter-group">
+              <label htmlFor="route-filter">Route</label>
+              <select
+                id="route-filter"
+                value={selectedRouteId}
+                onChange={(e) => setSelectedRouteId(e.target.value)}
+                className="filter-select"
+                disabled={role === 'route_leader'}
               >
-                <div className="visit-title">
-                  <strong>{visit.buildingName || 'Unknown Building'}</strong> - Unit {visit.unitNumber || 'N/A'}
-                </div>
-                <div className="visit-date">
-                  {visit.visitDate?.toDate
-                    ? visit.visitDate.toDate().toLocaleDateString()
-                    : 'N/A'}
-                </div>
-                <span className="expand-icon">
-                  {expandedVisits[visit.id] ? '−' : '+'}
-                </span>
-              </div>
-              {expandedVisits[visit.id] && (
-                <div className="visit-details">
-                  <div className="detail-item">
-                    <label>Building:</label>
-                    <span>{visit.buildingName || 'Unknown'}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Unit:</label>
-                    <span>{visit.unitNumber || 'N/A'}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Route:</label>
-                    <span>{routeNames[visit.routeId] || 'Unknown'}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Visit Date:</label>
-                    <span>
-                      {visit.visitDate?.toDate
-                        ? visit.visitDate.toDate().toLocaleDateString()
-                        : 'N/A'}
-                    </span>
-                  </div>
-                  {visit.people && visit.people.length > 0 && (
-                    <div className="detail-item full-width">
-                      <label>People Visited:</label>
-                      <div className="people-list">
-                        {visit.people.map((person, idx) => {
-                          const isEditing = editingVisit?.visitId === visit.id && editingVisit?.personIndex === idx;
+                <option value="">All Routes</option>
+                {routes.map(route => (
+                  <option key={route.id} value={route.id}>
+                    {route.name}
+                  </option>
+                ))}
+              </select>
+              {role === 'route_leader' && (
+                <small className="filter-note">Locked to your assigned route</small>
+              )}
+            </div>
 
-                          return (
-                            <div key={idx} className="person-item">
-                              {isEditing ? (
-                                // Edit mode
-                                <div className="person-edit-form">
-                                  <div className="edit-form-row">
-                                    <label>Name:</label>
-                                    <input
-                                      type="text"
-                                      value={editFormData.name}
-                                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                                      className="edit-input"
-                                    />
+            {/* Building Filter */}
+            <div className="filter-group">
+              <label htmlFor="building-filter">Building</label>
+              <select
+                id="building-filter"
+                value={selectedBuildingId}
+                onChange={(e) => setSelectedBuildingId(e.target.value)}
+                className="filter-select"
+                disabled={!selectedRouteId}
+              >
+                <option value="">All Buildings</option>
+                {buildings.map(building => (
+                  <option key={building.id} value={building.id}>
+                    {building.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Search */}
+            <div className="filter-group">
+              <label htmlFor="search-filter">Search</label>
+              <input
+                id="search-filter"
+                type="text"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Search building, unit, notes..."
+                className="filter-input"
+              />
+            </div>
+          </div>
+
+          {/* Group By Options */}
+          <div className="view-options">
+            <label>Group By:</label>
+            <div className="radio-group">
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  value="building"
+                  checked={groupBy === 'building'}
+                  onChange={(e) => setGroupBy(e.target.value)}
+                />
+                Building
+              </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  value="route"
+                  checked={groupBy === 'route'}
+                  onChange={(e) => setGroupBy(e.target.value)}
+                />
+                Route
+              </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  value="flat"
+                  checked={groupBy === 'flat'}
+                  onChange={(e) => setGroupBy(e.target.value)}
+                />
+                Flat List
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Results Summary */}
+        <div className="results-summary">
+          <p>
+            Showing <strong>{filteredVisits.length}</strong> visit{filteredVisits.length !== 1 ? 's' : ''}
+            {groupBy !== 'flat' && ` in ${Object.keys(groupedVisits).length} ${groupBy === 'building' ? 'unit' : 'route'}${Object.keys(groupedVisits).length !== 1 ? 's' : ''}`}
+          </p>
+        </div>
+
+        {/* Visits Display */}
+        {filteredVisits.length === 0 ? (
+          <div className="empty-state">
+            <p>No visits found matching your filters.</p>
+            <button
+              type="button"
+              onClick={() => navigate('/visits/new')}
+              className="primary-button"
+            >
+              Record a Visit
+            </button>
+          </div>
+        ) : groupBy === 'flat' ? (
+          // Flat list view
+          <div className="visits-list">
+            {filteredVisits.map(visit => (
+              <div key={visit.id} className="visit-card">
+                <div
+                  className="visit-header"
+                  onClick={() => toggleVisit(visit.id)}
+                >
+                  <div className="visit-title">
+                    <strong>{visit.buildingName || 'Unknown Building'}</strong> - Unit {visit.unitNumber || 'N/A'}
+                  </div>
+                  <div className="visit-date">
+                    {visit.visitDate?.toDate
+                      ? visit.visitDate.toDate().toLocaleDateString()
+                      : 'N/A'}
+                  </div>
+                  <span className="expand-icon">
+                    {expandedVisits[visit.id] ? '−' : '+'}
+                  </span>
+                </div>
+                {expandedVisits[visit.id] && (
+                  <div className="visit-details">
+                    <div className="detail-item">
+                      <label>Building:</label>
+                      <span>{visit.buildingName || 'Unknown'}</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Unit:</label>
+                      <span>{visit.unitNumber || 'N/A'}</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Route:</label>
+                      <span>{routeNames[visit.routeId] || 'Unknown'}</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Visit Date:</label>
+                      <span>
+                        {visit.visitDate?.toDate
+                          ? visit.visitDate.toDate().toLocaleDateString()
+                          : 'N/A'}
+                      </span>
+                    </div>
+                    {visit.people && visit.people.length > 0 && (
+                      <div className="detail-item full-width">
+                        <label>People Visited:</label>
+                        <div className="people-list">
+                          {visit.people.map((person, idx) => {
+                            const isEditing = editingVisit?.visitId === visit.id && editingVisit?.personIndex === idx;
+
+                            return (
+                              <div key={idx} className="person-item">
+                                {isEditing ? (
+                                  // Edit mode
+                                  <div className="person-edit-form">
+                                    <div className="edit-form-row">
+                                      <label>Name:</label>
+                                      <input
+                                        type="text"
+                                        value={editFormData.name}
+                                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                        className="edit-input"
+                                      />
+                                    </div>
+                                    <div className="edit-form-row">
+                                      <label>Age:</label>
+                                      <input
+                                        type="number"
+                                        value={editFormData.age}
+                                        onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
+                                        className="edit-input"
+                                      />
+                                    </div>
+                                    <div className="edit-form-row">
+                                      <label>Phone:</label>
+                                      <input
+                                        type="text"
+                                        value={editFormData.phone}
+                                        onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                        className="edit-input"
+                                      />
+                                    </div>
+                                    <div className="edit-form-row">
+                                      <label>Follow-up:</label>
+                                      <textarea
+                                        value={editFormData.followUp}
+                                        onChange={(e) => setEditFormData({ ...editFormData, followUp: e.target.value })}
+                                        className="edit-textarea"
+                                        rows="3"
+                                      />
+                                    </div>
+                                    <div className="edit-form-row">
+                                      <label>Involvement:</label>
+                                      <textarea
+                                        value={editFormData.involvement}
+                                        onChange={(e) => setEditFormData({ ...editFormData, involvement: e.target.value })}
+                                        className="edit-textarea"
+                                        rows="2"
+                                      />
+                                    </div>
+                                    <div className="edit-form-actions">
+                                      <button
+                                        onClick={() => saveEdit(visit)}
+                                        disabled={saving}
+                                        className="save-btn"
+                                      >
+                                        {saving ? 'Saving...' : 'Save'}
+                                      </button>
+                                      <button
+                                        onClick={cancelEdit}
+                                        disabled={saving}
+                                        className="cancel-btn"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
                                   </div>
-                                  <div className="edit-form-row">
-                                    <label>Age:</label>
-                                    <input
-                                      type="number"
-                                      value={editFormData.age}
-                                      onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
-                                      className="edit-input"
-                                    />
-                                  </div>
-                                  <div className="edit-form-row">
-                                    <label>Phone:</label>
-                                    <input
-                                      type="text"
-                                      value={editFormData.phone}
-                                      onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                                      className="edit-input"
-                                    />
-                                  </div>
-                                  <div className="edit-form-row">
-                                    <label>Follow-up:</label>
-                                    <textarea
-                                      value={editFormData.followUp}
-                                      onChange={(e) => setEditFormData({ ...editFormData, followUp: e.target.value })}
-                                      className="edit-textarea"
-                                      rows="3"
-                                    />
-                                  </div>
-                                  <div className="edit-form-row">
-                                    <label>Involvement:</label>
-                                    <textarea
-                                      value={editFormData.involvement}
-                                      onChange={(e) => setEditFormData({ ...editFormData, involvement: e.target.value })}
-                                      className="edit-textarea"
-                                      rows="2"
-                                    />
-                                  </div>
-                                  <div className="edit-form-actions">
-                                    <button
-                                      onClick={() => saveEdit(visit)}
-                                      disabled={saving}
-                                      className="save-btn"
-                                    >
-                                      {saving ? 'Saving...' : 'Save'}
-                                    </button>
-                                    <button
-                                      onClick={cancelEdit}
-                                      disabled={saving}
-                                      className="cancel-btn"
-                                    >
-                                      Cancel
-                                    </button>
+                                ) : (
+                                  // View mode
+                                  <>
+                                    <div className="person-header">
+                                      <div>
+                                        <strong>{person.name || 'Unknown'}</strong>
+                                        {person.age && <span> (Age: {person.age})</span>}
+                                        {person.phone && <span> • Phone: {person.phone}</span>}
+                                      </div>
+                                      {role !== 'volunteer' && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            startEditingPerson(visit, idx);
+                                          }}
+                                          className="edit-person-btn"
+                                          title="Edit person"
+                                        >
+                                          ✏️ Edit
+                                        </button>
+                                      )}
+                                    </div>
+                                    {person.followUp && (
+                                      <div className="person-followup">
+                                        Follow-up: {person.followUp}
+                                      </div>
+                                    )}
+                                    {person.involvement && (
+                                      <div className="person-involvement">
+                                        Involvement: {person.involvement}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <div className="detail-item full-width">
+                      <label>Notes:</label>
+                      <p>{visit.notes || 'No notes'}</p>
+                    </div>
+                    {visit.photoUrls && visit.photoUrls.length > 0 && (
+                      <div className="detail-item">
+                        <label>Photos:</label>
+                        <span>{visit.photoUrls.length} photo(s)</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          // Grouped view (by building/unit or route)
+          <div className="visits-grouped">
+            {Object.entries(groupedVisits).map(([groupKey, groupData]) => (
+              <div key={groupKey} className="visit-group">
+                <div
+                  className={`group-header ${expandedGroups[groupKey] ? 'expanded' : ''}`}
+                  onClick={() => toggleGroup(groupKey)}
+                >
+                  <h3>{groupData.label}</h3>
+                  <span className="visit-count">
+                    {groupData.visits.length} visit{groupData.visits.length !== 1 ? 's' : ''}
+                  </span>
+                  <span className="expand-icon">
+                    {expandedGroups[groupKey] ? '−' : '+'}
+                  </span>
+                </div>
+                {expandedGroups[groupKey] && (
+                  <div className="group-visits">
+                    {groupData.visits.map(visit => (
+                      <div key={visit.id} className="visit-item">
+                        <div
+                          className="visit-item-header"
+                          onClick={() => toggleVisit(visit.id)}
+                        >
+                          <span className="visit-unit">
+                            {visit.visitDate?.toDate
+                              ? visit.visitDate.toDate().toLocaleDateString()
+                              : 'N/A'}
+                          </span>
+                          <span className="expand-icon-small">
+                            {expandedVisits[visit.id] ? '−' : '+'}
+                          </span>
+                        </div>
+                        {expandedVisits[visit.id] && (
+                          <div className="visit-item-details">
+                            <div className="detail-grid">
+                              <div className="detail-item">
+                                <label>Visit Date:</label>
+                                <span>
+                                  {visit.visitDate?.toDate
+                                    ? visit.visitDate.toDate().toLocaleDateString()
+                                    : 'N/A'}
+                                </span>
+                              </div>
+                              {visit.people && visit.people.length > 0 && (
+                                <div className="detail-item full-width">
+                                  <label>People Visited:</label>
+                                  <div className="people-list">
+                                    {visit.people.map((person, idx) => {
+                                      const isEditing = editingVisit?.visitId === visit.id && editingVisit?.personIndex === idx;
+
+                                      return (
+                                        <div key={idx} className="person-item">
+                                          {isEditing ? (
+                                            // Edit mode
+                                            <div className="person-edit-form">
+                                              <div className="edit-form-row">
+                                                <label>Name:</label>
+                                                <input
+                                                  type="text"
+                                                  value={editFormData.name}
+                                                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                                  className="edit-input"
+                                                />
+                                              </div>
+                                              <div className="edit-form-row">
+                                                <label>Age:</label>
+                                                <input
+                                                  type="number"
+                                                  value={editFormData.age}
+                                                  onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
+                                                  className="edit-input"
+                                                />
+                                              </div>
+                                              <div className="edit-form-row">
+                                                <label>Phone:</label>
+                                                <input
+                                                  type="text"
+                                                  value={editFormData.phone}
+                                                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                                  className="edit-input"
+                                                />
+                                              </div>
+                                              <div className="edit-form-row">
+                                                <label>Follow-up:</label>
+                                                <textarea
+                                                  value={editFormData.followUp}
+                                                  onChange={(e) => setEditFormData({ ...editFormData, followUp: e.target.value })}
+                                                  className="edit-textarea"
+                                                  rows="3"
+                                                />
+                                              </div>
+                                              <div className="edit-form-row">
+                                                <label>Involvement:</label>
+                                                <textarea
+                                                  value={editFormData.involvement}
+                                                  onChange={(e) => setEditFormData({ ...editFormData, involvement: e.target.value })}
+                                                  className="edit-textarea"
+                                                  rows="2"
+                                                />
+                                              </div>
+                                              <div className="edit-form-actions">
+                                                <button
+                                                  onClick={() => saveEdit(visit)}
+                                                  disabled={saving}
+                                                  className="save-btn"
+                                                >
+                                                  {saving ? 'Saving...' : 'Save'}
+                                                </button>
+                                                <button
+                                                  onClick={cancelEdit}
+                                                  disabled={saving}
+                                                  className="cancel-btn"
+                                                >
+                                                  Cancel
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            // View mode
+                                            <>
+                                              <div className="person-header">
+                                                <div>
+                                                  <strong>{person.name || 'Unknown'}</strong>
+                                                  {person.age && <span> (Age: {person.age})</span>}
+                                                  {person.phone && <span> • Phone: {person.phone}</span>}
+                                                </div>
+                                                {canEditVisit(visit) && (
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      startEditingPerson(visit, idx);
+                                                    }}
+                                                    className="edit-person-btn"
+                                                    title="Edit person"
+                                                  >
+                                                    ✏️ Edit
+                                                  </button>
+                                                )}
+                                              </div>
+                                              {person.followUp && (
+                                                <div className="person-followup">
+                                                  Follow-up: {person.followUp}
+                                                </div>
+                                              )}
+                                              {person.involvement && (
+                                                <div className="person-involvement">
+                                                  Involvement: {person.involvement}
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
-                              ) : (
-                                // View mode
-                                <>
-                                  <div className="person-header">
-                                    <div>
-                                      <strong>{person.name || 'Unknown'}</strong>
-                                      {person.age && <span> (Age: {person.age})</span>}
-                                      {person.phone && <span> • Phone: {person.phone}</span>}
-                                    </div>
-                                    {role !== 'volunteer' && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          startEditingPerson(visit, idx);
-                                        }}
-                                        className="edit-person-btn"
-                                        title="Edit person"
-                                      >
-                                        ✏️ Edit
-                                      </button>
-                                    )}
-                                  </div>
-                                  {person.followUp && (
-                                    <div className="person-followup">
-                                      Follow-up: {person.followUp}
-                                    </div>
-                                  )}
-                                  {person.involvement && (
-                                    <div className="person-involvement">
-                                      Involvement: {person.involvement}
-                                    </div>
-                                  )}
-                                </>
+                              )}
+                              <div className="detail-item full-width">
+                                <label>Notes:</label>
+                                <p>{visit.notes || 'No notes'}</p>
+                              </div>
+                              {visit.photoUrls && visit.photoUrls.length > 0 && (
+                                <div className="detail-item">
+                                  <label>Photos:</label>
+                                  <span>{visit.photoUrls.length} photo(s)</span>
+                                </div>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  <div className="detail-item full-width">
-                    <label>Notes:</label>
-                    <p>{visit.notes || 'No notes'}</p>
-                  </div>
-                  {visit.photoUrls && visit.photoUrls.length > 0 && (
-                    <div className="detail-item">
-                      <label>Photos:</label>
-                      <span>{visit.photoUrls.length} photo(s)</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        // Grouped view (by building/unit or route)
-        <div className="visits-grouped">
-          {Object.entries(groupedVisits).map(([groupKey, groupData]) => (
-            <div key={groupKey} className="visit-group">
-              <div
-                className={`group-header ${expandedGroups[groupKey] ? 'expanded' : ''}`}
-                onClick={() => toggleGroup(groupKey)}
-              >
-                <h3>{groupData.label}</h3>
-                <span className="visit-count">
-                  {groupData.visits.length} visit{groupData.visits.length !== 1 ? 's' : ''}
-                </span>
-                <span className="expand-icon">
-                  {expandedGroups[groupKey] ? '−' : '+'}
-                </span>
-              </div>
-              {expandedGroups[groupKey] && (
-                <div className="group-visits">
-                  {groupData.visits.map(visit => (
-                    <div key={visit.id} className="visit-item">
-                      <div
-                        className="visit-item-header"
-                        onClick={() => toggleVisit(visit.id)}
-                      >
-                        <span className="visit-unit">
-                          {visit.visitDate?.toDate
-                            ? visit.visitDate.toDate().toLocaleDateString()
-                            : 'N/A'}
-                        </span>
-                        <span className="expand-icon-small">
-                          {expandedVisits[visit.id] ? '−' : '+'}
-                        </span>
-                      </div>
-                      {expandedVisits[visit.id] && (
-                        <div className="visit-item-details">
-                          <div className="detail-grid">
-                            <div className="detail-item">
-                              <label>Visit Date:</label>
-                              <span>
-                                {visit.visitDate?.toDate
-                                  ? visit.visitDate.toDate().toLocaleDateString()
-                                  : 'N/A'}
-                              </span>
-                            </div>
-                            {visit.people && visit.people.length > 0 && (
-                              <div className="detail-item full-width">
-                                <label>People Visited:</label>
-                                <div className="people-list">
-                                  {visit.people.map((person, idx) => {
-                                    const isEditing = editingVisit?.visitId === visit.id && editingVisit?.personIndex === idx;
-
-                                    return (
-                                      <div key={idx} className="person-item">
-                                        {isEditing ? (
-                                          // Edit mode
-                                          <div className="person-edit-form">
-                                            <div className="edit-form-row">
-                                              <label>Name:</label>
-                                              <input
-                                                type="text"
-                                                value={editFormData.name}
-                                                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                                                className="edit-input"
-                                              />
-                                            </div>
-                                            <div className="edit-form-row">
-                                              <label>Age:</label>
-                                              <input
-                                                type="number"
-                                                value={editFormData.age}
-                                                onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
-                                                className="edit-input"
-                                              />
-                                            </div>
-                                            <div className="edit-form-row">
-                                              <label>Phone:</label>
-                                              <input
-                                                type="text"
-                                                value={editFormData.phone}
-                                                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                                                className="edit-input"
-                                              />
-                                            </div>
-                                            <div className="edit-form-row">
-                                              <label>Follow-up:</label>
-                                              <textarea
-                                                value={editFormData.followUp}
-                                                onChange={(e) => setEditFormData({ ...editFormData, followUp: e.target.value })}
-                                                className="edit-textarea"
-                                                rows="3"
-                                              />
-                                            </div>
-                                            <div className="edit-form-row">
-                                              <label>Involvement:</label>
-                                              <textarea
-                                                value={editFormData.involvement}
-                                                onChange={(e) => setEditFormData({ ...editFormData, involvement: e.target.value })}
-                                                className="edit-textarea"
-                                                rows="2"
-                                              />
-                                            </div>
-                                            <div className="edit-form-actions">
-                                              <button
-                                                onClick={() => saveEdit(visit)}
-                                                disabled={saving}
-                                                className="save-btn"
-                                              >
-                                                {saving ? 'Saving...' : 'Save'}
-                                              </button>
-                                              <button
-                                                onClick={cancelEdit}
-                                                disabled={saving}
-                                                className="cancel-btn"
-                                              >
-                                                Cancel
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          // View mode
-                                          <>
-                                            <div className="person-header">
-                                              <div>
-                                                <strong>{person.name || 'Unknown'}</strong>
-                                                {person.age && <span> (Age: {person.age})</span>}
-                                                {person.phone && <span> • Phone: {person.phone}</span>}
-                                              </div>
-                                              {canEditVisit(visit) && (
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    startEditingPerson(visit, idx);
-                                                  }}
-                                                  className="edit-person-btn"
-                                                  title="Edit person"
-                                                >
-                                                  ✏️ Edit
-                                                </button>
-                                              )}
-                                            </div>
-                                            {person.followUp && (
-                                              <div className="person-followup">
-                                                Follow-up: {person.followUp}
-                                              </div>
-                                            )}
-                                            {person.involvement && (
-                                              <div className="person-involvement">
-                                                Involvement: {person.involvement}
-                                              </div>
-                                            )}
-                                          </>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                            <div className="detail-item full-width">
-                              <label>Notes:</label>
-                              <p>{visit.notes || 'No notes'}</p>
-                            </div>
-                            {visit.photoUrls && visit.photoUrls.length > 0 && (
-                              <div className="detail-item">
-                                <label>Photos:</label>
-                                <span>{visit.photoUrls.length} photo(s)</span>
-                              </div>
-                            )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
