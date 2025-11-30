@@ -14,6 +14,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase.js';
@@ -465,14 +466,41 @@ export async function deleteVisit(buildingId, visitId) {
     );
     await deleteDoc(visitRef);
 
-    // Decrement building's visitCount
+    // Decrement the building's visitCount and reset lastVisitDate if needed
     const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
     const building = await getDoc(buildingRef);
     const currentCount = building.data()?.visitCount || 0;
+    const newCount = Math.max(0, currentCount - 1);
 
-    await updateDoc(buildingRef, {
-      visitCount: Math.max(0, currentCount - 1),
-    });
+    // If this was the last visit, we need to reset lastVisitDate
+    if (newCount === 0) {
+      await updateDoc(buildingRef, {
+        visitCount: 0,
+        lastVisitDate: null, // Reset to null when no visits remain
+      });
+    } else {
+      // If there are still visits, update the count and find the most recent visit date
+      const visitsRef = collection(
+        db,
+        BUILDINGS_COLLECTION,
+        buildingId,
+        VISITS_SUBCOLLECTION
+      );
+      const visitsQuery = query(visitsRef, orderBy('visitDate', 'desc'), limit(1));
+      const visitsSnapshot = await getDocs(visitsQuery);
+
+      const updateData = {
+        visitCount: newCount,
+      };
+
+      // Update lastVisitDate to the most recent remaining visit
+      if (!visitsSnapshot.empty) {
+        const mostRecentVisit = visitsSnapshot.docs[0].data();
+        updateData.lastVisitDate = mostRecentVisit.visitDate;
+      }
+
+      await updateDoc(buildingRef, updateData);
+    }
   } catch (error) {
     console.error('Error deleting visit:', error);
     throw error;

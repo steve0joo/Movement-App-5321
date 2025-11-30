@@ -10,7 +10,6 @@ import {
   getDocs,
   addDoc,
   updateDoc,
-  deleteDoc,
   query,
   where,
   orderBy,
@@ -261,19 +260,65 @@ export async function assignRouteLeader(routeId, routeLeaderId) {
 }
 
 /**
- * Soft delete a route (set isActive to false)
+ * Soft delete a route and cascade to related entities
+ * This will soft delete:
+ * - The route itself
+ * - All buildings in the route
+ * - Updates any route leaders assigned to this route (sets their routeId to null)
+ * - Preserves visits (they will remain as historical records)
  * @param {string} routeId - Route ID
+ * @param {boolean} skipCascade - If true, only delete the route without cascading (default: false)
  * @returns {Promise<void>}
  */
-export async function deleteRoute(routeId) {
+export async function deleteRoute(routeId, skipCascade = false) {
   try {
+    // First, get the route to check for route leader
     const routeRef = doc(db, ROUTES_COLLECTION, routeId);
+    const routeSnap = await getDoc(routeRef);
+
+    if (!routeSnap.exists()) {
+      throw new Error('Route not found');
+    }
+
+    const routeData = routeSnap.data();
+    const routeLeaderId = routeData.routeLeaderId;
+
+    if (!skipCascade) {
+      // Import building service to handle cascade
+      const { getBuildingsByRoute, deleteBuilding } = await import('./buildingService.js');
+
+      // Get all buildings in this route
+      const buildings = await getBuildingsByRoute(routeId);
+
+      // Soft delete each building (buildings handle their own visit cascade)
+      const deletePromises = buildings.map(building =>
+        deleteBuilding(building.id) // This already handles visits
+      );
+
+      await Promise.all(deletePromises);
+
+      console.log(`Cascade deleted ${buildings.length} buildings from route ${routeId}`);
+
+      // Clear the route assignment from the route leader's user profile
+      if (routeLeaderId) {
+        const userRef = doc(db, 'users', routeLeaderId);
+        await updateDoc(userRef, {
+          routeId: null,
+          updatedAt: serverTimestamp(),
+        });
+        console.log(`Cleared route assignment for route leader ${routeLeaderId}`);
+      }
+    }
+
+    // Finally, soft delete the route itself
     await updateDoc(routeRef, {
       isActive: false,
       deletedAt: serverTimestamp(),
+      // Clear the route leader reference to avoid orphaned references
+      routeLeaderId: null,
     });
   } catch (error) {
-    console.error('Error deleting route:', error);
+    console.error('Error deleting route with cascade:', error);
     throw error;
   }
 }

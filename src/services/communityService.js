@@ -154,19 +154,43 @@ export async function updateCommunity(communityId, updates) {
 }
 
 /**
- * Soft delete a community (set isActive to false)
+ * Soft delete a community and cascade to related entities
+ * This will soft delete:
+ * - The community itself
+ * - All routes in the community
+ * - All buildings in those routes
+ * - Preserves visits (they remain as historical records)
  * @param {string} communityId - Community ID
+ * @param {boolean} skipCascade - If true, only deletes the community without cascading (default: false)
  * @returns {Promise<void>}
  */
-export async function deleteCommunity(communityId) {
+export async function deleteCommunity(communityId, skipCascade = false) {
   try {
+    if (!skipCascade) {
+      // Import route and building services to handle cascade
+      const { getRoutesByCommunity, deleteRoute } = await import('./routeService.js');
+
+      // Get all routes in this community
+      const routes = await getRoutesByCommunity(communityId);
+
+      // Delete each route (which will cascade to buildings)
+      const deletePromises = routes.map(route =>
+        deleteRoute(route.id, false) // false = with cascade
+      );
+
+      await Promise.all(deletePromises);
+
+      console.log(`Cascade deleted ${routes.length} routes from community ${communityId}`);
+    }
+
+    // Finally, soft delete the community itself
     const communityRef = doc(db, COMMUNITIES_COLLECTION, communityId);
     await updateDoc(communityRef, {
       isActive: false,
       deletedAt: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Error deleting community:', error);
+    console.error('Error deleting community with cascade:', error);
     throw error;
   }
 }

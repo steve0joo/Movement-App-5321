@@ -104,6 +104,8 @@ export default function VisitForm({ onClose, onSaved }) {
   const [loadingPastPeople, setLoadingPastPeople] = useState(false);
   const [selectedPersonForRecord, setSelectedPersonForRecord] = useState(null);
   const [showRecordsList, setShowRecordsList] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
+  const [submitMessage, setSubmitMessage] = useState('');
 
   const menuRef = useRef(null);
 
@@ -414,15 +416,45 @@ export default function VisitForm({ onClose, onSaved }) {
         )
       );
 
-      // Success
+      // Success - show the success modal
+      setSubmitStatus('success');
+      setSubmitMessage('Visit recorded successfully!');
       onSaved?.();
-      onClose?.();
     } catch (err) {
-      setError(err.message || 'Failed to save visit. Please try again.');
+      // Error - show the error modal
+      setSubmitStatus('error');
+      setSubmitMessage(err.message || 'Failed to save visit. Please try again.');
       console.error('Error saving visit:', err);
     } finally {
       setSaving(false);
     }
+  }
+
+  // Handle modal actions
+  function handleStayOnPage() {
+    setSubmitStatus(null);
+    setSubmitMessage('');
+    // Reset form for new visit
+    setSelectedCommunity(null);
+    setCommunityName('');
+    setSelectedRoute(null);
+    setRouteName('');
+    setSelectedBuilding(null);
+    setBuildingName('');
+    setUnitNumber('');
+    setNotes('');
+    setPeople([
+      { name: '', age: '', phone: '', followUp: '', involvement: '' },
+      { name: '', age: '', phone: '', followUp: '', involvement: '' },
+      { name: '', age: '', phone: '', followUp: '', involvement: '' },
+    ]);
+    setError('');
+  }
+
+  function handleGoToDashboard() {
+    setSubmitStatus(null);
+    setSubmitMessage('');
+    navigate('/');
   }
 
   // Menu functions
@@ -843,6 +875,36 @@ export default function VisitForm({ onClose, onSaved }) {
           unitNumber={unitNumber}
           onClose={() => setShowRecordsList(false)}
         />
+      )}
+
+      {/* Success/Error Modal */}
+      {submitStatus && (
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{submitStatus === 'success' ? '✅ Success' : '❌ Error'}</h3>
+            </div>
+            <div className="modal-body">
+              <p>{submitMessage}</p>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={handleStayOnPage}
+              >
+                Record Another Visit
+              </button>
+              <button
+                type="button"
+                className="btn-confirm"
+                onClick={handleGoToDashboard}
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

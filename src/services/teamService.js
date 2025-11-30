@@ -10,7 +10,6 @@ import {
   getDocs,
   addDoc,
   updateDoc,
-  deleteDoc,
   query,
   where,
   orderBy,
@@ -123,19 +122,68 @@ export async function updateTeam(teamId, updates) {
 }
 
 /**
- * Soft delete a team (set isActive to false)
+ * Soft delete a team and cascade to related entities
+ * This will soft delete:
+ * - The team itself
+ * - All communities in the team
+ * - All routes in those communities
+ * - All buildings in those routes
+ * - Update all users in the team (sets their teamId to null and disables accounts)
+ * - Preserve visits (they will remain as historical records)
  * @param {string} teamId - Team ID
+ * @param {boolean} skipCascade - If true, only delete the team without cascading (default: false)
  * @returns {Promise<void>}
  */
-export async function deleteTeam(teamId) {
+export async function deleteTeam(teamId, skipCascade = false) {
   try {
+    if (!skipCascade) {
+      // Import community service to handle cascade
+      const { getCommunitiesByTeam, deleteCommunity } = await import('./communityService.js');
+
+      // Get all communities in this team
+      const communities = await getCommunitiesByTeam(teamId);
+
+      // Delete each community (which will cascade to routes and buildings)
+      const communityDeletePromises = communities.map(community =>
+        deleteCommunity(community.id, false) // false = with cascade
+      );
+
+      await Promise.all(communityDeletePromises);
+
+      console.log(`Cascade deleted ${communities.length} communities from team ${teamId}`);
+
+      // Handle users in this team
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('teamId', '==', teamId)
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+
+      // Clear team assignment from all users and deactivate them
+      const userUpdatePromises = usersSnapshot.docs.map(userDoc => {
+        const userRef = doc(db, 'users', userDoc.id);
+        return updateDoc(userRef, {
+          teamId: null,
+          routeId: null, // Also clear route assignment
+          isActive: false, // Deactivate the user account
+          updatedAt: serverTimestamp(),
+          deactivatedReason: 'Team deleted',
+        });
+      });
+
+      await Promise.all(userUpdatePromises);
+
+      console.log(`Deactivated ${usersSnapshot.docs.length} users from team ${teamId}`);
+    }
+
+    // Finally, soft delete the team itself
     const teamRef = doc(db, TEAMS_COLLECTION, teamId);
     await updateDoc(teamRef, {
       isActive: false,
       deletedAt: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Error deleting team:', error);
+    console.error('Error deleting team with cascade:', error);
     throw error;
   }
 }

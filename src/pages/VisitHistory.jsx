@@ -182,8 +182,21 @@ const VisitHistory = () => {
   // Fetch entity names for display
   const fetchEntityNames = async (routeIds, communityIds, teamIds) => {
     try {
-      // For now, we'll fetch these as needed in the filter dropdowns
-      // This is a placeholder for future optimization
+      // Fetch route names for all routes in visits
+      if (routeIds.size > 0) {
+        const { getRoute } = await import('../services/routeService');
+        const routeNamePromises = Array.from(routeIds).map(async (routeId) => {
+          try {
+            const route = await getRoute(routeId);
+            return [routeId, route?.name || routeId];
+          } catch (error) {
+            console.error(`Error fetching route ${routeId}:`, error);
+            return [routeId, routeId];
+          }
+        });
+        const routeNameEntries = await Promise.all(routeNamePromises);
+        setRouteNames(Object.fromEntries(routeNameEntries));
+      }
     } catch (error) {
       console.error('Error fetching entity names:', error);
     }
