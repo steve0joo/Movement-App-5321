@@ -7,6 +7,7 @@ import TeamManagementTab from '../components/admin/TeamManagementTab';
 import CommunityManagementTab from '../components/admin/CommunityManagementTab';
 import RouteManagementTab from '../components/admin/RouteManagementTab';
 import BuildingManagementTab from '../components/admin/BuildingManagementTab';
+import './header.css';
 import './AdminStyles.css'; // Shared admin styles
 import menuIcon from "../assets/menu-button.png";
 import logoHome from "../assets/logo-home-button.png";
@@ -46,8 +47,9 @@ export default function UnifiedAdminPage() {
 
   function handleMenuSelect(item) {
     setMenuOpen(false);
-    if (item === "Dashboard") navigate("/");
-    // keep other items as placeholders
+    if (item === "Home") navigate("/");
+    if (item === "New Visit") navigate("/visits/new");
+    if (item === "Visit History") navigate("/visit-history");
   }
 
   // Define available tabs with role-based access
@@ -161,7 +163,7 @@ export default function UnifiedAdminPage() {
 
   return (
     <div className="admin-page">
-      <header className="admin-header">
+      <header className="all-header">
         <div className="menu-container" ref={menuRef}>
           <button
             className="menu-button"
@@ -176,14 +178,14 @@ export default function UnifiedAdminPage() {
 
           {menuOpen && (
             <div className="menu-dropdown" role="menu" aria-orientation="vertical">
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Home")} role="menuitem">
+                Home
+              </button>
               <button type="button" className="menu-item" onClick={() => handleMenuSelect("New Visit")} role="menuitem">
                 New Visit
               </button>
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Families")} role="menuitem">
-                Families
-              </button>
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Dashboard")} role="menuitem">
-                Dashboard
+              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Visit History")} role="menuitem">
+                Visit History
               </button>
             </div>
           )}

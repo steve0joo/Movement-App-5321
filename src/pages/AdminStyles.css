@@ -9,40 +9,6 @@
   font-size: 16px;
 }
 
-/* single, consolidated header rule */
-.admin-header {
-  display:flex;
-  position: relative;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding: 24px 0 12px; /* 24px top, 0fleft/right (shell provides horizontal padding), 12px bottom */
-  border-bottom: 1px solid #e6e6e6;
-  background: transparent;
-  margin-bottom: 12px;
-}
-.admin-header .logo-home {
-  position: absolute;
-  left: 50%;
-  top: 54%; /* nudged down from 50% */
-  transform: translate(-50%, -40%); /* reduce upward translate so it appears lower */
-  z-index: 2;
-}
-
-/* menu & admin-info combined, single definition */
-.menu-container,
-.admin-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;            
-  flex: 0 1 auto;         
-  min-width: 0;             
-  margin: 0 6px;
-  white-space: nowrap;     
-  position: relative;      
-  z-index: 3;
-}
-
 /* admin-badge and admin-info visuals */
 .admin-info {
   gap: 1rem;
@@ -207,49 +173,6 @@
 .users-table .btn-edit:focus-visible,
 .users-table .btn-delete:focus-visible { box-shadow: 0 0 0 3px rgba(74,143,140,0.18); border-radius: 6px; }
 
-/* menu button & dropdown (single definitions) */
-.menu-container { position: relative; display: inline-block; margin-right: 12px; }
-.menu-button {
-  padding: 2px;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-.menu-button img { height: 18px; width: auto; display: block; }
-
-/* menu dropdown */
-.menu-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: auto;
-  background: #fff;
-  border: 1px solid #e6e6e6;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  min-width: 140px;
-  z-index: 1200;
-  padding: 4px 0;
-}
-.menu-dropdown .menu-item {
-  display: block;
-  width: 100%;
-  padding: 8px 14px;
-  background: transparent;
-  border: none;
-  text-align: left;
-  font-family: inherit;
-  color: #111827;
-  cursor: pointer;
-}
-.menu-dropdown .menu-item:hover { background: #f3f4f6; }
-.menu-dropdown .menu-item:focus { outline: none; background: #eef6f5; box-shadow: inset 0 0 0 2px rgba(74,143,140,0.08); }
-
 /* table scroll behavior */
 .users-table { overflow-x: auto; }
 
@@ -387,7 +310,7 @@
   max-width: 1200px;
   margin: 0 auto;
 }
-.admin-card .admin-header {
+/* .admin-card .admin-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -399,7 +322,7 @@
   margin: 0;
   font-size: 1.875rem;
   color: #1f2937;
-}
+} */
 .admin-card .subtitle {
   margin: 0.5rem 0 0 0;
   font-size: 0.95rem;
