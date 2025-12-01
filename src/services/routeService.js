@@ -16,6 +16,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase.js';
+import { validateName, ValidationError } from '../utils/validation.js';
 
 const ROUTES_COLLECTION = 'routes';
 
@@ -36,23 +37,31 @@ export async function createRoute(
   routeLeaderId = null
 ) {
   try {
+    // Validate and sanitize the route name
+    const sanitizedName = validateName(routeName, {
+      required: true,
+      minLength: 1,
+      maxLength: 100,
+      fieldName: 'Route name',
+    });
+
     // Check for the duplicated route name within the same community
     const duplicateQuery = query(
       collection(db, ROUTES_COLLECTION),
       where('communityId', '==', communityId),
-      where('name', '==', routeName),
+      where('name', '==', sanitizedName),
       where('isActive', '==', true)
     );
     const duplicateSnapshot = await getDocs(duplicateQuery);
 
     if (!duplicateSnapshot.empty) {
       throw new Error(
-        `A route with the name "${routeName}" already exists in this community`
+        `A route with the name "${sanitizedName}" already exists in this community`
       );
     }
 
     const routeRef = await addDoc(collection(db, ROUTES_COLLECTION), {
-      name: routeName,
+      name: sanitizedName,
       communityId,
       teamId,
       routeLeaderId,
@@ -63,13 +72,16 @@ export async function createRoute(
 
     return {
       id: routeRef.id,
-      name: routeName,
+      name: sanitizedName,
       communityId,
       teamId,
       routeLeaderId,
     };
   } catch (error) {
     console.error('Error creating route:', error);
+    if (error instanceof ValidationError) {
+      throw new Error(`Invalid route data: ${error.message}`);
+    }
     throw error;
   }
 }
@@ -285,19 +297,23 @@ export async function deleteRoute(routeId, skipCascade = false) {
 
     if (!skipCascade) {
       // Import building service to handle cascade
-      const { getBuildingsByRoute, deleteBuilding } = await import('./buildingService.js');
+      const { getBuildingsByRoute, deleteBuilding } = await import(
+        './buildingService.js'
+      );
 
       // Get all buildings in this route
       const buildings = await getBuildingsByRoute(routeId);
 
       // Soft delete each building (buildings handle their own visit cascade)
-      const deletePromises = buildings.map(building =>
-        deleteBuilding(building.id) // This already handles visits
+      const deletePromises = buildings.map(
+        (building) => deleteBuilding(building.id) // This already handles visits
       );
 
       await Promise.all(deletePromises);
 
-      console.log(`Cascade deleted ${buildings.length} buildings from route ${routeId}`);
+      console.log(
+        `Cascade deleted ${buildings.length} buildings from route ${routeId}`
+      );
 
       // Clear the route assignment from the route leader's user profile
       if (routeLeaderId) {
@@ -306,7 +322,9 @@ export async function deleteRoute(routeId, skipCascade = false) {
           routeId: null,
           updatedAt: serverTimestamp(),
         });
-        console.log(`Cleared route assignment for route leader ${routeLeaderId}`);
+        console.log(
+          `Cleared route assignment for route leader ${routeLeaderId}`
+        );
       }
     }
 

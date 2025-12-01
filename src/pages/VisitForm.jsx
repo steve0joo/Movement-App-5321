@@ -1,6 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSync } from '../context/SyncContext';
+import {
+  isOfflineModeActive,
+  saveLastVisitFormData,
+  getLastVisitFormData,
+  cacheUserData,
+  getCachedTeams,
+  getCachedCommunities,
+  getCachedRoutes,
+  getCachedBuildings,
+} from '../utils/offlineStorage';
+import {
+  validateName,
+  validateAge,
+  validatePhone,
+  validateText,
+  sanitizeString,
+  ValidationError,
+} from '../utils/validation';
 import menuIcon from '../assets/menu-button.png';
 import Autocomplete from '../components/Autocomplete';
 import MemberRecord from './MemberRecord';
@@ -21,7 +40,7 @@ import { getRoutesByCommunity, createRoute } from '../services/routeService';
 import { getBuildingsByRoute } from '../services/buildingService';
 import './header.css';
 import './VisitForm.css';
-import logoHome from "../assets/logo-home-button.png";
+import logoHome from '../assets/logo-home-button.png';
 
 // Inline icons
 const IconBack = (p) => (
@@ -69,6 +88,7 @@ export default function VisitForm({ onClose, onSaved }) {
     teamId: userTeamId,
     routeId: userRouteId,
   } = useAuth();
+  const { isOnline } = useSync();
   const navigate = useNavigate();
 
   // Form state
@@ -120,27 +140,117 @@ export default function VisitForm({ onClose, onSaved }) {
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
-  // Load teams on mount
+  // Load teams on mount and cache all user data for offline use
   useEffect(() => {
     async function loadTeams() {
       try {
+        // Try to load from Firebase (works offline due to Firebase cache)
         if (role === 'super_admin') {
           const allTeams = await getAllTeams();
           setTeams(allTeams);
+
+          // Cache for offline mode (only if the user is assigned)
+          if (isOnline && userTeamId) {
+            cacheUserData({ userId: currentUser?.uid, teamId: userTeamId, teams: allTeams });
+          }
         } else if (userTeamId) {
           const allTeams = await getAllTeams();
           const userTeam = allTeams.find((t) => t.id === userTeamId);
           if (userTeam) {
             setTeams([userTeam]);
             setTeamId(userTeamId);
+
+            // Preload and cache ALL user data when online (for offline access)
+            if (isOnline) {
+              try {
+                // Fetch all communities for this team
+                const communities = await getCommunitiesByTeam(userTeamId);
+
+                // Fetch all routes for these communities
+                const routePromises = communities.map(c => getRoutesByCommunity(c.id));
+                const routeArrays = await Promise.all(routePromises);
+                const routes = routeArrays.flat();
+
+                // Fetch all buildings for these routes
+                const buildingPromises = routes.map(r => getBuildingsByRoute(r.id));
+                const buildingArrays = await Promise.all(buildingPromises);
+                const buildings = buildingArrays.flat();
+
+                // Cache everything at once
+                cacheUserData({
+                  userId: currentUser?.uid,
+                  teamId: userTeamId,
+                  teams: [userTeam],
+                  communities,
+                  routes,
+                  buildings,
+                });
+
+                console.log('📦 Preloaded all user data for offline access');
+              } catch (preloadErr) {
+                console.error('Error preloading user data:', preloadErr);
+                // Still cache just the team if preload fails
+                cacheUserData({ userId: currentUser?.uid, teamId: userTeamId, teams: [userTeam] });
+              }
+            }
           }
         }
       } catch (err) {
         console.error('Error loading teams:', err);
+
+        // If offline and Firebase cache fails, try LocalStorage cache
+        if (!isOnline) {
+          const cachedTeams = getCachedTeams();
+          if (cachedTeams.length > 0) {
+            setTeams(cachedTeams);
+            if (userTeamId) {
+              setTeamId(userTeamId);
+            }
+            console.log('📦 Loaded teams from offline cache');
+          }
+        }
       }
     }
     loadTeams();
-  }, [role, userTeamId]);
+  }, [role, userTeamId, isOnline, currentUser]);
+
+  // Auto-fill the form with the last saved data (for the offline mode)
+  useEffect(() => {
+    const lastFormData = getLastVisitFormData();
+    if (lastFormData) {
+      // Only auto-fill if fields are empty
+      if (!communityName && lastFormData.communityName) {
+        setCommunityName(lastFormData.communityName);
+        if (lastFormData.communityId) {
+          setSelectedCommunity({
+            id: lastFormData.communityId,
+            name: lastFormData.communityName,
+          });
+        }
+      }
+      if (!routeName && lastFormData.routeName) {
+        setRouteName(lastFormData.routeName);
+        if (lastFormData.routeId) {
+          setSelectedRoute({
+            id: lastFormData.routeId,
+            name: lastFormData.routeName,
+          });
+        }
+      }
+      if (!buildingName && lastFormData.buildingName) {
+        setBuildingName(lastFormData.buildingName);
+        if (lastFormData.buildingId) {
+          setSelectedBuilding({
+            id: lastFormData.buildingId,
+            name: lastFormData.buildingName,
+          });
+        }
+      }
+      if (!unitNumber && lastFormData.unitNumber) {
+        setUnitNumber(lastFormData.unitNumber);
+      }
+    }
+  }, []); // Only run on mount
 
   // Load past people when building + unit selected
   useEffect(() => {
@@ -194,29 +304,88 @@ export default function VisitForm({ onClose, onSaved }) {
     }
   }, [role, currentUser]);
 
-  // Fetch the functions for Autocomplete
+  // Fetch functions for Autocomplete with caching
   async function fetchCommunities(searchTerm) {
     if (!teamId) return [];
 
-    const communities = await getCommunitiesByTeam(teamId);
+    try {
+      const communities = await getCommunitiesByTeam(teamId);
 
-    if (!searchTerm) return communities;
+      // Cache communities when online and user is assigned
+      if (isOnline && userTeamId) {
+        cacheUserData({
+          userId: currentUser?.uid,
+          teamId: userTeamId,
+          communities,
+        });
+      }
 
-    const lowerSearch = searchTerm.toLowerCase();
-    return communities.filter((c) =>
-      c.name.toLowerCase().includes(lowerSearch)
-    );
+      if (!searchTerm) return communities;
+
+      const lowerSearch = searchTerm.toLowerCase();
+      return communities.filter((c) =>
+        c.name.toLowerCase().includes(lowerSearch)
+      );
+    } catch (err) {
+      console.error('Error fetching communities:', err);
+
+      // If offline and Firebase fails, try cached data
+      if (!isOnline) {
+        const cachedCommunities = getCachedCommunities();
+        if (cachedCommunities.length > 0) {
+          console.log('Loaded communities from offline cache');
+          return searchTerm
+            ? cachedCommunities.filter((c) =>
+                c.name.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+            : cachedCommunities;
+        }
+      }
+      return [];
+    }
   }
 
   async function fetchRoutes(searchTerm) {
     if (!selectedCommunity?.id) return [];
 
-    const routes = await getRoutesByCommunity(selectedCommunity.id);
+    try {
+      const routes = await getRoutesByCommunity(selectedCommunity.id);
 
-    if (!searchTerm) return routes;
+      // Cache routes when online and the user is assigned
+      if (isOnline && userTeamId) {
+        cacheUserData({
+          userId: currentUser?.uid,
+          teamId: userTeamId,
+          routes,
+        });
+      }
 
-    const lowerSearch = searchTerm.toLowerCase();
-    return routes.filter((r) => r.name.toLowerCase().includes(lowerSearch));
+      if (!searchTerm) return routes;
+
+      const lowerSearch = searchTerm.toLowerCase();
+      return routes.filter((r) => r.name.toLowerCase().includes(lowerSearch));
+    } catch (err) {
+      console.error('Error fetching routes:', err);
+
+      // If offline and Firebase fails, try cached data
+      if (!isOnline) {
+        const cachedRoutes = getCachedRoutes();
+        // Filter by selected community
+        const filteredRoutes = cachedRoutes.filter(
+          (r) => r.communityId === selectedCommunity.id
+        );
+
+        if (filteredRoutes.length > 0) {
+          console.log('Loaded routes from offline cache');
+          return searchTerm
+            ? filteredRoutes.filter((r) =>
+                r.name.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+            : filteredRoutes;
+        }
+      }
+      return [];
+    }
   }
 
   async function fetchBuildings(searchTerm) {
@@ -225,52 +394,122 @@ export default function VisitForm({ onClose, onSaved }) {
       return [];
     }
 
-    console.log(
-      'fetchBuildings: Fetching buildings for route',
-      selectedRoute.id,
-      selectedRoute.name
-    );
-    const buildings = await getBuildingsByRoute(selectedRoute.id);
-    console.log('fetchBuildings: Found', buildings.length, 'buildings:', buildings);
+    try {
+      console.log(
+        'fetchBuildings: Fetching buildings for route',
+        selectedRoute.id,
+        selectedRoute.name
+      );
+      const buildings = await getBuildingsByRoute(selectedRoute.id);
+      console.log(
+        'fetchBuildings: Found',
+        buildings.length,
+        'buildings:',
+        buildings
+      );
 
-    if (!searchTerm) return buildings;
+      // Cache buildings when online and user is assigned
+      if (isOnline && userTeamId) {
+        cacheUserData({
+          userId: currentUser?.uid,
+          teamId: userTeamId,
+          buildings,
+        });
+      }
 
-    const lowerSearch = searchTerm.toLowerCase();
-    const filtered = buildings.filter(
-      (b) =>
-        b.name.toLowerCase().includes(lowerSearch) ||
-        b.address?.toLowerCase().includes(lowerSearch)
-    );
-    console.log(
-      'fetchBuildings: Filtered to',
-      filtered.length,
-      'buildings matching',
-      searchTerm
-    );
-    return filtered;
+      if (!searchTerm) return buildings;
+
+      const lowerSearch = searchTerm.toLowerCase();
+      const filtered = buildings.filter(
+        (b) =>
+          b.name.toLowerCase().includes(lowerSearch) ||
+          b.address?.toLowerCase().includes(lowerSearch)
+      );
+      console.log(
+        'fetchBuildings: Filtered to',
+        filtered.length,
+        'buildings matching',
+        searchTerm
+      );
+      return filtered;
+    } catch (err) {
+      console.error('Error fetching buildings:', err);
+
+      // If offline and Firebase fails, try cached data
+      if (!isOnline) {
+        const cachedBuildings = getCachedBuildings();
+        // Filter by selected route
+        const filteredBuildings = cachedBuildings.filter(
+          (b) => b.routeId === selectedRoute.id
+        );
+
+        if (filteredBuildings.length > 0) {
+          console.log('📦 Loaded buildings from offline cache');
+          return searchTerm
+            ? filteredBuildings.filter(
+                (b) =>
+                  b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  b.address?.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+            : filteredBuildings;
+        }
+      }
+      return [];
+    }
   }
 
-  // Create functions for Autocomplete
+  // Create functions for autocomplete with validations
   async function createCommunityItem(name) {
-    const newCommunity = await createCommunity(
-      name.trim(),
-      teamId,
-      currentUser.uid
-    );
-    return newCommunity;
+    try {
+      // Validate and sanitize community name
+      const sanitizedName = validateName(name, {
+        required: true,
+        minLength: 1,
+        maxLength: 100,
+        fieldName: 'Community name',
+      });
+
+      const newCommunity = await createCommunity(
+        sanitizedName,
+        teamId,
+        currentUser.uid
+      );
+      return newCommunity;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        throw new Error(`Invalid community name: ${err.message}`);
+      }
+      throw err;
+    }
   }
 
   async function createRouteItem(name) {
     if (!selectedCommunity?.id) {
       throw new Error('Please select a community first');
     }
-    const newRoute = await createRoute(
-      name.trim(),
-      selectedCommunity.id,
-      teamId,
-      currentUser.uid
-    );
-    return newRoute;
+
+    try {
+      // Validate and sanitize the route name
+      const sanitizedName = validateName(name, {
+        required: true,
+        minLength: 1,
+        maxLength: 100,
+        fieldName: 'Route name',
+      });
+
+      const newRoute = await createRoute(
+        sanitizedName,
+        selectedCommunity.id,
+        teamId,
+        currentUser.uid
+      );
+      return newRoute;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        throw new Error(`Invalid route name: ${err.message}`);
+      }
+      throw err;
+    }
   }
 
   async function createBuildingItem(name) {
@@ -278,17 +517,32 @@ export default function VisitForm({ onClose, onSaved }) {
       throw new Error('Please select a route first');
     }
 
-    const buildingData = {
-      name: name.trim(),
-      address: '',
-      routeId: selectedRoute.id,
-      communityId: selectedCommunity.id,
-      teamId,
-      units: [],
-    };
+    try {
+      // Validate and sanitize the building name
+      const sanitizedName = validateName(name, {
+        required: true,
+        minLength: 1,
+        maxLength: 100,
+        fieldName: 'Building name',
+      });
 
-    const newBuilding = await createBuilding(buildingData, currentUser.uid);
-    return newBuilding;
+      const buildingData = {
+        name: sanitizedName,
+        address: '',
+        routeId: selectedRoute.id,
+        communityId: selectedCommunity.id,
+        teamId,
+        units: [],
+      };
+
+      const newBuilding = await createBuilding(buildingData, currentUser.uid);
+      return newBuilding;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        throw new Error(`Invalid building name: ${err.message}`);
+      }
+      throw err;
+    }
   }
 
   // Handle selections
@@ -388,28 +642,107 @@ export default function VisitForm({ onClose, onSaved }) {
       setSaving(true);
       setError('');
 
-      // Ensure unit exists in building
-      let buildingId = selectedBuilding.id;
-      const currentBuilding = await getBuilding(buildingId);
-      const currentUnits = currentBuilding.units || [];
-
-      if (!currentUnits.includes(unitNumber.trim())) {
-        const updatedUnits = [...currentUnits, unitNumber.trim()];
-        await updateBuilding(buildingId, { units: updatedUnits });
+      // If offline, show immediate feedback after brief delay
+      if (!isOnline) {
+        setTimeout(() => {
+          setSubmitStatus('success');
+          setSubmitMessage(
+            "Offline Mode: Visit saved locally! It will sync to the server when you're back online."
+          );
+          setSaving(false);
+        }, 100);
       }
 
-      // Filter out empty people
-      const validPeople = people.filter((person) => person.name.trim() !== '');
+      let buildingId = selectedBuilding.id;
+
+      // When offline, skip reading building data (Firebase will queue all writes)
+      // When online, it will ensure the unit exists in building's units array
+      if (isOnline) {
+        try {
+          const currentBuilding = await getBuilding(buildingId);
+          const currentUnits = currentBuilding?.units || [];
+
+          if (!currentUnits.includes(unitNumber.trim())) {
+            const updatedUnits = [...currentUnits, unitNumber.trim()];
+            await updateBuilding(buildingId, { units: updatedUnits });
+          }
+        } catch (err) {
+          console.warn('Could not update building units (offline?):', err);
+          // Continue anyway (Firebase will handle offline writing)
+        }
+      }
+
+      // Filter out empty people and validate/sanitize each person's data
+      const validPeople = people
+        .filter((person) => person.name.trim() !== '')
+        .map((person) => {
+          try {
+            return {
+              name: validateName(person.name, {
+                required: true,
+                maxLength: 100,
+                fieldName: 'Person name',
+              }),
+              age: validateAge(person.age, { required: false }),
+              phone: validatePhone(person.phone, { required: false }),
+              followUp:
+                validateText(person.followUp, {
+                  required: false,
+                  maxLength: 500,
+                  fieldName: 'Follow-up notes',
+                }) || '',
+              involvement:
+                validateText(person.involvement, {
+                  required: false,
+                  maxLength: 500,
+                  fieldName: 'Involvement',
+                }) || '',
+            };
+          } catch (err) {
+            if (err instanceof ValidationError) {
+              throw new Error(
+                `Invalid data for ${person.name}: ${err.message}`
+              );
+            }
+            throw err;
+          }
+        });
+
+      // Sanitize and validate the unit number and notes
+      const sanitizedUnitNumber = sanitizeString(unitNumber, {
+        maxLength: 20,
+        allowEmpty: false,
+      });
+      const sanitizedNotes =
+        validateText(notes, {
+          required: false,
+          maxLength: 2000,
+          fieldName: 'Notes',
+        }) || '';
 
       const visitData = {
-        unitNumber: unitNumber.trim(),
+        unitNumber: sanitizedUnitNumber,
         routeLeaderId: role === 'route_leader' ? currentUser.uid : null,
         people: validPeople,
-        notes,
+        notes: sanitizedNotes,
         photoUrls: [],
       };
 
+      // Create visit - this works offline (Firebase queues the write)
       await createVisit(buildingId, visitData, currentUser.uid);
+
+      // Save form data to LocalStorage for auto-fill on next visit
+      saveLastVisitFormData({
+        teamId,
+        teamName: teams.find((t) => t.id === teamId)?.name || '',
+        communityId: selectedCommunity.id,
+        communityName: selectedCommunity.name,
+        routeId: selectedRoute.id,
+        routeName: selectedRoute.name,
+        buildingId: selectedBuilding.id,
+        buildingName: selectedBuilding.name,
+        unitNumber: sanitizedUnitNumber,
+      });
 
       // Lock rows that were filled so they become uneditable after save
       setPeople((prev) =>
@@ -418,17 +751,25 @@ export default function VisitForm({ onClose, onSaved }) {
         )
       );
 
-      // Success - show the success modal
-      setSubmitStatus('success');
-      setSubmitMessage('Visit recorded successfully!');
+      // Success - show the appropriate message based on connection status
+      // Only show success message for online saves (offline already shown above)
+      if (isOnline) {
+        setSubmitStatus('success');
+        setSubmitMessage('Visit recorded successfully!');
+      }
       onSaved?.();
     } catch (err) {
       // Error - show the error modal
       setSubmitStatus('error');
-      setSubmitMessage(err.message || 'Failed to save visit. Please try again.');
+      setSubmitMessage(
+        err.message || 'Failed to save visit. Please try again.'
+      );
       console.error('Error saving visit:', err);
     } finally {
-      setSaving(false);
+      // Only set saving to false for online saves (offline already handled)
+      if (isOnline) {
+        setSaving(false);
+      }
     }
   }
 
@@ -484,9 +825,9 @@ export default function VisitForm({ onClose, onSaved }) {
 
   function handleMenuSelect(item) {
     setMenuOpen(false);
-    if (item === "Home") navigate("/");
-    if (item === "Visit History") navigate("/visit-history");
-    if (item === "Admin Page") navigate("/admin");
+    if (item === 'Home') navigate('/');
+    if (item === 'Visit History') navigate('/visit-history');
+    if (item === 'Admin Page') navigate('/admin');
   }
 
   // Field locking
@@ -510,35 +851,66 @@ export default function VisitForm({ onClose, onSaved }) {
           </button>
 
           {menuOpen && (
-            <div className="menu-dropdown" role="menu" aria-orientation="vertical">
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Home")} role="menuitem">
+            <div
+              className="menu-dropdown"
+              role="menu"
+              aria-orientation="vertical"
+            >
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => handleMenuSelect('Home')}
+                role="menuitem"
+              >
                 Home
               </button>
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Visit History")} role="menuitem">
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => handleMenuSelect('Visit History')}
+                role="menuitem"
+              >
                 Visit History
               </button>
-              {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Admin Page")} role="menuitem">
-                Admin Page
-              </button>)}
+              {(role === 'super_admin' ||
+                role === 'team_admin' ||
+                role === 'route_leader') && (
+                <button
+                  type="button"
+                  className="menu-item"
+                  onClick={() => handleMenuSelect('Admin Page')}
+                  role="menuitem"
+                >
+                  Admin Page
+                </button>
+              )}
             </div>
           )}
         </div>
         <button
           className="logo-home"
-          onClick={() => navigate("/")}
+          onClick={() => navigate('/')}
           title="Home"
           aria-label="Go to dashboard"
-          style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+          }}
         >
-          <img src={logoHome} alt="Home" style={{ height: 36, display: "block" }} />
+          <img
+            src={logoHome}
+            alt="Home"
+            style={{ height: 36, display: 'block' }}
+          />
         </button>
       </header>
 
       <main className="visit-form-main">
         <form className="visit-form-card" onSubmit={handleSubmit}>
-          {/* Warning banner for users without team assignment */}
-          {role !== 'super_admin' && !userTeamId && (
+          {/* Warning banner for users without team assignment (but skip for offline mode) */}
+          {role !== 'super_admin' && !userTeamId && !isOfflineModeActive() && (
             <div
               style={{
                 backgroundColor: '#FEF2F2',

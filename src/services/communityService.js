@@ -17,6 +17,10 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase.js';
+import {
+  validateName,
+  ValidationError,
+} from '../utils/validation.js';
 
 const COMMUNITIES_COLLECTION = 'communities';
 
@@ -29,23 +33,31 @@ const COMMUNITIES_COLLECTION = 'communities';
  */
 export async function createCommunity(communityName, teamId, createdBy) {
   try {
+    // Validate and sanitize community name
+    const sanitizedName = validateName(communityName, {
+      required: true,
+      minLength: 1,
+      maxLength: 100,
+      fieldName: 'Community name'
+    });
+
     // Check for the duplicated community name within the same team
     const duplicateQuery = query(
       collection(db, COMMUNITIES_COLLECTION),
       where('teamId', '==', teamId),
-      where('name', '==', communityName),
+      where('name', '==', sanitizedName),
       where('isActive', '==', true)
     );
     const duplicateSnapshot = await getDocs(duplicateQuery);
 
     if (!duplicateSnapshot.empty) {
       throw new Error(
-        `A community with the name "${communityName}" already exists in this team`
+        `A community with the name "${sanitizedName}" already exists in this team`
       );
     }
 
     const communityRef = await addDoc(collection(db, COMMUNITIES_COLLECTION), {
-      name: communityName,
+      name: sanitizedName,
       teamId,
       createdBy,
       createdAt: serverTimestamp(),
@@ -54,11 +66,14 @@ export async function createCommunity(communityName, teamId, createdBy) {
 
     return {
       id: communityRef.id,
-      name: communityName,
+      name: sanitizedName,
       teamId,
     };
   } catch (error) {
     console.error('Error creating community:', error);
+    if (error instanceof ValidationError) {
+      throw new Error(`Invalid community data: ${error.message}`);
+    }
     throw error;
   }
 }
