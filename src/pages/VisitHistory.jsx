@@ -3,20 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
 import { collectionGroup, getDocs, query, orderBy } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { updateVisit } from '../services/buildingService';
+import { updateVisit, deleteVisit } from '../services/buildingService';
 import { getAllTeams } from '../services/teamService';
 import { getCommunitiesByTeam } from '../services/communityService';
-import { getRoutesByCommunity, getRoutesByTeam } from '../services/routeService';
+import {
+  getRoutesByCommunity,
+  getRoutesByTeam,
+} from '../services/routeService';
 import { getBuildingsByRoute } from '../services/buildingService';
 import './header.css';
 import './VisitHistory.css';
-import menuIcon from "../assets/menu-button.png";
-import logoHome from "../assets/logo-home-button.png";
-
+import menuIcon from '../assets/menu-button.png';
+import logoHome from '../assets/logo-home-button.png';
+import Modal from '../components/Modal';
 
 const VisitHistory = () => {
   const navigate = useNavigate();
-  const { currentUser, role, teamId: userTeamId, routeId: userRouteId } = useAuth();
+  const {
+    currentUser,
+    role,
+    teamId: userTeamId,
+    routeId: userRouteId,
+  } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -24,16 +32,17 @@ const VisitHistory = () => {
   useEffect(() => {
     if (!menuOpen) return;
     function onDocClick(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target))
+        setMenuOpen(false);
     }
     function onKey(e) {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === 'Escape') setMenuOpen(false);
     }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
     };
   }, [menuOpen]);
 
@@ -44,9 +53,9 @@ const VisitHistory = () => {
 
   function handleMenuSelect(item) {
     setMenuOpen(false);
-    if (item === "Home") navigate("/");
-    if (item === "New Visit") navigate("/visits/new");
-    if (item === "Admin Page") navigate("/admin");
+    if (item === 'Home') navigate('/');
+    if (item === 'New Visit') navigate('/visits/new');
+    if (item === 'Admin Page') navigate('/admin');
   }
 
   // Check if user can edit a visit based on their assignments
@@ -75,6 +84,35 @@ const VisitHistory = () => {
     }
 
     // Volunteers cannot edit
+    return false;
+  };
+
+  // Check if user can delete a visit (same as edit permissions)
+  const canDeleteVisit = (visit) => {
+    // Super admin can delete everything
+    if (role === 'super_admin') {
+      return true;
+    }
+
+    // Check if user has team assignment
+    if (!userTeamId) {
+      return false; // Not assigned to any team
+    }
+
+    // Team admin can delete visits in their team
+    if (role === 'team_admin') {
+      return visit.teamId === userTeamId;
+    }
+
+    // Route leader must have route assignment and visit must be in their route
+    if (role === 'route_leader') {
+      if (!userRouteId) {
+        return false; // Not assigned to any route
+      }
+      return visit.routeId === userRouteId && visit.teamId === userTeamId;
+    }
+
+    // Volunteers cannot delete
     return false;
   };
 
@@ -110,6 +148,17 @@ const VisitHistory = () => {
   const [editingVisit, setEditingVisit] = useState(null); // { visitId, buildingId, personIndex }
   const [editFormData, setEditFormData] = useState({}); // Temporary edit data
   const [saving, setSaving] = useState(false);
+
+  // Modal state
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    type: 'info', // 'info' or 'danger'
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: 'OK',
+    cancelText: 'Cancel',
+  });
 
   // Fetch all visits on mount
   useEffect(() => {
@@ -151,7 +200,11 @@ const VisitHistory = () => {
 
         // ✅ PERFORMANCE FIX: No more N+1 queries for names
         // All entity names are denormalized in visit documents
-        console.log('✅ Loaded', fetchedVisits.length, 'visits with denormalized names (no additional database queries needed!)');
+        console.log(
+          '✅ Loaded',
+          fetchedVisits.length,
+          'visits with denormalized names (no additional database queries needed!)'
+        );
 
         if (!isCancelled) {
           setVisits(fetchedVisits);
@@ -179,26 +232,32 @@ const VisitHistory = () => {
   // Load teams for super_admin
   useEffect(() => {
     if (role === 'super_admin') {
-      getAllTeams().then(teams => {
-        setTeams(teams);
-        const nameMap = Object.fromEntries(teams.map(t => [t.id, t.name]));
-        setTeamNames(nameMap);
-      }).catch(err => {
-        console.error('Error fetching teams:', err);
-      });
+      getAllTeams()
+        .then((teams) => {
+          setTeams(teams);
+          const nameMap = Object.fromEntries(teams.map((t) => [t.id, t.name]));
+          setTeamNames(nameMap);
+        })
+        .catch((err) => {
+          console.error('Error fetching teams:', err);
+        });
     }
   }, [role]);
 
   // Load communities when team is selected
   useEffect(() => {
     if (selectedTeamId) {
-      getCommunitiesByTeam(selectedTeamId).then(communities => {
-        setCommunities(communities);
-        const nameMap = Object.fromEntries(communities.map(c => [c.id, c.name]));
-        setCommunityNames(nameMap);
-      }).catch(err => {
-        console.error('Error fetching communities:', err);
-      });
+      getCommunitiesByTeam(selectedTeamId)
+        .then((communities) => {
+          setCommunities(communities);
+          const nameMap = Object.fromEntries(
+            communities.map((c) => [c.id, c.name])
+          );
+          setCommunityNames(nameMap);
+        })
+        .catch((err) => {
+          console.error('Error fetching communities:', err);
+        });
     } else {
       setCommunities([]);
       setSelectedCommunityId('');
@@ -208,22 +267,26 @@ const VisitHistory = () => {
   // Load routes when community is selected
   useEffect(() => {
     if (selectedCommunityId) {
-      getRoutesByCommunity(selectedCommunityId).then(routes => {
-        setRoutes(routes);
-        const nameMap = Object.fromEntries(routes.map(r => [r.id, r.name]));
-        setRouteNames(nameMap);
-      }).catch(err => {
-        console.error('Error fetching routes:', err);
-      });
+      getRoutesByCommunity(selectedCommunityId)
+        .then((routes) => {
+          setRoutes(routes);
+          const nameMap = Object.fromEntries(routes.map((r) => [r.id, r.name]));
+          setRouteNames(nameMap);
+        })
+        .catch((err) => {
+          console.error('Error fetching routes:', err);
+        });
     } else if (selectedTeamId) {
       // If no community selected but team is, show all routes in team
-      getRoutesByTeam(selectedTeamId).then(routes => {
-        setRoutes(routes);
-        const nameMap = Object.fromEntries(routes.map(r => [r.id, r.name]));
-        setRouteNames(nameMap);
-      }).catch(err => {
-        console.error('Error fetching routes:', err);
-      });
+      getRoutesByTeam(selectedTeamId)
+        .then((routes) => {
+          setRoutes(routes);
+          const nameMap = Object.fromEntries(routes.map((r) => [r.id, r.name]));
+          setRouteNames(nameMap);
+        })
+        .catch((err) => {
+          console.error('Error fetching routes:', err);
+        });
     } else {
       setRoutes([]);
       setSelectedRouteId(userRouteId || '');
@@ -233,11 +296,13 @@ const VisitHistory = () => {
   // Load buildings when route is selected
   useEffect(() => {
     if (selectedRouteId) {
-      getBuildingsByRoute(selectedRouteId).then(buildings => {
-        setBuildings(buildings);
-      }).catch(err => {
-        console.error('Error fetching buildings:', err);
-      });
+      getBuildingsByRoute(selectedRouteId)
+        .then((buildings) => {
+          setBuildings(buildings);
+        })
+        .catch((err) => {
+          console.error('Error fetching buildings:', err);
+        });
     } else {
       setBuildings([]);
       setSelectedBuildingId('');
@@ -250,36 +315,45 @@ const VisitHistory = () => {
 
     // Apply team filter
     if (selectedTeamId) {
-      filtered = filtered.filter(v => v.teamId === selectedTeamId);
+      filtered = filtered.filter((v) => v.teamId === selectedTeamId);
     }
 
     // Apply community filter
     if (selectedCommunityId) {
-      filtered = filtered.filter(v => v.communityId === selectedCommunityId);
+      filtered = filtered.filter((v) => v.communityId === selectedCommunityId);
     }
 
     // Apply route filter
     if (selectedRouteId) {
-      filtered = filtered.filter(v => v.routeId === selectedRouteId);
+      filtered = filtered.filter((v) => v.routeId === selectedRouteId);
     }
 
     // Apply building filter
     if (selectedBuildingId) {
-      filtered = filtered.filter(v => v.buildingId === selectedBuildingId);
+      filtered = filtered.filter((v) => v.buildingId === selectedBuildingId);
     }
 
     // Apply search filter
     if (searchText.trim()) {
       const search = searchText.toLowerCase();
-      filtered = filtered.filter(v =>
-        (v.buildingName && v.buildingName.toLowerCase().includes(search)) ||
-        (v.unitNumber && String(v.unitNumber).toLowerCase().includes(search)) ||
-        (v.notes && v.notes.toLowerCase().includes(search))
+      filtered = filtered.filter(
+        (v) =>
+          (v.buildingName && v.buildingName.toLowerCase().includes(search)) ||
+          (v.unitNumber &&
+            String(v.unitNumber).toLowerCase().includes(search)) ||
+          (v.notes && v.notes.toLowerCase().includes(search))
       );
     }
 
     return filtered;
-  }, [visits, selectedTeamId, selectedCommunityId, selectedRouteId, selectedBuildingId, searchText]);
+  }, [
+    visits,
+    selectedTeamId,
+    selectedCommunityId,
+    selectedRouteId,
+    selectedBuildingId,
+    searchText,
+  ]);
 
   // Group visits based on groupBy option
   const groupedVisits = useMemo(() => {
@@ -300,7 +374,7 @@ const VisitHistory = () => {
             label: label,
             buildingName: buildingLabel,
             unitNumber: visit.unitNumber,
-            visits: []
+            visits: [],
           };
         }
 
@@ -312,7 +386,8 @@ const VisitHistory = () => {
     if (groupBy === 'route') {
       return filteredVisits.reduce((acc, visit) => {
         const key = visit.routeId || 'Unknown';
-        const label = routeNames[key] || `Route ${key}`;
+        // Use denormalized routeName from visit document
+        const label = visit.routeName || routeNames[key] || `Route ${key}`;
         if (!acc[key]) {
           acc[key] = { label, visits: [] };
         }
@@ -325,16 +400,16 @@ const VisitHistory = () => {
   }, [filteredVisits, groupBy, routeNames]);
 
   const toggleGroup = (groupKey) => {
-    setExpandedGroups(prev => ({
+    setExpandedGroups((prev) => ({
       ...prev,
-      [groupKey]: !prev[groupKey]
+      [groupKey]: !prev[groupKey],
     }));
   };
 
   const toggleVisit = (visitId) => {
-    setExpandedVisits(prev => ({
+    setExpandedVisits((prev) => ({
       ...prev,
-      [visitId]: !prev[visitId]
+      [visitId]: !prev[visitId],
     }));
   };
 
@@ -343,14 +418,14 @@ const VisitHistory = () => {
     setEditingVisit({
       visitId: visit.id,
       buildingId: visit.buildingId,
-      personIndex: personIndex
+      personIndex: personIndex,
     });
     setEditFormData({
       name: visit.people[personIndex].name || '',
       age: visit.people[personIndex].age || '',
       phone: visit.people[personIndex].phone || '',
       followUp: visit.people[personIndex].followUp || '',
-      involvement: visit.people[personIndex].involvement || ''
+      involvement: visit.people[personIndex].involvement || '',
     });
   };
 
@@ -368,20 +443,18 @@ const VisitHistory = () => {
       const updatedPeople = [...visit.people];
       updatedPeople[editingVisit.personIndex] = {
         ...updatedPeople[editingVisit.personIndex],
-        ...editFormData
+        ...editFormData,
       };
 
       // Update visit in Firestore
       await updateVisit(editingVisit.buildingId, editingVisit.visitId, {
-        people: updatedPeople
+        people: updatedPeople,
       });
 
       // Update local state
-      setVisits(prevVisits =>
-        prevVisits.map(v =>
-          v.id === editingVisit.visitId
-            ? { ...v, people: updatedPeople }
-            : v
+      setVisits((prevVisits) =>
+        prevVisits.map((v) =>
+          v.id === editingVisit.visitId ? { ...v, people: updatedPeople } : v
         )
       );
 
@@ -390,14 +463,161 @@ const VisitHistory = () => {
       setEditFormData({});
     } catch (error) {
       console.error('Error updating person:', error);
-      alert('Failed to save changes. Please try again.');
+      setModalState({
+        isOpen: true,
+        type: 'danger',
+        title: 'Error',
+        message: 'Failed to save changes. Please try again.',
+        confirmText: 'OK',
+        onConfirm: null,
+      });
     } finally {
       setSaving(false);
     }
   };
 
+  const handleDeletePerson = async (visit, personIndex) => {
+    const person = visit.people[personIndex];
+
+    // Show confirmation modal
+    const confirmMessage = `Are you sure you want to delete this person?\n\nName: ${
+      person.name || 'Unknown'
+    }\nAge: ${person.age || 'N/A'}\nPhone: ${
+      person.phone || 'N/A'
+    }\n\nThis action cannot be undone.`;
+
+    setModalState({
+      isOpen: true,
+      type: 'danger',
+      title: 'Delete Person',
+      message: confirmMessage,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        setModalState((prev) => ({ ...prev, isOpen: false }));
+        setSaving(true);
+        try {
+          // Create updated people array without the deleted person
+          const updatedPeople = visit.people.filter(
+            (_, idx) => idx !== personIndex
+          );
+
+          // If this was the last person, delete the entire visit
+          if (updatedPeople.length === 0) {
+            await deleteVisit(visit.buildingId, visit.id);
+            // Remove visit from local state
+            setVisits((prevVisits) => prevVisits.filter((v) => v.id !== visit.id));
+
+            // Show success message
+            setModalState({
+              isOpen: true,
+              type: 'info',
+              title: 'Success',
+              message: 'Person deleted. Visit removed as it had no remaining people.',
+              confirmText: 'OK',
+              onConfirm: null,
+            });
+          } else {
+            // Update visit with remaining people
+            await updateVisit(visit.buildingId, visit.id, {
+              people: updatedPeople,
+            });
+
+            // Update local state
+            setVisits((prevVisits) =>
+              prevVisits.map((v) =>
+                v.id === visit.id ? { ...v, people: updatedPeople } : v
+              )
+            );
+
+            // Show success message
+            setModalState({
+              isOpen: true,
+              type: 'info',
+              title: 'Success',
+              message: 'Person deleted successfully.',
+              confirmText: 'OK',
+              onConfirm: null,
+            });
+          }
+        } catch (error) {
+          console.error('Error deleting person:', error);
+          setModalState({
+            isOpen: true,
+            type: 'danger',
+            title: 'Error',
+            message: `Failed to delete person: ${error.message}`,
+            confirmText: 'OK',
+            onConfirm: null,
+          });
+        } finally {
+          setSaving(false);
+        }
+      },
+    });
+  };
+
+  const handleDeleteVisit = async (visit) => {
+    // Show confirmation modal
+    const confirmMessage = `Are you sure you want to delete this ENTIRE visit?\n\nBuilding: ${
+      visit.buildingName || 'Unknown'
+    }\nUnit: ${visit.unitNumber || 'N/A'}\nDate: ${
+      visit.visitDate?.toDate
+        ? visit.visitDate.toDate().toLocaleDateString()
+        : 'N/A'
+    }\nPeople: ${
+      visit.people?.length || 0
+    } person(s)\n\nThis will delete all people and data associated with this visit.\nThis action cannot be undone.`;
+
+    setModalState({
+      isOpen: true,
+      type: 'danger',
+      title: 'Delete Entire Visit',
+      message: confirmMessage,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        setModalState((prev) => ({ ...prev, isOpen: false }));
+        setSaving(true);
+        try {
+          // Delete visit from Firestore
+          await deleteVisit(visit.buildingId, visit.id);
+
+          // Remove visit from local state
+          setVisits((prevVisits) => prevVisits.filter((v) => v.id !== visit.id));
+
+          // Show success message
+          setModalState({
+            isOpen: true,
+            type: 'info',
+            title: 'Success',
+            message: 'Visit deleted successfully.',
+            confirmText: 'OK',
+            onConfirm: null,
+          });
+        } catch (error) {
+          console.error('Error deleting visit:', error);
+          setModalState({
+            isOpen: true,
+            type: 'danger',
+            title: 'Error',
+            message: `Failed to delete visit: ${error.message}`,
+            confirmText: 'OK',
+            onConfirm: null,
+          });
+        } finally {
+          setSaving(false);
+        }
+      },
+    });
+  };
+
   if (!currentUser) {
-    return <div className="visit-history-page">Please log in to view this content.</div>;
+    return (
+      <div className="visit-history-page">
+        Please log in to view this content.
+      </div>
+    );
   }
 
   if (loading) {
@@ -432,32 +652,63 @@ const VisitHistory = () => {
           </button>
 
           {menuOpen && (
-            <div className="menu-dropdown" role="menu" aria-orientation="vertical">
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Home")} role="menuitem">
+            <div
+              className="menu-dropdown"
+              role="menu"
+              aria-orientation="vertical"
+            >
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => handleMenuSelect('Home')}
+                role="menuitem"
+              >
                 Home
               </button>
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("New Visit")} role="menuitem">
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => handleMenuSelect('New Visit')}
+                role="menuitem"
+              >
                 New Visit
               </button>
-              {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
-              <button type="button" className="menu-item" onClick={() => handleMenuSelect("Admin Page")} role="menuitem">
-                Admin Page
-              </button>)}
+              {(role === 'super_admin' ||
+                role === 'team_admin' ||
+                role === 'route_leader') && (
+                <button
+                  type="button"
+                  className="menu-item"
+                  onClick={() => handleMenuSelect('Admin Page')}
+                  role="menuitem"
+                >
+                  Admin Page
+                </button>
+              )}
             </div>
           )}
         </div>
 
         <button
           className="logo-home"
-          onClick={() => navigate("/")}
+          onClick={() => navigate('/')}
           title="Home"
           aria-label="Go to dashboard"
-          style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+          }}
         >
-          <img src={logoHome} alt="Home" style={{ height: 36, display: "block" }} />
+          <img
+            src={logoHome}
+            alt="Home"
+            style={{ height: 36, display: 'block' }}
+          />
         </button>
       </header>
-      
+
       {/* Filters Section */}
       <div className="visit-history-page">
         <div className="filters-section">
@@ -497,7 +748,7 @@ const VisitHistory = () => {
                   className="filter-select"
                 >
                   <option value="">All Teams</option>
-                  {teams.map(team => (
+                  {teams.map((team) => (
                     <option key={team.id} value={team.id}>
                       {team.name}
                     </option>
@@ -517,7 +768,7 @@ const VisitHistory = () => {
                 disabled={!selectedTeamId && role === 'super_admin'}
               >
                 <option value="">All Communities</option>
-                {communities.map(community => (
+                {communities.map((community) => (
                   <option key={community.id} value={community.id}>
                     {community.name}
                   </option>
@@ -536,14 +787,16 @@ const VisitHistory = () => {
                 disabled={role === 'route_leader'}
               >
                 <option value="">All Routes</option>
-                {routes.map(route => (
+                {routes.map((route) => (
                   <option key={route.id} value={route.id}>
                     {route.name}
                   </option>
                 ))}
               </select>
               {role === 'route_leader' && (
-                <small className="filter-note">Locked to your assigned route</small>
+                <small className="filter-note">
+                  Locked to your assigned route
+                </small>
               )}
             </div>
 
@@ -558,7 +811,7 @@ const VisitHistory = () => {
                 disabled={!selectedRouteId}
               >
                 <option value="">All Buildings</option>
-                {buildings.map(building => (
+                {buildings.map((building) => (
                   <option key={building.id} value={building.id}>
                     {building.name}
                   </option>
@@ -618,8 +871,12 @@ const VisitHistory = () => {
         {/* Results Summary */}
         <div className="results-summary">
           <p>
-            Showing <strong>{filteredVisits.length}</strong> visit{filteredVisits.length !== 1 ? 's' : ''}
-            {groupBy !== 'flat' && ` in ${Object.keys(groupedVisits).length} ${groupBy === 'building' ? 'unit' : 'route'}${Object.keys(groupedVisits).length !== 1 ? 's' : ''}`}
+            Showing <strong>{filteredVisits.length}</strong> visit
+            {filteredVisits.length !== 1 ? 's' : ''}
+            {groupBy !== 'flat' &&
+              ` in ${Object.keys(groupedVisits).length} ${
+                groupBy === 'building' ? 'unit' : 'route'
+              }${Object.keys(groupedVisits).length !== 1 ? 's' : ''}`}
           </p>
         </div>
 
@@ -638,14 +895,15 @@ const VisitHistory = () => {
         ) : groupBy === 'flat' ? (
           // Flat list view
           <div className="visits-list">
-            {filteredVisits.map(visit => (
+            {filteredVisits.map((visit) => (
               <div key={visit.id} className="visit-card">
                 <div
                   className="visit-header"
                   onClick={() => toggleVisit(visit.id)}
                 >
                   <div className="visit-title">
-                    <strong>{visit.buildingName || 'Unknown Building'}</strong> - Unit {visit.unitNumber || 'N/A'}
+                    <strong>{visit.buildingName || 'Unknown Building'}</strong>{' '}
+                    - Unit {visit.unitNumber || 'N/A'}
                   </div>
                   <div className="visit-date">
                     {visit.visitDate?.toDate
@@ -683,7 +941,9 @@ const VisitHistory = () => {
                         <label>People Visited:</label>
                         <div className="people-list">
                           {visit.people.map((person, idx) => {
-                            const isEditing = editingVisit?.visitId === visit.id && editingVisit?.personIndex === idx;
+                            const isEditing =
+                              editingVisit?.visitId === visit.id &&
+                              editingVisit?.personIndex === idx;
 
                             return (
                               <div key={idx} className="person-item">
@@ -695,7 +955,12 @@ const VisitHistory = () => {
                                       <input
                                         type="text"
                                         value={editFormData.name}
-                                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            name: e.target.value,
+                                          })
+                                        }
                                         className="edit-input"
                                       />
                                     </div>
@@ -704,7 +969,12 @@ const VisitHistory = () => {
                                       <input
                                         type="number"
                                         value={editFormData.age}
-                                        onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            age: e.target.value,
+                                          })
+                                        }
                                         className="edit-input"
                                       />
                                     </div>
@@ -713,7 +983,12 @@ const VisitHistory = () => {
                                       <input
                                         type="text"
                                         value={editFormData.phone}
-                                        onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            phone: e.target.value,
+                                          })
+                                        }
                                         className="edit-input"
                                       />
                                     </div>
@@ -721,7 +996,12 @@ const VisitHistory = () => {
                                       <label>Follow-up:</label>
                                       <textarea
                                         value={editFormData.followUp}
-                                        onChange={(e) => setEditFormData({ ...editFormData, followUp: e.target.value })}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            followUp: e.target.value,
+                                          })
+                                        }
                                         className="edit-textarea"
                                         rows="3"
                                       />
@@ -730,7 +1010,12 @@ const VisitHistory = () => {
                                       <label>Involvement:</label>
                                       <textarea
                                         value={editFormData.involvement}
-                                        onChange={(e) => setEditFormData({ ...editFormData, involvement: e.target.value })}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            involvement: e.target.value,
+                                          })
+                                        }
                                         className="edit-textarea"
                                         rows="2"
                                       />
@@ -757,22 +1042,43 @@ const VisitHistory = () => {
                                   <>
                                     <div className="person-header">
                                       <div>
-                                        <strong>{person.name || 'Unknown'}</strong>
-                                        {person.age && <span> (Age: {person.age})</span>}
-                                        {person.phone && <span> • Phone: {person.phone}</span>}
+                                        <strong>
+                                          {person.name || 'Unknown'}
+                                        </strong>
+                                        {person.age && (
+                                          <span> (Age: {person.age})</span>
+                                        )}
+                                        {person.phone && (
+                                          <span> • Phone: {person.phone}</span>
+                                        )}
                                       </div>
-                                      {role !== 'volunteer' && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            startEditingPerson(visit, idx);
-                                          }}
-                                          className="edit-person-btn"
-                                          title="Edit person"
-                                        >
-                                          ✏️ Edit
-                                        </button>
-                                      )}
+                                      <div className="person-actions">
+                                        {canEditVisit(visit) && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              startEditingPerson(visit, idx);
+                                            }}
+                                            className="edit-person-btn"
+                                            title="Edit person"
+                                          >
+                                            Edit
+                                          </button>
+                                        )}
+                                        {canDeleteVisit(visit) && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeletePerson(visit, idx);
+                                            }}
+                                            className="delete-person-btn"
+                                            title="Delete person"
+                                            disabled={saving}
+                                          >
+                                            Delete
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                     {person.followUp && (
                                       <div className="person-followup">
@@ -802,6 +1108,24 @@ const VisitHistory = () => {
                         <span>{visit.photoUrls.length} photo(s)</span>
                       </div>
                     )}
+                    {canDeleteVisit(visit) && (
+                      <div
+                        className="detail-item full-width"
+                        style={{
+                          marginTop: '16px',
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                        }}
+                      >
+                        <button
+                          onClick={() => handleDeleteVisit(visit)}
+                          disabled={saving}
+                          className="delete-visit-btn"
+                        >
+                          {saving ? 'Deleting...' : '🗑️ Delete Entire Visit'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -813,12 +1137,15 @@ const VisitHistory = () => {
             {Object.entries(groupedVisits).map(([groupKey, groupData]) => (
               <div key={groupKey} className="visit-group">
                 <div
-                  className={`group-header ${expandedGroups[groupKey] ? 'expanded' : ''}`}
+                  className={`group-header ${
+                    expandedGroups[groupKey] ? 'expanded' : ''
+                  }`}
                   onClick={() => toggleGroup(groupKey)}
                 >
                   <h3>{groupData.label}</h3>
                   <span className="visit-count">
-                    {groupData.visits.length} visit{groupData.visits.length !== 1 ? 's' : ''}
+                    {groupData.visits.length} visit
+                    {groupData.visits.length !== 1 ? 's' : ''}
                   </span>
                   <span className="expand-icon">
                     {expandedGroups[groupKey] ? '−' : '+'}
@@ -826,7 +1153,7 @@ const VisitHistory = () => {
                 </div>
                 {expandedGroups[groupKey] && (
                   <div className="group-visits">
-                    {groupData.visits.map(visit => (
+                    {groupData.visits.map((visit) => (
                       <div key={visit.id} className="visit-item">
                         <div
                           className="visit-item-header"
@@ -848,7 +1175,9 @@ const VisitHistory = () => {
                                 <label>Visit Date:</label>
                                 <span>
                                   {visit.visitDate?.toDate
-                                    ? visit.visitDate.toDate().toLocaleDateString()
+                                    ? visit.visitDate
+                                        .toDate()
+                                        .toLocaleDateString()
                                     : 'N/A'}
                                 </span>
                               </div>
@@ -857,7 +1186,9 @@ const VisitHistory = () => {
                                   <label>People Visited:</label>
                                   <div className="people-list">
                                     {visit.people.map((person, idx) => {
-                                      const isEditing = editingVisit?.visitId === visit.id && editingVisit?.personIndex === idx;
+                                      const isEditing =
+                                        editingVisit?.visitId === visit.id &&
+                                        editingVisit?.personIndex === idx;
 
                                       return (
                                         <div key={idx} className="person-item">
@@ -869,7 +1200,12 @@ const VisitHistory = () => {
                                                 <input
                                                   type="text"
                                                   value={editFormData.name}
-                                                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                                  onChange={(e) =>
+                                                    setEditFormData({
+                                                      ...editFormData,
+                                                      name: e.target.value,
+                                                    })
+                                                  }
                                                   className="edit-input"
                                                 />
                                               </div>
@@ -878,7 +1214,12 @@ const VisitHistory = () => {
                                                 <input
                                                   type="number"
                                                   value={editFormData.age}
-                                                  onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
+                                                  onChange={(e) =>
+                                                    setEditFormData({
+                                                      ...editFormData,
+                                                      age: e.target.value,
+                                                    })
+                                                  }
                                                   className="edit-input"
                                                 />
                                               </div>
@@ -887,7 +1228,12 @@ const VisitHistory = () => {
                                                 <input
                                                   type="text"
                                                   value={editFormData.phone}
-                                                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                                  onChange={(e) =>
+                                                    setEditFormData({
+                                                      ...editFormData,
+                                                      phone: e.target.value,
+                                                    })
+                                                  }
                                                   className="edit-input"
                                                 />
                                               </div>
@@ -895,7 +1241,12 @@ const VisitHistory = () => {
                                                 <label>Follow-up:</label>
                                                 <textarea
                                                   value={editFormData.followUp}
-                                                  onChange={(e) => setEditFormData({ ...editFormData, followUp: e.target.value })}
+                                                  onChange={(e) =>
+                                                    setEditFormData({
+                                                      ...editFormData,
+                                                      followUp: e.target.value,
+                                                    })
+                                                  }
                                                   className="edit-textarea"
                                                   rows="3"
                                                 />
@@ -903,19 +1254,31 @@ const VisitHistory = () => {
                                               <div className="edit-form-row">
                                                 <label>Involvement:</label>
                                                 <textarea
-                                                  value={editFormData.involvement}
-                                                  onChange={(e) => setEditFormData({ ...editFormData, involvement: e.target.value })}
+                                                  value={
+                                                    editFormData.involvement
+                                                  }
+                                                  onChange={(e) =>
+                                                    setEditFormData({
+                                                      ...editFormData,
+                                                      involvement:
+                                                        e.target.value,
+                                                    })
+                                                  }
                                                   className="edit-textarea"
                                                   rows="2"
                                                 />
                                               </div>
                                               <div className="edit-form-actions">
                                                 <button
-                                                  onClick={() => saveEdit(visit)}
+                                                  onClick={() =>
+                                                    saveEdit(visit)
+                                                  }
                                                   disabled={saving}
                                                   className="save-btn"
                                                 >
-                                                  {saving ? 'Saving...' : 'Save'}
+                                                  {saving
+                                                    ? 'Saving...'
+                                                    : 'Save'}
                                                 </button>
                                                 <button
                                                   onClick={cancelEdit}
@@ -931,22 +1294,55 @@ const VisitHistory = () => {
                                             <>
                                               <div className="person-header">
                                                 <div>
-                                                  <strong>{person.name || 'Unknown'}</strong>
-                                                  {person.age && <span> (Age: {person.age})</span>}
-                                                  {person.phone && <span> • Phone: {person.phone}</span>}
+                                                  <strong>
+                                                    {person.name || 'Unknown'}
+                                                  </strong>
+                                                  {person.age && (
+                                                    <span>
+                                                      {' '}
+                                                      (Age: {person.age})
+                                                    </span>
+                                                  )}
+                                                  {person.phone && (
+                                                    <span>
+                                                      {' '}
+                                                      • Phone: {person.phone}
+                                                    </span>
+                                                  )}
                                                 </div>
-                                                {canEditVisit(visit) && (
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      startEditingPerson(visit, idx);
-                                                    }}
-                                                    className="edit-person-btn"
-                                                    title="Edit person"
-                                                  >
-                                                    ✏️ Edit
-                                                  </button>
-                                                )}
+                                                <div className="person-actions">
+                                                  {canEditVisit(visit) && (
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        startEditingPerson(
+                                                          visit,
+                                                          idx
+                                                        );
+                                                      }}
+                                                      className="edit-person-btn"
+                                                      title="Edit person"
+                                                    >
+                                                      Edit
+                                                    </button>
+                                                  )}
+                                                  {canDeleteVisit(visit) && (
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeletePerson(
+                                                          visit,
+                                                          idx
+                                                        );
+                                                      }}
+                                                      className="delete-person-btn"
+                                                      title="Delete person"
+                                                      disabled={saving}
+                                                    >
+                                                      Delete
+                                                    </button>
+                                                  )}
+                                                </div>
                                               </div>
                                               {person.followUp && (
                                                 <div className="person-followup">
@@ -955,7 +1351,8 @@ const VisitHistory = () => {
                                               )}
                                               {person.involvement && (
                                                 <div className="person-involvement">
-                                                  Involvement: {person.involvement}
+                                                  Involvement:{' '}
+                                                  {person.involvement}
                                                 </div>
                                               )}
                                             </>
@@ -970,10 +1367,33 @@ const VisitHistory = () => {
                                 <label>Notes:</label>
                                 <p>{visit.notes || 'No notes'}</p>
                               </div>
-                              {visit.photoUrls && visit.photoUrls.length > 0 && (
-                                <div className="detail-item">
-                                  <label>Photos:</label>
-                                  <span>{visit.photoUrls.length} photo(s)</span>
+                              {visit.photoUrls &&
+                                visit.photoUrls.length > 0 && (
+                                  <div className="detail-item">
+                                    <label>Photos:</label>
+                                    <span>
+                                      {visit.photoUrls.length} photo(s)
+                                    </span>
+                                  </div>
+                                )}
+                              {canDeleteVisit(visit) && (
+                                <div
+                                  className="detail-item full-width"
+                                  style={{
+                                    marginTop: '16px',
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                  }}
+                                >
+                                  <button
+                                    onClick={() => handleDeleteVisit(visit)}
+                                    disabled={saving}
+                                    className="delete-visit-btn"
+                                  >
+                                    {saving
+                                      ? 'Deleting...'
+                                      : '🗑️ Delete Entire Visit'}
+                                  </button>
                                 </div>
                               )}
                             </div>
@@ -988,6 +1408,19 @@ const VisitHistory = () => {
           </div>
         )}
       </div>
+
+      {/* Modal for confirmations and alerts */}
+      <Modal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={modalState.onConfirm}
+        title={modalState.title}
+        confirmText={modalState.confirmText}
+        cancelText={modalState.cancelText}
+        type={modalState.type}
+      >
+        {modalState.message}
+      </Modal>
     </div>
   );
 };

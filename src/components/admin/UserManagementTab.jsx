@@ -4,10 +4,13 @@ import {
   getAllUsers,
   getUsersByTeam,
   deleteUserProfile,
-  updateUserProfile
+  updateUserProfile,
 } from '../../services/userService';
 import { getAllTeams } from '../../services/teamService';
-import { getRoutesByTeam, assignRouteLeader } from '../../services/routeService';
+import {
+  getRoutesByTeam,
+  assignRouteLeader,
+} from '../../services/routeService';
 import '../../pages/AdminStyles.css';
 import editIcon from '../../assets/edit-button.png';
 import trashIcon from '../../assets/trash-button.png';
@@ -83,10 +86,10 @@ export default function UserManagementTab() {
 
     // Cannot delete supervisors (higher roles)
     const roleHierarchy = {
-      'volunteer': 0,
-      'route_leader': 1,
-      'team_admin': 2,
-      'super_admin': 3
+      volunteer: 0,
+      route_leader: 1,
+      team_admin: 2,
+      super_admin: 3,
     };
 
     const currentRoleLevel = roleHierarchy[role] || 0;
@@ -213,7 +216,7 @@ export default function UserManagementTab() {
         displayName: editDisplayName.trim() || null,
         role: editRole,
         teamId: editTeamId || null,
-        routeId: editRouteId || null
+        routeId: editRouteId || null,
       };
 
       // Update user profile
@@ -242,7 +245,7 @@ export default function UserManagementTab() {
 
   function getTeamName(teamId) {
     if (!teamId) return 'Unassigned';
-    const team = teams.find(t => t.id === teamId);
+    const team = teams.find((t) => t.id === teamId);
     return team?.name || teamId.substring(0, 8) + '...';
   }
 
@@ -254,7 +257,12 @@ export default function UserManagementTab() {
       const email = (user.email || '').toLowerCase();
       const role = (user.role || '').toLowerCase();
       const team = getTeamName(user.teamId).toLowerCase();
-      return name.includes(q) || email.includes(q) || role.includes(q) || team.includes(q);
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        role.includes(q) ||
+        team.includes(q)
+      );
     });
   }, [users, searchTerm, teams]);
 
@@ -276,7 +284,7 @@ export default function UserManagementTab() {
       {success && <div className="success-message">{success}</div>}
 
       {/* Search Bar */}
-      <div className="search-row" >
+      <div className="search-row">
         <input
           type="search"
           placeholder="Search by name, email, role, or team..."
@@ -290,7 +298,9 @@ export default function UserManagementTab() {
       {/* Users Table */}
       {visibleUsers.length === 0 ? (
         <div className="empty-state">
-          <p>{searchTerm ? 'No users match your search.' : 'No users found.'}</p>
+          <p>
+            {searchTerm ? 'No users match your search.' : 'No users found.'}
+          </p>
         </div>
       ) : (
         <div className="users-table">
@@ -313,15 +323,20 @@ export default function UserManagementTab() {
                   <td>{user.displayName || '-'}</td>
                   <td>
                     {/* <span className={`role-badge role-${user.role}`}> */}
-                      {user.role}
+                    {user.role}
                     {/* </span> */}
                   </td>
                   <td>{getTeamName(user.teamId)}</td>
-                  <td style={{ fontSize: '12px'}}>
-                    {user.routeId ? user.routeId: '-'} {/* .substring(0, 8) + '...' */}
+                  <td style={{ fontSize: '12px' }}>
+                    {user.routeId ? user.routeId : '-'}{' '}
+                    {/* .substring(0, 8) + '...' */}
                   </td>
                   <td>
-                    <span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>
+                    <span
+                      className={`status-badge ${
+                        user.isActive ? 'active' : 'inactive'
+                      }`}
+                    >
                       {user.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
@@ -352,7 +367,10 @@ export default function UserManagementTab() {
 
       {/* Edit User Modal */}
       {editingUser && (
-        <div className="modal-overlay" onClick={() => !updating && setEditingUser(null)}>
+        <div
+          className="modal-overlay"
+          onClick={() => !updating && setEditingUser(null)}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Edit User: {editingUser.displayName}</h3>
@@ -379,7 +397,9 @@ export default function UserManagementTab() {
                   <option value="volunteer">Volunteer</option>
                   <option value="route_leader">Route Leader</option>
                   <option value="team_admin">Team Admin</option>
-                  {isSuperAdmin && <option value="super_admin">Super Admin</option>}
+                  {isSuperAdmin && (
+                    <option value="super_admin">Super Admin</option>
+                  )}
                 </select>
               </div>
 
@@ -391,7 +411,7 @@ export default function UserManagementTab() {
                   className="select-input"
                 >
                   <option value="">Unassigned</option>
-                  {teams.map(team => (
+                  {teams.map((team) => (
                     <option key={team.id} value={team.id}>
                       {team.name}
                     </option>
@@ -400,7 +420,7 @@ export default function UserManagementTab() {
               </div>
 
               <div className="form-group">
-                <label>Route (Optional)</label>
+                <label>Route</label>
                 <select
                   value={editRouteId}
                   onChange={(e) => setEditRouteId(e.target.value)}
@@ -408,14 +428,20 @@ export default function UserManagementTab() {
                   disabled={!editTeamId || editRoutesForTeam.length === 0}
                 >
                   <option value="">Unassigned</option>
-                  {editRoutesForTeam.map(route => (
+                  {editRoutesForTeam.map((route) => (
                     <option key={route.id} value={route.id}>
                       {route.name}
                     </option>
                   ))}
                 </select>
                 {editTeamId && editRoutesForTeam.length === 0 && (
-                  <small style={{ color: '#6B7280', display: 'block', marginTop: '4px' }}>
+                  <small
+                    style={{
+                      color: '#6B7280',
+                      display: 'block',
+                      marginTop: '4px',
+                    }}
+                  >
                     No routes available in this team. Create routes first.
                   </small>
                 )}
@@ -430,7 +456,11 @@ export default function UserManagementTab() {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-confirm" disabled={updating}>
+                <button
+                  type="submit"
+                  className="btn-confirm"
+                  disabled={updating}
+                >
                   {updating ? 'Updating...' : 'Update User'}
                 </button>
               </div>
@@ -441,17 +471,22 @@ export default function UserManagementTab() {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
-        <div className="modal-overlay" onClick={() => !deleting && setDeleteConfirm(null)}>
+        <div
+          className="modal-overlay"
+          onClick={() => !deleting && setDeleteConfirm(null)}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Delete User</h3>
             </div>
             <div className="modal-body">
               <p>
-                Are you sure you want to delete <strong>{deleteConfirm.email}</strong>?
+                Are you sure you want to delete{' '}
+                <strong>{deleteConfirm.email}</strong>?
               </p>
               <p className="warning-text">
-                This will permanently delete the user's account and Firestore profile.
+                This will permanently delete the user's account and Firestore
+                profile.
               </p>
             </div>
             <div className="modal-actions">

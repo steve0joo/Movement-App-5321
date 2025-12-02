@@ -13,7 +13,7 @@
 
 .back-button {
   padding: 8px 16px;
-  background-color: #6B7280;
+  background-color: #6b7280;
   color: white;
   border: none;
   border-radius: 6px;
@@ -22,19 +22,19 @@
 }
 
 .back-button:hover {
-  background-color: #4B5563;
+  background-color: #4b5563;
 }
 
 .page-header h1 {
   margin: 0;
   font-size: 28px;
-  color: #1F2937;
+  color: #1f2937;
 }
 
 /* Filters Section */
 .filters-section {
-  background-color: #F9FAFB;
-  border: 1px solid #E5E7EB;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 24px;
@@ -55,7 +55,7 @@
 
 .clear-filters-btn {
   padding: 6px 12px;
-  background-color: #EF4444;
+  background-color: #ef4444;
   color: white;
   border: none;
   border-radius: 4px;
@@ -64,7 +64,7 @@
 }
 
 .clear-filters-btn:hover {
-  background-color: #DC2626;
+  background-color: #dc2626;
 }
 
 .filter-controls {
@@ -89,7 +89,7 @@
 .filter-select,
 .filter-input {
   padding: 8px 12px;
-  border: 1px solid #D1D5DB;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 14px;
   background-color: white;
@@ -97,13 +97,13 @@
 
 .filter-select:disabled,
 .filter-input:disabled {
-  background-color: #F3F4F6;
+  background-color: #f3f4f6;
   cursor: not-allowed;
 }
 
 .filter-note {
   font-size: 12px;
-  color: #6B7280;
+  color: #6b7280;
   font-style: italic;
 }
 
@@ -113,7 +113,7 @@
   align-items: center;
   gap: 12px;
   padding-top: 12px;
-  border-top: 1px solid #E5E7EB;
+  border-top: 1px solid #e5e7eb;
 }
 
 .view-options > label {
@@ -132,19 +132,19 @@
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #4B5563;
+  color: #4b5563;
   cursor: pointer;
 }
 
-.radio-label input[type="radio"] {
+.radio-label input[type='radio'] {
   cursor: pointer;
 }
 
 /* Results Summary */
 .results-summary {
   padding: 12px 16px;
-  background-color: #EFF6FF;
-  border-left: 4px solid #3B82F6;
+  background-color: #eff6ff;
+  border-left: 4px solid #3b82f6;
   border-radius: 4px;
   margin-bottom: 20px;
 }
@@ -152,27 +152,27 @@
 .results-summary p {
   margin: 0;
   font-size: 14px;
-  color: #1E40AF;
+  color: #1e40af;
 }
 
 /* Empty State */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  background-color: #F9FAFB;
+  background-color: #f9fafb;
   border-radius: 8px;
-  border: 2px dashed #D1D5DB;
+  border: 2px dashed #d1d5db;
 }
 
 .empty-state p {
   margin: 0 0 20px 0;
   font-size: 16px;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .primary-button {
   padding: 10px 20px;
-  background-color: #3B82F6;
+  background-color: #3b82f6;
   color: white;
   border: none;
   border-radius: 6px;
@@ -182,7 +182,7 @@
 }
 
 .primary-button:hover {
-  background-color: #2563EB;
+  background-color: #2563eb;
 }
 
 /* Loading and Error States */
@@ -191,13 +191,13 @@
   text-align: center;
   padding: 40px 20px;
   font-size: 16px;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .error {
-  color: #DC2626;
-  background-color: #FEF2F2;
-  border: 1px solid #FCA5A5;
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
   border-radius: 8px;
 }
 
@@ -210,7 +210,7 @@
 
 .visit-card {
   background-color: white;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -221,36 +221,36 @@
   align-items: center;
   padding: 16px;
   cursor: pointer;
-  background-color: #F9FAFB;
+  background-color: #f9fafb;
   transition: background-color 0.2s;
 }
 
 .visit-header:hover {
-  background-color: #F3F4F6;
+  background-color: #f3f4f6;
 }
 
 .visit-title {
   flex: 1;
   font-size: 15px;
-  color: #1F2937;
+  color: #1f2937;
 }
 
 .visit-date {
   font-size: 14px;
-  color: #6B7280;
+  color: #6b7280;
   margin-right: 12px;
 }
 
 .expand-icon {
   font-size: 20px;
-  color: #9CA3AF;
+  color: #9ca3af;
   font-weight: bold;
   user-select: none;
 }
 
 .visit-details {
   padding: 16px;
-  border-top: 1px solid #E5E7EB;
+  border-top: 1px solid #e5e7eb;
 }
 
 .detail-item {
@@ -267,14 +267,14 @@
 .detail-item label {
   font-size: 13px;
   font-weight: 600;
-  color: #6B7280;
+  color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .detail-item span {
   font-size: 14px;
-  color: #1F2937;
+  color: #1f2937;
 }
 
 .detail-item p {
@@ -293,7 +293,7 @@
 
 .visit-group {
   background-color: white;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -304,37 +304,37 @@
   align-items: center;
   padding: 16px 20px;
   cursor: pointer;
-  background-color: #F3F4F6;
+  background-color: #f3f4f6;
   transition: background-color 0.2s;
 }
 
 .group-header:hover {
-  background-color: #E5E7EB;
+  background-color: #e5e7eb;
 }
 
 .group-header.expanded {
-  background-color: #DBEAFE;
+  background-color: #dbeafe;
 }
 
 .group-header h3 {
   margin: 0;
   font-size: 17px;
-  color: #1F2937;
+  color: #1f2937;
   flex: 1;
 }
 
 .visit-count {
   font-size: 14px;
-  color: #6B7280;
+  color: #6b7280;
   margin-right: 12px;
 }
 
 .group-visits {
-  border-top: 1px solid #E5E7EB;
+  border-top: 1px solid #e5e7eb;
 }
 
 .visit-item {
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .visit-item:last-child {
@@ -352,32 +352,32 @@
 }
 
 .visit-item-header:hover {
-  background-color: #F9FAFB;
+  background-color: #f9fafb;
 }
 
 .visit-unit {
   flex: 1;
   font-size: 14px;
-  color: #1F2937;
+  color: #1f2937;
   font-weight: 500;
 }
 
 .visit-date-small {
   font-size: 13px;
-  color: #6B7280;
+  color: #6b7280;
   margin-right: 12px;
 }
 
 .expand-icon-small {
   font-size: 16px;
-  color: #9CA3AF;
+  color: #9ca3af;
   font-weight: bold;
   user-select: none;
 }
 
 .visit-item-details {
   padding: 12px 20px 16px 20px;
-  background-color: #F9FAFB;
+  background-color: #f9fafb;
 }
 
 .detail-grid {
@@ -466,18 +466,18 @@
 
 .person-item {
   padding: 12px;
-  background-color: #F9FAFB;
-  border: 1px solid #E5E7EB;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
 }
 
 .person-item strong {
-  color: #1F2937;
+  color: #1f2937;
   font-size: 16px;
 }
 
 .person-item span {
-  color: #6B7280;
+  color: #6b7280;
   font-size: 14px;
 }
 
@@ -485,17 +485,17 @@
 .person-involvement {
   margin-top: 8px;
   padding: 8px;
-  background-color: #FEF3C7;
-  border-left: 3px solid #F59E0B;
+  background-color: #fef3c7;
+  border-left: 3px solid #f59e0b;
   border-radius: 4px;
   font-size: 14px;
-  color: #92400E;
+  color: #92400e;
 }
 
 .person-involvement {
-  background-color: #DBEAFE;
-  border-left-color: #3B82F6;
-  color: #1E40AF;
+  background-color: #dbeafe;
+  border-left-color: #3b82f6;
+  color: #1e40af;
 }
 
 /* Edit Person Functionality */
@@ -506,9 +506,15 @@
   gap: 12px;
 }
 
+.person-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .edit-person-btn {
   padding: 4px 10px;
-  background-color: #3B82F6;
+  background-color: #3b82f6;
   color: white;
   border: none;
   border-radius: 4px;
@@ -519,7 +525,29 @@
 }
 
 .edit-person-btn:hover {
-  background-color: #2563EB;
+  background-color: #2563eb;
+}
+
+.delete-person-btn {
+  padding: 4px 10px;
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.delete-person-btn:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.delete-person-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .person-edit-form {
@@ -543,7 +571,7 @@
 
 .edit-input {
   padding: 8px 10px;
-  border: 1px solid #D1D5DB;
+  border: 1px solid #d1d5db;
   border-radius: 4px;
   font-size: 14px;
   font-family: inherit;
@@ -551,13 +579,13 @@
 
 .edit-input:focus {
   outline: none;
-  border-color: #3B82F6;
+  border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .edit-textarea {
   padding: 8px 10px;
-  border: 1px solid #D1D5DB;
+  border: 1px solid #d1d5db;
   border-radius: 4px;
   font-size: 14px;
   font-family: inherit;
@@ -566,7 +594,7 @@
 
 .edit-textarea:focus {
   outline: none;
-  border-color: #3B82F6;
+  border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -578,7 +606,7 @@
 
 .save-btn {
   padding: 8px 16px;
-  background-color: #10B981;
+  background-color: #10b981;
   color: white;
   border: none;
   border-radius: 4px;
@@ -593,13 +621,13 @@
 }
 
 .save-btn:disabled {
-  background-color: #9CA3AF;
+  background-color: #9ca3af;
   cursor: not-allowed;
 }
 
 .cancel-btn {
   padding: 8px 16px;
-  background-color: #6B7280;
+  background-color: #6b7280;
   color: white;
   border: none;
   border-radius: 4px;
@@ -610,10 +638,36 @@
 }
 
 .cancel-btn:hover:not(:disabled) {
-  background-color: #4B5563;
+  background-color: #4b5563;
 }
 
 .cancel-btn:disabled {
-  background-color: #9CA3AF;
+  background-color: #9ca3af;
   cursor: not-allowed;
+}
+
+/* Delete Entire Visit Button */
+.delete-visit-btn {
+  padding: 4px 10px;
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  align-self: flex-end;
+  width: auto;
+}
+
+.delete-visit-btn:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.delete-visit-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
