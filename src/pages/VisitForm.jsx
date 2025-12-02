@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
@@ -216,7 +216,7 @@ export default function VisitForm({ onClose, onSaved }) {
 
   // Fetch functions for Autocomplete with cache-first optimization
   // Use preferCache when offline for instant response
-  async function fetchCommunities(searchTerm) {
+  const fetchCommunities = useCallback(async (searchTerm) => {
     if (!teamId) return [];
 
     try {
@@ -242,9 +242,9 @@ export default function VisitForm({ onClose, onSaved }) {
       console.error('❌ Error fetching communities:', err);
       return [];
     }
-  }
+  }, [teamId, isOnline]);
 
-  async function fetchRoutes(searchTerm) {
+  const fetchRoutes = useCallback(async (searchTerm) => {
     if (!selectedCommunity?.id) return [];
 
     try {
@@ -268,9 +268,9 @@ export default function VisitForm({ onClose, onSaved }) {
       console.error('❌ Error fetching routes:', err);
       return [];
     }
-  }
+  }, [selectedCommunity?.id, isOnline]);
 
-  async function fetchBuildings(searchTerm) {
+  const fetchBuildings = useCallback(async (searchTerm) => {
     if (!selectedRoute?.id) {
       console.log('fetchBuildings: No route selected');
       return [];
@@ -313,10 +313,26 @@ export default function VisitForm({ onClose, onSaved }) {
       console.error('❌ Error fetching buildings:', err);
       return [];
     }
-  }
+  }, [selectedRoute?.id, isOnline]);
 
   // Create functions for autocomplete with validations
-  async function createCommunityItem(name) {
+  const createCommunityItem = useCallback(async (name) => {
+    // Type check the name parameter first
+    console.log('🔍 createCommunityItem called with:', { name, type: typeof name });
+
+    if (!name || typeof name !== 'string') {
+      console.error('❌ Invalid name parameter type:', { name, type: typeof name });
+      throw new Error(`Invalid input: Expected string, got ${typeof name}`);
+    }
+
+    // Validate ALL parameters before creating (especially important offline!)
+    if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
+      throw new Error('Team ID is required to create a community');
+    }
+    if (!currentUser?.uid || typeof currentUser.uid !== 'string' || currentUser.uid.trim() === '') {
+      throw new Error('User authentication is required to create a community');
+    }
+
     try {
       // Validate and sanitize community name
       const sanitizedName = validateName(name, {
@@ -331,6 +347,15 @@ export default function VisitForm({ onClose, onSaved }) {
         teamId,
         currentUser.uid
       );
+
+      // Validate returned object to catch any corruption
+      if (!newCommunity || typeof newCommunity !== 'object' ||
+          !newCommunity.id || typeof newCommunity.id !== 'string' ||
+          !newCommunity.name || typeof newCommunity.name !== 'string') {
+        console.error('❌ Invalid community created:', newCommunity);
+        throw new Error('Failed to create community: server returned invalid data');
+      }
+
       return newCommunity;
     } catch (err) {
       if (err instanceof ValidationError) {
@@ -338,11 +363,26 @@ export default function VisitForm({ onClose, onSaved }) {
       }
       throw err;
     }
-  }
+  }, [teamId, currentUser?.uid]);
 
-  async function createRouteItem(name) {
-    if (!selectedCommunity?.id) {
-      throw new Error('Please select a community first');
+  const createRouteItem = useCallback(async (name) => {
+    // Type check the name parameter first
+    console.log('🔍 createRouteItem called with:', { name, type: typeof name });
+
+    if (!name || typeof name !== 'string') {
+      console.error('❌ Invalid name parameter type:', { name, type: typeof name });
+      throw new Error(`Invalid input: Expected string, got ${typeof name}`);
+    }
+
+    // Validate ALL parameters before creating (especially important offline!)
+    if (!selectedCommunity?.id || typeof selectedCommunity.id !== 'string' || selectedCommunity.id.trim() === '') {
+      throw new Error('Please select a valid community first');
+    }
+    if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
+      throw new Error('Team ID is required to create a route');
+    }
+    if (!currentUser?.uid || typeof currentUser.uid !== 'string' || currentUser.uid.trim() === '') {
+      throw new Error('User authentication is required to create a route');
     }
 
     try {
@@ -360,6 +400,15 @@ export default function VisitForm({ onClose, onSaved }) {
         teamId,
         currentUser.uid
       );
+
+      // Validate returned object to catch any corruption
+      if (!newRoute || typeof newRoute !== 'object' ||
+          !newRoute.id || typeof newRoute.id !== 'string' ||
+          !newRoute.name || typeof newRoute.name !== 'string') {
+        console.error('❌ Invalid route created:', newRoute);
+        throw new Error('Failed to create route: server returned invalid data');
+      }
+
       return newRoute;
     } catch (err) {
       if (err instanceof ValidationError) {
@@ -367,11 +416,29 @@ export default function VisitForm({ onClose, onSaved }) {
       }
       throw err;
     }
-  }
+  }, [selectedCommunity?.id, teamId, currentUser?.uid]);
 
-  async function createBuildingItem(name) {
-    if (!selectedRoute?.id) {
-      throw new Error('Please select a route first');
+  const createBuildingItem = useCallback(async (name) => {
+    // Type check the name parameter first
+    console.log('🔍 createBuildingItem called with:', { name, type: typeof name });
+
+    if (!name || typeof name !== 'string') {
+      console.error('❌ Invalid name parameter type:', { name, type: typeof name });
+      throw new Error(`Invalid input: Expected string, got ${typeof name}`);
+    }
+
+    // Validate ALL parameters before creating (especially important offline!)
+    if (!selectedRoute?.id || typeof selectedRoute.id !== 'string' || selectedRoute.id.trim() === '') {
+      throw new Error('Please select a valid route first');
+    }
+    if (!selectedCommunity?.id || typeof selectedCommunity.id !== 'string' || selectedCommunity.id.trim() === '') {
+      throw new Error('Please select a valid community first');
+    }
+    if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
+      throw new Error('Team ID is required to create a building');
+    }
+    if (!currentUser?.uid || typeof currentUser.uid !== 'string' || currentUser.uid.trim() === '') {
+      throw new Error('User authentication is required to create a building');
     }
 
     try {
@@ -393,6 +460,15 @@ export default function VisitForm({ onClose, onSaved }) {
       };
 
       const newBuilding = await createBuilding(buildingData, currentUser.uid);
+
+      // Validate returned object to catch any corruption
+      if (!newBuilding || typeof newBuilding !== 'object' ||
+          !newBuilding.id || typeof newBuilding.id !== 'string' ||
+          !newBuilding.name || typeof newBuilding.name !== 'string') {
+        console.error('❌ Invalid building created:', newBuilding);
+        throw new Error('Failed to create building: server returned invalid data');
+      }
+
       return newBuilding;
     } catch (err) {
       if (err instanceof ValidationError) {
@@ -400,10 +476,19 @@ export default function VisitForm({ onClose, onSaved }) {
       }
       throw err;
     }
-  }
+  }, [selectedRoute?.id, selectedCommunity?.id, teamId, currentUser?.uid]);
 
   // Handle selections
   function handleCommunitySelect(community) {
+    // Validate the community object before setting it
+    if (!community || typeof community !== 'object' ||
+        !community.id || typeof community.id !== 'string' ||
+        !community.name || typeof community.name !== 'string') {
+      console.error('❌ Invalid community object received:', community);
+      setError('Invalid community selected. Please try again.');
+      return;
+    }
+
     setSelectedCommunity(community);
     setCommunityName(community.name);
     // Reset downstream
@@ -415,6 +500,15 @@ export default function VisitForm({ onClose, onSaved }) {
   }
 
   function handleRouteSelect(route) {
+    // Validate the route object before setting it
+    if (!route || typeof route !== 'object' ||
+        !route.id || typeof route.id !== 'string' ||
+        !route.name || typeof route.name !== 'string') {
+      console.error('❌ Invalid route object received:', route);
+      setError('Invalid route selected. Please try again.');
+      return;
+    }
+
     setSelectedRoute(route);
     setRouteName(route.name);
     // Reset downstream
@@ -424,6 +518,15 @@ export default function VisitForm({ onClose, onSaved }) {
   }
 
   function handleBuildingSelect(building) {
+    // Validate the building object before setting it
+    if (!building || typeof building !== 'object' ||
+        !building.id || typeof building.id !== 'string' ||
+        !building.name || typeof building.name !== 'string') {
+      console.error('❌ Invalid building object received:', building);
+      setError('Invalid building selected. Please try again.');
+      return;
+    }
+
     setSelectedBuilding(building);
     setBuildingName(building.name);
     setUnitNumber('');
@@ -836,6 +939,7 @@ export default function VisitForm({ onClose, onSaved }) {
               onCreate={createCommunityItem}
               placeholder="Search or create community..."
               disabled={!teamId}
+              minCreateLength={3}
               debounceDelay={debounceDelay}
             />
           </label>
@@ -851,6 +955,7 @@ export default function VisitForm({ onClose, onSaved }) {
               onCreate={createRouteItem}
               placeholder="Search or create route..."
               disabled={!selectedCommunity}
+              minCreateLength={3}
               debounceDelay={debounceDelay}
             />
           </label>
@@ -867,6 +972,7 @@ export default function VisitForm({ onClose, onSaved }) {
                 onCreate={createBuildingItem}
                 placeholder="Search or create building..."
                 disabled={!selectedRoute}
+                minCreateLength={1}
                 debounceDelay={debounceDelay}
                 renderOption={(building) => (
                   <div>

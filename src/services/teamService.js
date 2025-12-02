@@ -128,8 +128,9 @@ export async function updateTeam(teamId, updates) {
  * - All communities in the team
  * - All routes in those communities
  * - All buildings in those routes
+ * - All visits in those buildings (hard delete with batch operations)
  * - Update all users in the team (sets their teamId to null and disables accounts)
- * - Preserve visits (they will remain as historical records)
+ * Uses batch operations for all-or-nothing deletion
  * @param {string} teamId - Team ID
  * @param {boolean} skipCascade - If true, only delete the team without cascading (default: false)
  * @returns {Promise<void>}
@@ -137,43 +138,121 @@ export async function updateTeam(teamId, updates) {
 export async function deleteTeam(teamId, skipCascade = false) {
   try {
     if (!skipCascade) {
-      // Import community service to handle cascade
-      const { getCommunitiesByTeam, deleteCommunity } = await import('./communityService.js');
+      // Import services and batch helpers
+      const { getCommunitiesByTeam } = await import('./communityService.js');
+      const { getRoutesByCommunity } = await import('./routeService.js');
+      const { getBuildingsByRoute } = await import('./buildingService.js');
+      const { batchDelete, batchUpdate } = await import('./batchHelpers.js');
 
       // Get all communities in this team
       const communities = await getCommunitiesByTeam(teamId);
 
-      // Delete each community (which will cascade to routes and buildings)
-      const communityDeletePromises = communities.map(community =>
-        deleteCommunity(community.id, false) // false = with cascade
-      );
+      if (communities.length > 0) {
+        // Collect all document references to delete (communities + routes + buildings + visits)
+        const docRefsToDelete = [];
+        const userUpdates = [];
+        const COMMUNITIES_COLLECTION = 'communities';
+        const ROUTES_COLLECTION = 'routes';
+        const BUILDINGS_COLLECTION = 'buildings';
+        const VISITS_SUBCOLLECTION = 'visits';
 
-      await Promise.all(communityDeletePromises);
+        let totalRoutes = 0;
+        let totalBuildings = 0;
+        let totalVisits = 0;
 
-      console.log(`Cascade deleted ${communities.length} communities from team ${teamId}`);
+        // For each community, get routes, buildings, and visits
+        for (const community of communities) {
+          // Get all routes in this community
+          const routes = await getRoutesByCommunity(community.id);
+          totalRoutes += routes.length;
 
-      // Handle users in this team
+          // For each route, get buildings and visits
+          for (const route of routes) {
+            // Collect route leader updates if needed
+            if (route.routeLeaderId) {
+              userUpdates.push({
+                ref: doc(db, 'users', route.routeLeaderId),
+                data: {
+                  routeId: null,
+                  updatedAt: serverTimestamp(),
+                },
+              });
+            }
+
+            // Get all buildings in this route
+            const buildings = await getBuildingsByRoute(route.id);
+            totalBuildings += buildings.length;
+
+            // For each building, get its visits
+            for (const building of buildings) {
+              const visitsRef = collection(
+                db,
+                BUILDINGS_COLLECTION,
+                building.id,
+                VISITS_SUBCOLLECTION
+              );
+              const visitsSnapshot = await getDocs(visitsRef);
+              totalVisits += visitsSnapshot.docs.length;
+
+              // Add all visit document references
+              visitsSnapshot.docs.forEach((visitDoc) => {
+                docRefsToDelete.push(
+                  doc(db, BUILDINGS_COLLECTION, building.id, VISITS_SUBCOLLECTION, visitDoc.id)
+                );
+              });
+
+              // Add the building document reference
+              docRefsToDelete.push(doc(db, BUILDINGS_COLLECTION, building.id));
+            }
+
+            // Add the route document reference
+            docRefsToDelete.push(doc(db, ROUTES_COLLECTION, route.id));
+          }
+
+          // Add the community document reference
+          docRefsToDelete.push(doc(db, COMMUNITIES_COLLECTION, community.id));
+        }
+
+        // Perform atomic batch delete for all entities
+        const deleteResult = await batchDelete(docRefsToDelete);
+
+        console.log(
+          `✅ Cascade deleted ${communities.length} communities, ${totalRoutes} routes, ${totalBuildings} buildings, and ${totalVisits} visits from team ${teamId} using ${deleteResult.batchCount} batch(es)`
+        );
+
+        // Update user profiles to clear route assignments (separate batch)
+        if (userUpdates.length > 0) {
+          await batchUpdate(userUpdates);
+          console.log(`✅ Cleared route assignments for ${userUpdates.length} route leaders`);
+        }
+      }
+
+      // Handle users in this team (deactivate and clear team assignment)
       const usersQuery = query(
         collection(db, 'users'),
         where('teamId', '==', teamId)
       );
       const usersSnapshot = await getDocs(usersQuery);
 
-      // Clear team assignment from all users and deactivate them
-      const userUpdatePromises = usersSnapshot.docs.map(userDoc => {
-        const userRef = doc(db, 'users', userDoc.id);
-        return updateDoc(userRef, {
-          teamId: null,
-          routeId: null, // Also clear route assignment
-          isActive: false, // Deactivate the user account
-          updatedAt: serverTimestamp(),
-          deactivatedReason: 'Team deleted',
-        });
-      });
+      if (usersSnapshot.docs.length > 0) {
+        // Prepare user updates for batch operation
+        const userDeactivationUpdates = usersSnapshot.docs.map(userDoc => ({
+          ref: doc(db, 'users', userDoc.id),
+          data: {
+            teamId: null,
+            routeId: null,
+            isActive: false,
+            updatedAt: serverTimestamp(),
+            deactivatedReason: 'Team deleted',
+          },
+        }));
 
-      await Promise.all(userUpdatePromises);
+        // Use batch operations for user deactivation
+        const { batchUpdate } = await import('./batchHelpers.js');
+        await batchUpdate(userDeactivationUpdates);
 
-      console.log(`Deactivated ${usersSnapshot.docs.length} users from team ${teamId}`);
+        console.log(`✅ Deactivated ${usersSnapshot.docs.length} users from team ${teamId}`);
+      }
     }
 
     // Finally, soft delete the team itself

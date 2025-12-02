@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
 import { collectionGroup, getDocs, query, orderBy } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { getBuilding, updateVisit } from '../services/buildingService';
+import { updateVisit } from '../services/buildingService';
 import { getAllTeams } from '../services/teamService';
 import { getCommunitiesByTeam } from '../services/communityService';
 import { getRoutesByCommunity, getRoutesByTeam } from '../services/routeService';
@@ -89,8 +89,7 @@ const VisitHistory = () => {
   const [routes, setRoutes] = useState([]);
   const [buildings, setBuildings] = useState([]);
 
-  // Name lookups
-  const [buildingNames, setBuildingNames] = useState({});
+  // Name lookups (only needed for filter dropdowns, not for display)
   const [routeNames, setRouteNames] = useState({});
   const [communityNames, setCommunityNames] = useState({});
   const [teamNames, setTeamNames] = useState({});
@@ -134,68 +133,28 @@ const VisitHistory = () => {
         );
         const querySnapshot = await getDocs(visitsQuery);
         const fetchedVisits = [];
-        const buildingIds = new Set();
 
         querySnapshot.forEach((doc) => {
           const data = doc.data();
           const buildingId = doc.ref.parent.parent?.id;
 
           if (data && buildingId) {
-            buildingIds.add(buildingId);
             fetchedVisits.push({
               id: doc.id,
               buildingId,
               ...data,
-              // Visit documents now include denormalized teamId, routeId, communityId
-              // No need to overwrite them - they're already in data
+              // Visit documents include denormalized names (buildingName, routeName, communityName, teamName)
+              // No need to fetch parent entities - everything is already in the visit document
             });
           }
         });
 
-        // Fetch building data only for building names (not hierarchy fields)
-        console.log('Fetching building names for', buildingIds.size, 'buildings...');
-        const buildingDataMap = {};
-        const routeIdsSet = new Set();
-        const communityIdsSet = new Set();
-        const teamIdsSet = new Set();
-
-        await Promise.all(
-          Array.from(buildingIds).map(async (buildingId) => {
-            try {
-              const building = await getBuilding(buildingId);
-              if (building) {
-                buildingDataMap[buildingId] = building;
-              }
-            } catch (error) {
-              console.error(`Error fetching building ${buildingId}:`, error);
-            }
-          })
-        );
-
-        // Add building names to visits and collect entity IDs
-        fetchedVisits.forEach(visit => {
-          const building = buildingDataMap[visit.buildingId];
-          if (building) {
-            visit.buildingName = building.name;
-          }
-          // Collect entity IDs from denormalized visit fields for name lookups
-          if (visit.routeId) routeIdsSet.add(visit.routeId);
-          if (visit.communityId) communityIdsSet.add(visit.communityId);
-          if (visit.teamId) teamIdsSet.add(visit.teamId);
-        });
+        // ✅ PERFORMANCE FIX: No more N+1 queries for names
+        // All entity names are denormalized in visit documents
+        console.log('✅ Loaded', fetchedVisits.length, 'visits with denormalized names (no additional database queries needed!)');
 
         if (!isCancelled) {
-          console.log('Fetched', fetchedVisits.length, 'visits with building data');
           setVisits(fetchedVisits);
-
-          // Store entity IDs for fetching names
-          setBuildingNames(Object.fromEntries(
-            Object.entries(buildingDataMap).map(([id, b]) => [id, b.name])
-          ));
-
-          // Fetch and store route, community, team names
-          await fetchEntityNames(routeIdsSet, communityIdsSet, teamIdsSet);
-
           setLoading(false);
         }
       } catch (err) {
@@ -214,28 +173,8 @@ const VisitHistory = () => {
     };
   }, [currentUser]);
 
-  // Fetch entity names for display
-  const fetchEntityNames = async (routeIds, communityIds, teamIds) => {
-    try {
-      // Fetch route names for all routes in visits
-      if (routeIds.size > 0) {
-        const { getRoute } = await import('../services/routeService');
-        const routeNamePromises = Array.from(routeIds).map(async (routeId) => {
-          try {
-            const route = await getRoute(routeId);
-            return [routeId, route?.name || routeId];
-          } catch (error) {
-            console.error(`Error fetching route ${routeId}:`, error);
-            return [routeId, routeId];
-          }
-        });
-        const routeNameEntries = await Promise.all(routeNamePromises);
-        setRouteNames(Object.fromEntries(routeNameEntries));
-      }
-    } catch (error) {
-      console.error('Error fetching entity names:', error);
-    }
-  };
+  // Note: Entity names are now denormalized in visit documents
+  // We don't need fetchEntityNames() anymore - all names come from the visit data!
 
   // Load teams for super_admin
   useEffect(() => {

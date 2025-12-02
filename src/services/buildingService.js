@@ -279,12 +279,13 @@ export async function addUnit(buildingId, unitNumber) {
 /**
  * Hard delete a building and all its visits (PERMANENT)
  * WARNING: This permanently deletes the building document and all visit subcollections
+ * Uses batch operations for all-or-nothing deletion
  * @param {string} buildingId - Building ID
  * @returns {Promise<void>}
  */
 export async function deleteBuilding(buildingId) {
   try {
-    // First, delete all visits in the subcollection
+    // Get all visits in the subcollection
     const visitsRef = collection(
       db,
       BUILDINGS_COLLECTION,
@@ -293,24 +294,24 @@ export async function deleteBuilding(buildingId) {
     );
     const visitsSnapshot = await getDocs(visitsRef);
 
-    // Delete each visit document
-    const deletePromises = visitsSnapshot.docs.map((visitDoc) =>
-      deleteDoc(
-        doc(
-          db,
-          BUILDINGS_COLLECTION,
-          buildingId,
-          VISITS_SUBCOLLECTION,
-          visitDoc.id
-        )
-      )
-    );
+    // Collect all document references to delete
+    const docRefsToDelete = [];
 
-    await Promise.all(deletePromises);
+    // Add all visit document references
+    visitsSnapshot.docs.forEach((visitDoc) => {
+      docRefsToDelete.push(
+        doc(db, BUILDINGS_COLLECTION, buildingId, VISITS_SUBCOLLECTION, visitDoc.id)
+      );
+    });
 
-    // Then delete the building document itself
-    const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
-    await deleteDoc(buildingRef);
+    // Add the building document reference
+    docRefsToDelete.push(doc(db, BUILDINGS_COLLECTION, buildingId));
+
+    // Perform atomic batch delete
+    const { batchDelete } = await import('./batchHelpers.js');
+    const result = await batchDelete(docRefsToDelete);
+
+    console.log(`✅ Deleted building ${buildingId} with ${result.deletedCount - 1} visits using ${result.batchCount} batch(es)`);
   } catch (error) {
     console.error('Error deleting building:', error);
     throw error;
@@ -415,6 +416,18 @@ export async function createVisit(buildingId, visitData, createdBy) {
     const buildingData = buildingSnap.data();
     const currentCount = buildingData?.visitCount || 0;
 
+    // Fetch parent entity names for denormalization (performance optimization)
+    // This prevents N+1 query problem when loading visit history
+    const { getRoute } = await import('./routeService.js');
+    const { getCommunity } = await import('./communityService.js');
+    const { getTeam } = await import('./teamService.js');
+
+    const [routeData, communityData, teamData] = await Promise.all([
+      getRoute(buildingData.routeId),
+      getCommunity(buildingData.communityId),
+      getTeam(buildingData.teamId),
+    ]);
+
     const visitsRef = collection(
       db,
       BUILDINGS_COLLECTION,
@@ -427,6 +440,13 @@ export async function createVisit(buildingId, visitData, createdBy) {
       teamId: buildingData.teamId,
       routeId: buildingData.routeId,
       communityId: buildingData.communityId,
+
+      // Denormalized names for performance (prevents N+1 queries in VisitHistory)
+      buildingName: buildingData.name || '',
+      routeName: routeData?.name || '',
+      communityName: communityData?.name || '',
+      teamName: teamData?.name || '',
+
       unitNumber,
       routeLeaderId: visitData.routeLeaderId || null,
       people: sanitizedPeople,
@@ -630,48 +650,34 @@ export async function deleteVisit(buildingId, visitId) {
 // Helper Functions for Visit People
 
 /**
- * Extract the people from past visits at a specific unit
- * Merge information from multiple visits for the same person (matching by name)
+ * Extract the people from the most recent visit at a specific unit
+ * Return people from only the latest visit to reflect the current state
  * @param {string} buildingId
  * @param {string} unitNumber
- * @returns {Promise<Array<Object>>} Array of the people with merged data
+ * @returns {Promise<Array<Object>>} Array of people from the most recent visit
  */
 export async function getPastPeopleAtUnit(buildingId, unitNumber) {
   try {
     const visits = await getVisitsByUnit(buildingId, unitNumber);
 
-    // Extract all people from all visits
-    const allPeople = visits.flatMap((visit) => visit.people || []);
+    // If no visits, return empty array
+    if (visits.length === 0) {
+      return [];
+    }
 
-    // Group people by name (not case-sensitive)
-    const peopleMap = {};
+    // Visits are already sorted by visitDate (most recent first)
+    // Get people from the most recent visit only
+    const mostRecentVisit = visits[0];
+    const people = mostRecentVisit.people || [];
 
-    allPeople.forEach((person) => {
-      const normalizedName = person.name.toLowerCase().trim();
-
-      if (!peopleMap[normalizedName]) {
-        // First occurrence of this person
-        peopleMap[normalizedName] = {
-          name: person.name, // Keep original casing
-          age: person.age || null,
-          phone: person.phone || '',
-          followUp: person.followUp || '',
-          involvement: person.involvement || '',
-          visitCount: 1,
-        };
-      } else {
-        // If person already exists, merge data (prefer non-empty values)
-        const existing = peopleMap[normalizedName];
-        existing.age = existing.age || person.age || null;
-        existing.phone = existing.phone || person.phone || '';
-        existing.followUp = existing.followUp || person.followUp || '';
-        existing.involvement = existing.involvement || person.involvement || '';
-        existing.visitCount += 1;
-      }
-    });
-
-    // Convert the map to array and sort by visit count (most frequent first)
-    return Object.values(peopleMap).sort((a, b) => b.visitCount - a.visitCount);
+    // Return people with consistent structure (remove visitCount since we're not merging)
+    return people.map((person) => ({
+      name: person.name,
+      age: person.age || null,
+      phone: person.phone || '',
+      followUp: person.followUp || '',
+      involvement: person.involvement || '',
+    }));
   } catch (error) {
     console.error('Error getting past people at unit:', error);
     throw error;
