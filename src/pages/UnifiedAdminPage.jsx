@@ -75,13 +75,13 @@ export default function UnifiedAdminPage() {
       roles: ['super_admin', 'team_admin'],
       component: CommunityManagementTab
     },
-    {
-      id: 'routes',
-      label: 'Routes',
-      icon: '🛣️',
-      roles: ['super_admin', 'team_admin'],
-      component: RouteManagementTab
-    },
+    // {
+    //   id: 'routes',
+    //   label: 'Routes',
+    //   icon: '🛣️',
+    //   roles: ['super_admin', 'team_admin'],
+    //   component: RouteManagementTab
+    // },
     {
       id: 'buildings',
       label: 'Buildings',

@@ -378,13 +378,26 @@
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 10px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 0.95rem;
   font-family: inherit;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
+
+/* Move dropdown arrow left by adjusting background-position */
+.form-group select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%236B7280' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center; /* moved further left (was 8px) */
+  background-size: 20px 20px; /* make arrow smaller */
+  padding-right: 28px; /* reduce right padding to match smaller arrow */
+}
+
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
@@ -430,7 +443,7 @@
 }
 
 
-.sort-select {
+/* .sort-select {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%236B7280' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
@@ -440,7 +453,7 @@
 .sort-select option {
   border-radius: 8px;
   padding: 6px 8px;
-}
+} */
 
 /* Force light theme / ignore dark mode */
 :root, html, body {

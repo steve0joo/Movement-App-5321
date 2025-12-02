@@ -103,10 +103,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="recent-activity">
+        {/* <div className="recent-activity">
           <h2>Recent Activity</h2>
           <p className="empty-state">No recent visits yet. Start collecting data!</p>
-        </div>
+        </div> */}
       </div>
     </div>
   );
