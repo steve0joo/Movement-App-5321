@@ -7,6 +7,7 @@ import TeamManagementTab from '../components/admin/TeamManagementTab';
 import CommunityManagementTab from '../components/admin/CommunityManagementTab';
 import RouteManagementTab from '../components/admin/RouteManagementTab';
 import BuildingManagementTab from '../components/admin/BuildingManagementTab';
+import CommunityInvolvementTab from '../components/admin/CommunityInvolvementTab';
 import './header.css';
 import './AdminStyles.css'; // Shared admin styles
 import menuIcon from "../assets/menu-button.png";
@@ -88,6 +89,13 @@ export default function UnifiedAdminPage() {
       icon: '🏠',
       roles: ['super_admin', 'team_admin', 'route_leader'],
       component: BuildingManagementTab
+    },
+    {
+      id: 'involvement',
+      label: 'Community Involvement',
+      icon: '⚽',
+      roles: ['super_admin', 'team_admin', 'route_leader'],
+      component: CommunityInvolvementTab
     }
   ];
 

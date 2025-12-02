@@ -32,6 +32,10 @@ import {
 } from '../services/communityService';
 import { getRoutesByCommunity, createRoute } from '../services/routeService';
 import { getBuildingsByRoute } from '../services/buildingService';
+import {
+  getFollowUpsByTeam,
+  getInvolvementsByTeam,
+} from '../services/communityInvolvementService';
 import './header.css';
 import './VisitForm.css';
 import logoHome from '../assets/logo-home-button.png';
@@ -107,6 +111,10 @@ export default function VisitForm({ onClose, onSaved }) {
   const [routeLeader, setRouteLeader] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Follow-up and involvement options
+  const [followUpOptions, setFollowUpOptions] = useState([]);
+  const [involvementOptions, setInvolvementOptions] = useState([]);
+
   // People table state
   const [people, setPeople] = useState([
     { name: '', age: '', phone: '', followUp: '', involvement: '' },
@@ -157,6 +165,29 @@ export default function VisitForm({ onClose, onSaved }) {
     }
     loadTeams();
   }, [role, userTeamId, isOnline, currentUser]);
+
+  // Load follow-up and involvement options when team changes
+  useEffect(() => {
+    async function loadOptions() {
+      if (!teamId) {
+        setFollowUpOptions([]);
+        setInvolvementOptions([]);
+        return;
+      }
+
+      try {
+        const [followUps, involvements] = await Promise.all([
+          getFollowUpsByTeam(teamId),
+          getInvolvementsByTeam(teamId),
+        ]);
+        setFollowUpOptions(followUps);
+        setInvolvementOptions(involvements);
+      } catch (err) {
+        console.error('Error loading follow-up/involvement options:', err);
+      }
+    }
+    loadOptions();
+  }, [teamId]);
 
   // Note: Form is always empty on load (both online and offline)
   // Cached data is only used to speed up the autocomplete suggestions when offline
@@ -1097,26 +1128,36 @@ export default function VisitForm({ onClose, onSaved }) {
                     readOnly={!!person.locked}
                     disabled={!!person.locked}
                   />
-                  <input
+                  <select
                     className="visit-input visit-col-followup"
-                    placeholder="Follow-up notes"
                     value={person.followUp}
                     onChange={(e) =>
                       handlePersonChange(index, 'followUp', e.target.value)
                     }
-                    readOnly={!!person.locked}
                     disabled={!!person.locked}
-                  />
-                  <input
+                  >
+                    <option value="">Select follow-up...</option>
+                    {followUpOptions.map((option) => (
+                      <option key={option.id} value={option.name}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
                     className="visit-input visit-col-involvement"
-                    placeholder="Involvement"
                     value={person.involvement}
                     onChange={(e) =>
                       handlePersonChange(index, 'involvement', e.target.value)
                     }
-                    readOnly={!!person.locked}
                     disabled={!!person.locked}
-                  />
+                  >
+                    <option value="">Select involvement...</option>
+                    {involvementOptions.map((option) => (
+                      <option key={option.id} value={option.name}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
 
                   {/* Edit button: shown when the row is locked so user can unlock for editing */}
                   {person.locked && (
