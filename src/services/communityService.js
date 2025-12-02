@@ -104,9 +104,10 @@ export async function getCommunity(communityId) {
 /**
  * Get all communities for a specific team
  * @param {string} teamId - Team ID
+ * @param {boolean} preferCache - If true, try cache first for faster offline performance
  * @returns {Promise<Array>} Array of communities in the team
  */
-export async function getCommunitiesByTeam(teamId) {
+export async function getCommunitiesByTeam(teamId, preferCache = false) {
   try {
     const communitiesQuery = query(
       collection(db, COMMUNITIES_COLLECTION),
@@ -114,13 +115,25 @@ export async function getCommunitiesByTeam(teamId) {
       where('isActive', '==', true),
       orderBy('name')
     );
-    const snapshot = await getDocs(communitiesQuery);
+
+    // Use cache-first when offline for instant response
+    const options = preferCache ? { source: 'cache' } : {};
+    const snapshot = await getDocs(communitiesQuery, options);
 
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
   } catch (error) {
+    // If cache fetch fails, fall back to default (network + cache)
+    if (error.code === 'unavailable' && preferCache) {
+      console.log('Cache miss for communities, falling back to network');
+      const snapshot = await getDocs(communitiesQuery);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    }
     console.error('Error getting communities by team:', error);
     throw error;
   }

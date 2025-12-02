@@ -112,9 +112,10 @@ export async function getRoute(routeId) {
 /**
  * Get all routes for a specific community
  * @param {string} communityId - Community ID
+ * @param {boolean} preferCache - If true, try cache first for faster offline performance
  * @returns {Promise<Array>} Array of routes in the community
  */
-export async function getRoutesByCommunity(communityId) {
+export async function getRoutesByCommunity(communityId, preferCache = false) {
   try {
     const routesQuery = query(
       collection(db, ROUTES_COLLECTION),
@@ -122,13 +123,25 @@ export async function getRoutesByCommunity(communityId) {
       where('isActive', '==', true),
       orderBy('name')
     );
-    const snapshot = await getDocs(routesQuery);
+
+    // Use cache-first when offline for instant response
+    const options = preferCache ? { source: 'cache' } : {};
+    const snapshot = await getDocs(routesQuery, options);
 
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
   } catch (error) {
+    // If cache fetch fails, fall back to default (network + cache)
+    if (error.code === 'unavailable' && preferCache) {
+      console.log('Cache miss for routes, falling back to network');
+      const snapshot = await getDocs(routesQuery);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    }
     console.error('Error getting routes by community:', error);
     throw error;
   }

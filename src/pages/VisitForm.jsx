@@ -5,12 +5,6 @@ import { useSync } from '../context/SyncContext';
 import {
   isOfflineModeActive,
   saveLastVisitFormData,
-  getLastVisitFormData,
-  cacheUserData,
-  getCachedTeams,
-  getCachedCommunities,
-  getCachedRoutes,
-  getCachedBuildings,
 } from '../utils/offlineStorage';
 import {
   validateName,
@@ -144,113 +138,29 @@ export default function VisitForm({ onClose, onSaved }) {
   useEffect(() => {
     async function loadTeams() {
       try {
-        // Try to load from Firebase (works offline due to Firebase cache)
+        // Load from Firebase (works offline automatically via Firebase persistence)
         if (role === 'super_admin') {
           const allTeams = await getAllTeams();
           setTeams(allTeams);
-
-          // Cache for offline mode (only if the user is assigned)
-          if (isOnline && userTeamId) {
-            cacheUserData({ userId: currentUser?.uid, teamId: userTeamId, teams: allTeams });
-          }
         } else if (userTeamId) {
           const allTeams = await getAllTeams();
           const userTeam = allTeams.find((t) => t.id === userTeamId);
           if (userTeam) {
             setTeams([userTeam]);
             setTeamId(userTeamId);
-
-            // Preload and cache ALL user data when online (for offline access)
-            if (isOnline) {
-              try {
-                // Fetch all communities for this team
-                const communities = await getCommunitiesByTeam(userTeamId);
-
-                // Fetch all routes for these communities
-                const routePromises = communities.map(c => getRoutesByCommunity(c.id));
-                const routeArrays = await Promise.all(routePromises);
-                const routes = routeArrays.flat();
-
-                // Fetch all buildings for these routes
-                const buildingPromises = routes.map(r => getBuildingsByRoute(r.id));
-                const buildingArrays = await Promise.all(buildingPromises);
-                const buildings = buildingArrays.flat();
-
-                // Cache everything at once
-                cacheUserData({
-                  userId: currentUser?.uid,
-                  teamId: userTeamId,
-                  teams: [userTeam],
-                  communities,
-                  routes,
-                  buildings,
-                });
-
-                console.log('📦 Preloaded all user data for offline access');
-              } catch (preloadErr) {
-                console.error('Error preloading user data:', preloadErr);
-                // Still cache just the team if preload fails
-                cacheUserData({ userId: currentUser?.uid, teamId: userTeamId, teams: [userTeam] });
-              }
-            }
           }
         }
       } catch (err) {
         console.error('Error loading teams:', err);
-
-        // If offline and Firebase cache fails, try LocalStorage cache
-        if (!isOnline) {
-          const cachedTeams = getCachedTeams();
-          if (cachedTeams.length > 0) {
-            setTeams(cachedTeams);
-            if (userTeamId) {
-              setTeamId(userTeamId);
-            }
-            console.log('📦 Loaded teams from offline cache');
-          }
-        }
+        // Firebase offline persistence will retry when back online
       }
     }
     loadTeams();
   }, [role, userTeamId, isOnline, currentUser]);
 
-  // Auto-fill the form with the last saved data (for the offline mode)
-  useEffect(() => {
-    const lastFormData = getLastVisitFormData();
-    if (lastFormData) {
-      // Only auto-fill if fields are empty
-      if (!communityName && lastFormData.communityName) {
-        setCommunityName(lastFormData.communityName);
-        if (lastFormData.communityId) {
-          setSelectedCommunity({
-            id: lastFormData.communityId,
-            name: lastFormData.communityName,
-          });
-        }
-      }
-      if (!routeName && lastFormData.routeName) {
-        setRouteName(lastFormData.routeName);
-        if (lastFormData.routeId) {
-          setSelectedRoute({
-            id: lastFormData.routeId,
-            name: lastFormData.routeName,
-          });
-        }
-      }
-      if (!buildingName && lastFormData.buildingName) {
-        setBuildingName(lastFormData.buildingName);
-        if (lastFormData.buildingId) {
-          setSelectedBuilding({
-            id: lastFormData.buildingId,
-            name: lastFormData.buildingName,
-          });
-        }
-      }
-      if (!unitNumber && lastFormData.unitNumber) {
-        setUnitNumber(lastFormData.unitNumber);
-      }
-    }
-  }, []); // Only run on mount
+  // Note: Form is always empty on load (both online and offline)
+  // Cached data is only used to speed up the autocomplete suggestions when offline
+  // Users must manually type to search and select from suggestions
 
   // Load past people when building + unit selected
   useEffect(() => {
@@ -304,43 +214,32 @@ export default function VisitForm({ onClose, onSaved }) {
     }
   }, [role, currentUser]);
 
-  // Fetch functions for Autocomplete with caching
+  // Fetch functions for Autocomplete with cache-first optimization
+  // Use preferCache when offline for instant response
   async function fetchCommunities(searchTerm) {
     if (!teamId) return [];
 
     try {
-      const communities = await getCommunitiesByTeam(teamId);
+      const communities = await getCommunitiesByTeam(teamId, !isOnline);
 
-      // Cache communities when online and user is assigned
-      if (isOnline && userTeamId) {
-        cacheUserData({
-          userId: currentUser?.uid,
-          teamId: userTeamId,
-          communities,
-        });
-      }
+      // Filter out any invalid entries (null, undefined, false, etc.)
+      const validCommunities = (communities || []).filter(c => c && c.id && c.name);
 
-      if (!searchTerm) return communities;
+      console.log('📦 Fetched communities:', {
+        count: validCommunities.length,
+        offline: !isOnline,
+        teamId,
+        sample: validCommunities[0]
+      });
+
+      if (!searchTerm) return validCommunities;
 
       const lowerSearch = searchTerm.toLowerCase();
-      return communities.filter((c) =>
+      return validCommunities.filter((c) =>
         c.name.toLowerCase().includes(lowerSearch)
       );
     } catch (err) {
-      console.error('Error fetching communities:', err);
-
-      // If offline and Firebase fails, try cached data
-      if (!isOnline) {
-        const cachedCommunities = getCachedCommunities();
-        if (cachedCommunities.length > 0) {
-          console.log('Loaded communities from offline cache');
-          return searchTerm
-            ? cachedCommunities.filter((c) =>
-                c.name.toLowerCase().includes(searchTerm.toLowerCase())
-              )
-            : cachedCommunities;
-        }
-      }
+      console.error('❌ Error fetching communities:', err);
       return [];
     }
   }
@@ -349,41 +248,24 @@ export default function VisitForm({ onClose, onSaved }) {
     if (!selectedCommunity?.id) return [];
 
     try {
-      const routes = await getRoutesByCommunity(selectedCommunity.id);
+      const routes = await getRoutesByCommunity(selectedCommunity.id, !isOnline);
 
-      // Cache routes when online and the user is assigned
-      if (isOnline && userTeamId) {
-        cacheUserData({
-          userId: currentUser?.uid,
-          teamId: userTeamId,
-          routes,
-        });
-      }
+      // Filter out any invalid entries
+      const validRoutes = (routes || []).filter(r => r && r.id && r.name);
 
-      if (!searchTerm) return routes;
+      console.log('📦 Fetched routes:', {
+        count: validRoutes.length,
+        offline: !isOnline,
+        communityId: selectedCommunity.id,
+        sample: validRoutes[0]
+      });
+
+      if (!searchTerm) return validRoutes;
 
       const lowerSearch = searchTerm.toLowerCase();
-      return routes.filter((r) => r.name.toLowerCase().includes(lowerSearch));
+      return validRoutes.filter((r) => r.name.toLowerCase().includes(lowerSearch));
     } catch (err) {
-      console.error('Error fetching routes:', err);
-
-      // If offline and Firebase fails, try cached data
-      if (!isOnline) {
-        const cachedRoutes = getCachedRoutes();
-        // Filter by selected community
-        const filteredRoutes = cachedRoutes.filter(
-          (r) => r.communityId === selectedCommunity.id
-        );
-
-        if (filteredRoutes.length > 0) {
-          console.log('Loaded routes from offline cache');
-          return searchTerm
-            ? filteredRoutes.filter((r) =>
-                r.name.toLowerCase().includes(searchTerm.toLowerCase())
-              )
-            : filteredRoutes;
-        }
-      }
+      console.error('❌ Error fetching routes:', err);
       return [];
     }
   }
@@ -400,27 +282,22 @@ export default function VisitForm({ onClose, onSaved }) {
         selectedRoute.id,
         selectedRoute.name
       );
-      const buildings = await getBuildingsByRoute(selectedRoute.id);
-      console.log(
-        'fetchBuildings: Found',
-        buildings.length,
-        'buildings:',
-        buildings
-      );
+      const buildings = await getBuildingsByRoute(selectedRoute.id, !isOnline);
 
-      // Cache buildings when online and user is assigned
-      if (isOnline && userTeamId) {
-        cacheUserData({
-          userId: currentUser?.uid,
-          teamId: userTeamId,
-          buildings,
-        });
-      }
+      // Filter out any invalid entries
+      const validBuildings = (buildings || []).filter(b => b && b.id && b.name);
 
-      if (!searchTerm) return buildings;
+      console.log('📦 Fetched buildings:', {
+        count: validBuildings.length,
+        offline: !isOnline,
+        routeId: selectedRoute.id,
+        sample: validBuildings[0]
+      });
+
+      if (!searchTerm) return validBuildings;
 
       const lowerSearch = searchTerm.toLowerCase();
-      const filtered = buildings.filter(
+      const filtered = validBuildings.filter(
         (b) =>
           b.name.toLowerCase().includes(lowerSearch) ||
           b.address?.toLowerCase().includes(lowerSearch)
@@ -433,27 +310,7 @@ export default function VisitForm({ onClose, onSaved }) {
       );
       return filtered;
     } catch (err) {
-      console.error('Error fetching buildings:', err);
-
-      // If offline and Firebase fails, try cached data
-      if (!isOnline) {
-        const cachedBuildings = getCachedBuildings();
-        // Filter by selected route
-        const filteredBuildings = cachedBuildings.filter(
-          (b) => b.routeId === selectedRoute.id
-        );
-
-        if (filteredBuildings.length > 0) {
-          console.log('📦 Loaded buildings from offline cache');
-          return searchTerm
-            ? filteredBuildings.filter(
-                (b) =>
-                  b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  b.address?.toLowerCase().includes(searchTerm.toLowerCase())
-              )
-            : filteredBuildings;
-        }
-      }
+      console.error('❌ Error fetching buildings:', err);
       return [];
     }
   }
@@ -834,6 +691,9 @@ export default function VisitForm({ onClose, onSaved }) {
   const isTeamLocked = role !== 'super_admin';
   const isRouteLocked = role === 'route_leader' || role === 'volunteer';
 
+  // Adaptive debounce: faster when offline (cache is instant)
+  const debounceDelay = isOnline ? 100 : 50;
+
   return (
     <div className="visit-form-overlay" role="dialog" aria-modal="true">
       {/* Top bar */}
@@ -976,6 +836,7 @@ export default function VisitForm({ onClose, onSaved }) {
               onCreate={createCommunityItem}
               placeholder="Search or create community..."
               disabled={!teamId}
+              debounceDelay={debounceDelay}
             />
           </label>
 
@@ -990,6 +851,7 @@ export default function VisitForm({ onClose, onSaved }) {
               onCreate={createRouteItem}
               placeholder="Search or create route..."
               disabled={!selectedCommunity}
+              debounceDelay={debounceDelay}
             />
           </label>
 
@@ -1005,6 +867,7 @@ export default function VisitForm({ onClose, onSaved }) {
                 onCreate={createBuildingItem}
                 placeholder="Search or create building..."
                 disabled={!selectedRoute}
+                debounceDelay={debounceDelay}
                 renderOption={(building) => (
                   <div>
                     <div style={{ fontWeight: 500 }}>{building.name}</div>

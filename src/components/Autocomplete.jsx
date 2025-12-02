@@ -16,6 +16,7 @@ import './Autocomplete.css';
  * @param {Function} props.getOptionLabel - Function to get label from option object
  * @param {Function} props.getOptionValue - Function to get value from option object
  * @param {number} props.minSearchLength - Minimum characters before searching (default: 0)
+ * @param {number} props.debounceDelay - Debounce delay in ms (default: 100, use lower for offline/cache-first)
  */
 export default function Autocomplete({
   value,
@@ -29,6 +30,7 @@ export default function Autocomplete({
   getOptionLabel = (opt) => opt?.name || opt,
   getOptionValue = (opt) => opt?.id || opt,
   minSearchLength = 0,
+  debounceDelay = 100,
 }) {
   const [inputValue, setInputValue] = useState(value || '');
   const [options, setOptions] = useState([]);
@@ -81,9 +83,9 @@ export default function Autocomplete({
       }
     }
 
-    const debounce = setTimeout(search, 300);
+    const debounce = setTimeout(search, debounceDelay);
     return () => clearTimeout(debounce);
-  }, [inputValue, fetchOptions, minSearchLength]);
+  }, [inputValue, fetchOptions, minSearchLength, debounceDelay]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

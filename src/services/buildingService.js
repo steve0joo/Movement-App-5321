@@ -144,9 +144,10 @@ export async function getBuilding(buildingId) {
 /**
  * Get all buildings for a specific route
  * @param {string} routeId - Route ID
+ * @param {boolean} preferCache - If true, try cache first for faster offline performance
  * @returns {Promise<Array>} Array of buildings in the route
  */
-export async function getBuildingsByRoute(routeId) {
+export async function getBuildingsByRoute(routeId, preferCache = false) {
   try {
     const buildingsQuery = query(
       collection(db, BUILDINGS_COLLECTION),
@@ -154,13 +155,25 @@ export async function getBuildingsByRoute(routeId) {
       where('isActive', '==', true),
       orderBy('name')
     );
-    const snapshot = await getDocs(buildingsQuery);
+
+    // Use cache-first when offline for instant response
+    const options = preferCache ? { source: 'cache' } : {};
+    const snapshot = await getDocs(buildingsQuery, options);
 
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
   } catch (error) {
+    // If cache fetch fails, fall back to default (network + cache)
+    if (error.code === 'unavailable' && preferCache) {
+      console.log('Cache miss for buildings, falling back to network');
+      const snapshot = await getDocs(buildingsQuery);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    }
     console.error('Error getting buildings by route:', error);
     throw error;
   }
