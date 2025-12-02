@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { validateName, ValidationError } from '../utils/validation.js';
+import { handleOfflineWrite } from '../utils/offlineErrorHandler.js';
 
 const ROUTES_COLLECTION = 'routes';
 
@@ -36,47 +37,63 @@ export async function createRoute(
   createdBy,
   routeLeaderId = null
 ) {
+  // Validate and sanitize the route name first (before any async operations)
+  const sanitizedName = validateName(routeName, {
+    required: true,
+    minLength: 1,
+    maxLength: 100,
+    fieldName: 'Route name',
+  });
+
+  // Generate temporary ID for offline optimistic response
+  const tempId = `temp_route_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+  const optimisticData = {
+    id: tempId,
+    name: sanitizedName,
+    communityId,
+    teamId,
+    routeLeaderId,
+    createdBy,
+    createdAt: new Date(),
+    isActive: true,
+  };
+
   try {
-    // Validate and sanitize the route name
-    const sanitizedName = validateName(routeName, {
-      required: true,
-      minLength: 1,
-      maxLength: 100,
-      fieldName: 'Route name',
-    });
-
-    // Check for the duplicated route name within the same community
-    const duplicateQuery = query(
-      collection(db, ROUTES_COLLECTION),
-      where('communityId', '==', communityId),
-      where('name', '==', sanitizedName),
-      where('isActive', '==', true)
-    );
-    const duplicateSnapshot = await getDocs(duplicateQuery);
-
-    if (!duplicateSnapshot.empty) {
-      throw new Error(
-        `A route with the name "${sanitizedName}" already exists in this community`
+    return await handleOfflineWrite(async () => {
+      // Check for duplicate route name within the same community
+      const duplicateQuery = query(
+        collection(db, ROUTES_COLLECTION),
+        where('communityId', '==', communityId),
+        where('name', '==', sanitizedName),
+        where('isActive', '==', true)
       );
-    }
+      const duplicateSnapshot = await getDocs(duplicateQuery);
 
-    const routeRef = await addDoc(collection(db, ROUTES_COLLECTION), {
-      name: sanitizedName,
-      communityId,
-      teamId,
-      routeLeaderId,
-      createdBy,
-      createdAt: serverTimestamp(),
-      isActive: true,
-    });
+      if (!duplicateSnapshot.empty) {
+        throw new Error(
+          `A route with the name "${sanitizedName}" already exists in this community`
+        );
+      }
 
-    return {
-      id: routeRef.id,
-      name: sanitizedName,
-      communityId,
-      teamId,
-      routeLeaderId,
-    };
+      const routeRef = await addDoc(collection(db, ROUTES_COLLECTION), {
+        name: sanitizedName,
+        communityId,
+        teamId,
+        routeLeaderId,
+        createdBy,
+        createdAt: serverTimestamp(),
+        isActive: true,
+      });
+
+      return {
+        id: routeRef.id,
+        name: sanitizedName,
+        communityId,
+        teamId,
+        routeLeaderId,
+      };
+    }, optimisticData);
   } catch (error) {
     console.error('Error creating route:', error);
     if (error instanceof ValidationError) {

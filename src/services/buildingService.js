@@ -26,6 +26,7 @@ import {
   sanitizeString,
   ValidationError,
 } from '../utils/validation.js';
+import { handleOfflineWrite } from '../utils/offlineErrorHandler.js';
 
 const BUILDINGS_COLLECTION = 'buildings';
 const VISITS_SUBCOLLECTION = 'visits';
@@ -43,72 +44,90 @@ const VISITS_SUBCOLLECTION = 'visits';
  * @returns {Promise<Object>} Created building with ID
  */
 export async function createBuilding(buildingData, createdBy) {
+  // Validate and sanitize inputs first (before any async operations)
+  const sanitizedName = validateName(buildingData.name, {
+    required: true,
+    minLength: 1,
+    maxLength: 100,
+    fieldName: 'Building name',
+  });
+
+  const sanitizedAddress = buildingData.address
+    ? validateText(buildingData.address, {
+        required: false,
+        maxLength: 500,
+        fieldName: 'Building address',
+      }) || ''
+    : '';
+
+  const sanitizedUnits = (buildingData.units || [])
+    .map((unit) => {
+      return sanitizeString(unit, {
+        maxLength: 20,
+        allowEmpty: false,
+      });
+    })
+    .filter((unit) => unit !== null && unit !== '');
+
+  // Generate temporary ID for offline optimistic response
+  const tempId = `temp_building_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+  const optimisticData = {
+    id: tempId,
+    name: sanitizedName,
+    address: sanitizedAddress,
+    routeId: buildingData.routeId,
+    communityId: buildingData.communityId,
+    teamId: buildingData.teamId,
+    units: sanitizedUnits,
+    createdBy,
+    createdAt: new Date(),
+    lastVisitDate: null,
+    visitCount: 0,
+    isActive: true,
+  };
+
   try {
-    // Validate and sanitize the building name
-    const sanitizedName = validateName(buildingData.name, {
-      required: true,
-      minLength: 1,
-      maxLength: 100,
-      fieldName: 'Building name',
-    });
-
-    // Validate and sanitize the address (optional)
-    const sanitizedAddress = buildingData.address
-      ? validateText(buildingData.address, {
-          required: false,
-          maxLength: 500,
-          fieldName: 'Building address',
-        }) || ''
-      : '';
-
-    // Validate the units array if provided
-    const sanitizedUnits = (buildingData.units || [])
-      .map((unit) => {
-        return sanitizeString(unit, {
-          maxLength: 20,
-          allowEmpty: false,
-        });
-      })
-      .filter((unit) => unit !== null && unit !== '');
-
-    // Check for duplicate building name within the same community
-    const duplicateQuery = query(
-      collection(db, BUILDINGS_COLLECTION),
-      where('communityId', '==', buildingData.communityId),
-      where('name', '==', sanitizedName),
-      where('isActive', '==', true)
-    );
-    const duplicateSnapshot = await getDocs(duplicateQuery);
-
-    if (!duplicateSnapshot.empty) {
-      throw new Error(
-        `A building with the name "${sanitizedName}" already exists in this community`
+    return await handleOfflineWrite(async () => {
+      // Check for duplicate building name within the same community
+      const duplicateQuery = query(
+        collection(db, BUILDINGS_COLLECTION),
+        where('communityId', '==', buildingData.communityId),
+        where('name', '==', sanitizedName),
+        where('isActive', '==', true)
       );
-    }
+      const duplicateSnapshot = await getDocs(duplicateQuery);
 
-    const buildingRef = await addDoc(collection(db, BUILDINGS_COLLECTION), {
-      name: sanitizedName,
-      address: sanitizedAddress,
-      routeId: buildingData.routeId,
-      communityId: buildingData.communityId,
-      teamId: buildingData.teamId,
-      units: sanitizedUnits,
-      createdBy,
-      createdAt: serverTimestamp(),
-      lastVisitDate: null,
-      visitCount: 0,
-      isActive: true,
-    });
+      if (!duplicateSnapshot.empty) {
+        throw new Error(
+          `A building with the name "${sanitizedName}" already exists in this community`
+        );
+      }
 
-    return {
-      id: buildingRef.id,
-      name: sanitizedName,
-      address: sanitizedAddress,
-      routeId: buildingData.routeId,
-      communityId: buildingData.communityId,
-      teamId: buildingData.teamId,
-      units: sanitizedUnits,
-    };
+      const buildingRef = await addDoc(collection(db, BUILDINGS_COLLECTION), {
+        name: sanitizedName,
+        address: sanitizedAddress,
+        routeId: buildingData.routeId,
+        communityId: buildingData.communityId,
+        teamId: buildingData.teamId,
+        units: sanitizedUnits,
+        createdBy,
+        createdAt: serverTimestamp(),
+        lastVisitDate: null,
+        visitCount: 0,
+        isActive: true,
+      });
+
+      return {
+        id: buildingRef.id,
+        name: sanitizedName,
+        address: sanitizedAddress,
+        routeId: buildingData.routeId,
+        communityId: buildingData.communityId,
+        teamId: buildingData.teamId,
+        units: sanitizedUnits,
+      };
+    }, optimisticData);
   } catch (error) {
     console.error('Error creating building:', error);
     if (error instanceof ValidationError) {

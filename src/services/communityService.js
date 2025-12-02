@@ -21,6 +21,10 @@ import {
   validateName,
   ValidationError,
 } from '../utils/validation.js';
+import {
+  handleOfflineWrite,
+  handleOfflineQuery,
+} from '../utils/offlineErrorHandler.js';
 
 const COMMUNITIES_COLLECTION = 'communities';
 
@@ -32,43 +36,57 @@ const COMMUNITIES_COLLECTION = 'communities';
  * @returns {Promise<Object>} Created community with ID
  */
 export async function createCommunity(communityName, teamId, createdBy) {
+  // Validate and sanitize community name first (before any async operations)
+  const sanitizedName = validateName(communityName, {
+    required: true,
+    minLength: 1,
+    maxLength: 100,
+    fieldName: 'Community name'
+  });
+
+  // Generate temporary ID for offline optimistic response
+  const tempId = `temp_community_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+  const optimisticData = {
+    id: tempId,
+    name: sanitizedName,
+    teamId,
+    createdBy,
+    createdAt: new Date(),
+    isActive: true,
+  };
+
   try {
-    // Validate and sanitize community name
-    const sanitizedName = validateName(communityName, {
-      required: true,
-      minLength: 1,
-      maxLength: 100,
-      fieldName: 'Community name'
-    });
-
-    // Check for the duplicated community name within the same team
-    const duplicateQuery = query(
-      collection(db, COMMUNITIES_COLLECTION),
-      where('teamId', '==', teamId),
-      where('name', '==', sanitizedName),
-      where('isActive', '==', true)
-    );
-    const duplicateSnapshot = await getDocs(duplicateQuery);
-
-    if (!duplicateSnapshot.empty) {
-      throw new Error(
-        `A community with the name "${sanitizedName}" already exists in this team`
+    return await handleOfflineWrite(async () => {
+      // Check for duplicate community name within the same team
+      const duplicateQuery = query(
+        collection(db, COMMUNITIES_COLLECTION),
+        where('teamId', '==', teamId),
+        where('name', '==', sanitizedName),
+        where('isActive', '==', true)
       );
-    }
+      const duplicateSnapshot = await getDocs(duplicateQuery);
 
-    const communityRef = await addDoc(collection(db, COMMUNITIES_COLLECTION), {
-      name: sanitizedName,
-      teamId,
-      createdBy,
-      createdAt: serverTimestamp(),
-      isActive: true,
-    });
+      if (!duplicateSnapshot.empty) {
+        throw new Error(
+          `A community with the name "${sanitizedName}" already exists in this team`
+        );
+      }
 
-    return {
-      id: communityRef.id,
-      name: sanitizedName,
-      teamId,
-    };
+      const communityRef = await addDoc(collection(db, COMMUNITIES_COLLECTION), {
+        name: sanitizedName,
+        teamId,
+        createdBy,
+        createdAt: serverTimestamp(),
+        isActive: true,
+      });
+
+      return {
+        id: communityRef.id,
+        name: sanitizedName,
+        teamId,
+      };
+    }, optimisticData);
   } catch (error) {
     console.error('Error creating community:', error);
     if (error instanceof ValidationError) {
