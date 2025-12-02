@@ -55,7 +55,7 @@
 
 .clear-filters-btn {
   padding: 6px 12px;
-  background-color: #ef4444;
+  background-color: #F28668;
   color: white;
   border: none;
   border-radius: 4px;
@@ -64,7 +64,7 @@
 }
 
 .clear-filters-btn:hover {
-  background-color: #dc2626;
+  background-color: #F28668;
 }
 
 .filter-controls {
@@ -143,8 +143,8 @@
 /* Results Summary */
 .results-summary {
   padding: 12px 16px;
-  background-color: #eff6ff;
-  border-left: 4px solid #3b82f6;
+  background-color: #f9fafb;
+  border-left: 4px solid #E0F1E7;
   border-radius: 4px;
   margin-bottom: 20px;
 }
@@ -152,7 +152,7 @@
 .results-summary p {
   margin: 0;
   font-size: 14px;
-  color: #1e40af;
+  color: #4A8F8C;
 }
 
 /* Empty State */
@@ -167,12 +167,12 @@
 .empty-state p {
   margin: 0 0 20px 0;
   font-size: 16px;
-  color: #6b7280;
+  color: #4E4E57;
 }
 
 .primary-button {
   padding: 10px 20px;
-  background-color: #3b82f6;
+  background-color: #4A8F8C;
   color: white;
   border: none;
   border-radius: 6px;
@@ -182,7 +182,7 @@
 }
 
 .primary-button:hover {
-  background-color: #2563eb;
+  background-color: #E0F1E7;
 }
 
 /* Loading and Error States */
@@ -195,9 +195,9 @@
 }
 
 .error {
-  color: #dc2626;
-  background-color: #fef2f2;
-  border: 1px solid #fca5a5;
+  color: #F28668;
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
   border-radius: 8px;
 }
 
@@ -493,9 +493,9 @@
 }
 
 .person-involvement {
-  background-color: #dbeafe;
-  border-left-color: #3b82f6;
-  color: #1e40af;
+  background-color: #DBEAFE;
+  border-left-color: #3B82F6;
+  color: #4A8F8C;
 }
 
 /* Edit Person Functionality */
@@ -514,7 +514,7 @@
 
 .edit-person-btn {
   padding: 4px 10px;
-  background-color: #3b82f6;
+  background-color: #E0F1E7;
   color: white;
   border: none;
   border-radius: 4px;
@@ -525,29 +525,7 @@
 }
 
 .edit-person-btn:hover {
-  background-color: #2563eb;
-}
-
-.delete-person-btn {
-  padding: 4px 10px;
-  background-color: #dc2626;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  white-space: nowrap;
-  transition: background-color 0.2s;
-}
-
-.delete-person-btn:hover:not(:disabled) {
-  background-color: #b91c1c;
-}
-
-.delete-person-btn:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
-  opacity: 0.6;
+  background-color: #4A8F8C;
 }
 
 .person-edit-form {
@@ -579,7 +557,7 @@
 
 .edit-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #4A8F8C;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -594,7 +572,7 @@
 
 .edit-textarea:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #4A8F8C;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -606,7 +584,7 @@
 
 .save-btn {
   padding: 8px 16px;
-  background-color: #10b981;
+  background-color: #4A8F8C;
   color: white;
   border: none;
   border-radius: 4px;
@@ -617,7 +595,7 @@
 }
 
 .save-btn:hover:not(:disabled) {
-  background-color: #059669;
+  background-color: #4A8F8C;
 }
 
 .save-btn:disabled {
