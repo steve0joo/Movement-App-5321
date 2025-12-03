@@ -76,7 +76,7 @@ export async function createBuilding(buildingData, createdBy) {
     id: tempId,
     name: sanitizedName,
     address: sanitizedAddress,
-    routeId: buildingData.routeId,
+    routeId: buildingData.routeId || null,
     communityId: buildingData.communityId,
     teamId: buildingData.teamId,
     units: sanitizedUnits,
@@ -107,7 +107,7 @@ export async function createBuilding(buildingData, createdBy) {
       const buildingRef = await addDoc(collection(db, BUILDINGS_COLLECTION), {
         name: sanitizedName,
         address: sanitizedAddress,
-        routeId: buildingData.routeId,
+        routeId: buildingData.routeId || null,
         communityId: buildingData.communityId,
         teamId: buildingData.teamId,
         units: sanitizedUnits,
@@ -122,7 +122,7 @@ export async function createBuilding(buildingData, createdBy) {
         id: buildingRef.id,
         name: sanitizedName,
         address: sanitizedAddress,
-        routeId: buildingData.routeId,
+        routeId: buildingData.routeId || null,
         communityId: buildingData.communityId,
         teamId: buildingData.teamId,
         units: sanitizedUnits,
@@ -358,7 +358,7 @@ export async function deleteBuilding(buildingId) {
  * @param {string} createdBy - User ID of creator
  * @returns {Promise<Object>} Created visit with ID
  */
-export async function createVisit(buildingId, visitData, createdBy) {
+export async function createVisit(buildingId, visitData, createdBy, routeId = null) {
   try {
     // Validate that at least one person is provided
     if (!visitData.people || visitData.people.length === 0) {
@@ -441,8 +441,14 @@ export async function createVisit(buildingId, visitData, createdBy) {
     const { getCommunity } = await import('./communityService.js');
     const { getTeam } = await import('./teamService.js');
 
+    // Use routeId from FORM, not from building
+    // This ensures the visit uses the route selected in the form, not the building's stored route
+    const routeDataPromise = routeId
+      ? getRoute(routeId)
+      : Promise.resolve(null);
+
     const [routeData, communityData, teamData] = await Promise.all([
-      getRoute(buildingData.routeId),
+      routeDataPromise,
       getCommunity(buildingData.communityId),
       getTeam(buildingData.teamId),
     ]);
@@ -457,7 +463,7 @@ export async function createVisit(buildingId, visitData, createdBy) {
     const visitRef = await addDoc(visitsRef, {
       buildingId, // Store parent building reference
       teamId: buildingData.teamId,
-      routeId: buildingData.routeId,
+      routeId: routeId || null, // Use form selection, not building's route
       communityId: buildingData.communityId,
 
       // Denormalized names for performance (prevents N+1 queries in VisitHistory)

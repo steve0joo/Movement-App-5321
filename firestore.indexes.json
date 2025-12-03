@@ -185,6 +185,24 @@
       ]
     },
     {
+      "collectionGroup": "buildings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "communityId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "followUps",
       "queryScope": "COLLECTION",
       "fields": [

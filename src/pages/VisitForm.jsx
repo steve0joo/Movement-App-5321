@@ -31,7 +31,7 @@ import {
   createCommunity,
 } from '../services/communityService';
 import { getRoutesByCommunity, createRoute } from '../services/routeService';
-import { getBuildingsByRoute } from '../services/buildingService';
+import { getBuildingsByRoute, getBuildingsByCommunity } from '../services/buildingService';
 import {
   getFollowUpsByTeam,
   getInvolvementsByTeam,
@@ -302,18 +302,22 @@ export default function VisitForm({ onClose, onSaved }) {
   }, [selectedCommunity?.id, isOnline]);
 
   const fetchBuildings = useCallback(async (searchTerm) => {
-    if (!selectedRoute?.id) {
-      console.log('fetchBuildings: No route selected');
+    if (!selectedCommunity?.id) {
+      console.log('fetchBuildings: No community selected');
       return [];
     }
 
     try {
       console.log(
-        'fetchBuildings: Fetching buildings for route',
-        selectedRoute.id,
-        selectedRoute.name
+        'fetchBuildings: Fetching buildings for community',
+        selectedCommunity.id,
+        selectedRoute?.id ? `(filtered by route ${selectedRoute.id})` : '(no route filter)'
       );
-      const buildings = await getBuildingsByRoute(selectedRoute.id, !isOnline);
+
+      // Use route-based query if route is selected, otherwise use community-based query
+      const buildings = selectedRoute?.id
+        ? await getBuildingsByRoute(selectedRoute.id, !isOnline)
+        : await getBuildingsByCommunity(selectedCommunity.id);
 
       // Filter out any invalid entries
       const validBuildings = (buildings || []).filter(b => b && b.id && b.name);
@@ -321,7 +325,8 @@ export default function VisitForm({ onClose, onSaved }) {
       console.log('📦 Fetched buildings:', {
         count: validBuildings.length,
         offline: !isOnline,
-        routeId: selectedRoute.id,
+        communityId: selectedCommunity.id,
+        routeId: selectedRoute?.id || null,
         sample: validBuildings[0]
       });
 
@@ -344,7 +349,7 @@ export default function VisitForm({ onClose, onSaved }) {
       console.error('❌ Error fetching buildings:', err);
       return [];
     }
-  }, [selectedRoute?.id, isOnline]);
+  }, [selectedCommunity?.id, selectedRoute?.id, isOnline]);
 
   // Create functions for autocomplete with validations
   const createCommunityItem = useCallback(async (name) => {
@@ -459,9 +464,7 @@ export default function VisitForm({ onClose, onSaved }) {
     }
 
     // Validate ALL parameters before creating (especially important offline!)
-    if (!selectedRoute?.id || typeof selectedRoute.id !== 'string' || selectedRoute.id.trim() === '') {
-      throw new Error('Please select a valid route first');
-    }
+    // Route is now optional - removed route validation
     if (!selectedCommunity?.id || typeof selectedCommunity.id !== 'string' || selectedCommunity.id.trim() === '') {
       throw new Error('Please select a valid community first');
     }
@@ -484,7 +487,7 @@ export default function VisitForm({ onClose, onSaved }) {
       const buildingData = {
         name: sanitizedName,
         address: '',
-        routeId: selectedRoute.id,
+        routeId: selectedRoute?.id || null,
         communityId: selectedCommunity.id,
         teamId,
         units: [],
@@ -531,8 +534,16 @@ export default function VisitForm({ onClose, onSaved }) {
   }
 
   function handleRouteSelect(route) {
+    // Handle null route selection (when user clears the route field)
+    if (!route) {
+      setSelectedRoute(null);
+      setRouteName('');
+      // Don't reset building/unit - they can remain under community
+      return;
+    }
+
     // Validate the route object before setting it
-    if (!route || typeof route !== 'object' ||
+    if (typeof route !== 'object' ||
         !route.id || typeof route.id !== 'string' ||
         !route.name || typeof route.name !== 'string') {
       console.error('❌ Invalid route object received:', route);
@@ -542,7 +553,7 @@ export default function VisitForm({ onClose, onSaved }) {
 
     setSelectedRoute(route);
     setRouteName(route.name);
-    // Reset downstream
+    // Reset downstream when route changes
     setSelectedBuilding(null);
     setBuildingName('');
     setUnitNumber('');
@@ -601,10 +612,7 @@ export default function VisitForm({ onClose, onSaved }) {
       return false;
     }
 
-    if (!selectedRoute) {
-      setError('Please select or create a route');
-      return false;
-    }
+    // Route is now optional - removed validation
 
     if (!selectedBuilding) {
       setError('Please select or create a building');
@@ -720,7 +728,8 @@ export default function VisitForm({ onClose, onSaved }) {
       };
 
       // Create visit - this works offline (Firebase queues the write)
-      await createVisit(buildingId, visitData, currentUser.uid);
+      // Pass selectedRoute?.id to ensure visit uses form selection, not building's stored route
+      await createVisit(buildingId, visitData, currentUser.uid, selectedRoute?.id || null);
 
       // Save form data to LocalStorage for auto-fill on next visit
       saveLastVisitFormData({
@@ -728,8 +737,8 @@ export default function VisitForm({ onClose, onSaved }) {
         teamName: teams.find((t) => t.id === teamId)?.name || '',
         communityId: selectedCommunity.id,
         communityName: selectedCommunity.name,
-        routeId: selectedRoute.id,
-        routeName: selectedRoute.name,
+        routeId: selectedRoute?.id || null,
+        routeName: selectedRoute?.name || '',
         buildingId: selectedBuilding.id,
         buildingName: selectedBuilding.name,
         unitNumber: sanitizedUnitNumber,
@@ -977,14 +986,16 @@ export default function VisitForm({ onClose, onSaved }) {
 
           {/* Route field */}
           <label className="visit-field">
-            <span className="visit-label">Route</span>
+            <span className="visit-label">
+              Route <span style={{ fontWeight: 'normal', color: '#666' }}>(Optional)</span>
+            </span>
             <Autocomplete
               value={routeName}
               onChange={setRouteName}
               onSelect={handleRouteSelect}
               fetchOptions={fetchRoutes}
               onCreate={createRouteItem}
-              placeholder="Search or create route..."
+              placeholder="Search or create route (optional)..."
               disabled={!selectedCommunity}
               minCreateLength={3}
               debounceDelay={debounceDelay}
@@ -1002,7 +1013,7 @@ export default function VisitForm({ onClose, onSaved }) {
                 fetchOptions={fetchBuildings}
                 onCreate={createBuildingItem}
                 placeholder="Search or create building..."
-                disabled={!selectedRoute}
+                disabled={!selectedCommunity}
                 minCreateLength={1}
                 debounceDelay={debounceDelay}
                 renderOption={(building) => (
