@@ -239,7 +239,7 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // Follow-Ups collection - accessible by super_admin, team_admin, route_leader
+	// Follow-Ups collection - accessible by super_admin, team_admin, route_leader
     match /followUps/{followUpId} {
       allow read: if request.auth != null && 
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['super_admin', 'team_admin', 'route_leader', 'volunteer']);

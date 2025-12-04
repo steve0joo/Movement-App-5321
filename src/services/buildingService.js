@@ -16,6 +16,7 @@ import {
   orderBy,
   limit,
   serverTimestamp,
+  increment,
 } from 'firebase/firestore';
 import { db } from './firebase.js';
 import {
@@ -433,7 +434,6 @@ export async function createVisit(buildingId, visitData, createdBy, routeId = nu
     }
 
     const buildingData = buildingSnap.data();
-    const currentCount = buildingData?.visitCount || 0;
 
     // Fetch parent entity names for denormalization (performance optimization)
     // This prevents N+1 query problem when loading visit history
@@ -486,7 +486,7 @@ export async function createVisit(buildingId, visitData, createdBy, routeId = nu
     // Update building's lastVisitDate and visitCount
     await updateDoc(buildingRef, {
       lastVisitDate: serverTimestamp(),
-      visitCount: currentCount + 1,
+      visitCount: increment(1),
     });
 
     return {
