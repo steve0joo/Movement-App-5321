@@ -30,12 +30,12 @@ import {
   getCommunitiesByTeam,
   createCommunity,
 } from '../services/communityService';
-import { getRoutesByCommunity, createRoute } from '../services/routeService';
-import { getBuildingsByRoute, getBuildingsByCommunity } from '../services/buildingService';
+import { getBuildingsByCommunity } from '../services/buildingService';
 import {
   getFollowUpsByTeam,
   getInvolvementsByTeam,
 } from '../services/communityInvolvementService';
+import { getAllRouteLeaders } from '../services/userService';
 import './header.css';
 import './VisitForm.css';
 import logoHome from '../assets/logo-home-button.png';
@@ -97,9 +97,9 @@ export default function VisitForm({ onClose, onSaved }) {
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [communityName, setCommunityName] = useState('');
 
-  // Route (not shown in screenshot, but needed for data hierarchy)
-  const [selectedRoute, setSelectedRoute] = useState(null);
-  const [routeName, setRouteName] = useState('');
+  // Route Leader (replaces Route)
+  const [routeLeaders, setRouteLeaders] = useState([]);
+  const [selectedRouteLeader, setSelectedRouteLeader] = useState(null);
 
   // Building
   const [selectedBuilding, setSelectedBuilding] = useState(null);
@@ -107,8 +107,6 @@ export default function VisitForm({ onClose, onSaved }) {
 
   // Unit
   const [unitNumber, setUnitNumber] = useState('');
-
-  const [routeLeader, setRouteLeader] = useState('');
   const [notes, setNotes] = useState('');
 
   // Follow-up and involvement options
@@ -189,6 +187,27 @@ export default function VisitForm({ onClose, onSaved }) {
     loadOptions();
   }, [teamId]);
 
+  // Load route leaders when team changes
+  useEffect(() => {
+    async function loadRouteLeaders() {
+      if (!teamId) {
+        setRouteLeaders([]);
+        setSelectedRouteLeader(null);
+        return;
+      }
+
+      try {
+        const allLeaders = await getAllRouteLeaders();
+        // Filter to only route leaders in the selected team
+        const teamLeaders = allLeaders.filter(leader => leader.teamId === teamId);
+        setRouteLeaders(teamLeaders);
+      } catch (err) {
+        console.error('Error loading route leaders:', err);
+      }
+    }
+    loadRouteLeaders();
+  }, [teamId]);
+
   // Note: Form is always empty on load (both online and offline)
   // Cached data is only used to speed up the autocomplete suggestions when offline
   // Users must manually type to search and select from suggestions
@@ -236,15 +255,6 @@ export default function VisitForm({ onClose, onSaved }) {
     loadPastPeople();
   }, [selectedBuilding, unitNumber]);
 
-  // Auto-fill route leader
-  useEffect(() => {
-    if (role === 'route_leader' && currentUser) {
-      setRouteLeader(
-        currentUser.displayName || currentUser.email || 'Route Leader'
-      );
-    }
-  }, [role, currentUser]);
-
   // Fetch functions for Autocomplete with cache-first optimization
   // Use preferCache when offline for instant response
   const fetchCommunities = useCallback(async (searchTerm) => {
@@ -275,32 +285,6 @@ export default function VisitForm({ onClose, onSaved }) {
     }
   }, [teamId, isOnline]);
 
-  const fetchRoutes = useCallback(async (searchTerm) => {
-    if (!selectedCommunity?.id) return [];
-
-    try {
-      const routes = await getRoutesByCommunity(selectedCommunity.id, !isOnline);
-
-      // Filter out any invalid entries
-      const validRoutes = (routes || []).filter(r => r && r.id && r.name);
-
-      console.log('📦 Fetched routes:', {
-        count: validRoutes.length,
-        offline: !isOnline,
-        communityId: selectedCommunity.id,
-        sample: validRoutes[0]
-      });
-
-      if (!searchTerm) return validRoutes;
-
-      const lowerSearch = searchTerm.toLowerCase();
-      return validRoutes.filter((r) => r.name.toLowerCase().includes(lowerSearch));
-    } catch (err) {
-      console.error('❌ Error fetching routes:', err);
-      return [];
-    }
-  }, [selectedCommunity?.id, isOnline]);
-
   const fetchBuildings = useCallback(async (searchTerm) => {
     if (!selectedCommunity?.id) {
       console.log('fetchBuildings: No community selected');
@@ -310,14 +294,11 @@ export default function VisitForm({ onClose, onSaved }) {
     try {
       console.log(
         'fetchBuildings: Fetching buildings for community',
-        selectedCommunity.id,
-        selectedRoute?.id ? `(filtered by route ${selectedRoute.id})` : '(no route filter)'
+        selectedCommunity.id
       );
 
-      // Use route-based query if route is selected, otherwise use community-based query
-      const buildings = selectedRoute?.id
-        ? await getBuildingsByRoute(selectedRoute.id, !isOnline)
-        : await getBuildingsByCommunity(selectedCommunity.id);
+      // Fetch all buildings in the community
+      const buildings = await getBuildingsByCommunity(selectedCommunity.id);
 
       // Filter out any invalid entries
       const validBuildings = (buildings || []).filter(b => b && b.id && b.name);
@@ -326,7 +307,6 @@ export default function VisitForm({ onClose, onSaved }) {
         count: validBuildings.length,
         offline: !isOnline,
         communityId: selectedCommunity.id,
-        routeId: selectedRoute?.id || null,
         sample: validBuildings[0]
       });
 
@@ -349,7 +329,7 @@ export default function VisitForm({ onClose, onSaved }) {
       console.error('❌ Error fetching buildings:', err);
       return [];
     }
-  }, [selectedCommunity?.id, selectedRoute?.id, isOnline]);
+  }, [selectedCommunity?.id, isOnline]);
 
   // Create functions for autocomplete with validations
   const createCommunityItem = useCallback(async (name) => {
@@ -401,59 +381,6 @@ export default function VisitForm({ onClose, onSaved }) {
     }
   }, [teamId, currentUser?.uid]);
 
-  const createRouteItem = useCallback(async (name) => {
-    // Type check the name parameter first
-    console.log('🔍 createRouteItem called with:', { name, type: typeof name });
-
-    if (!name || typeof name !== 'string') {
-      console.error('❌ Invalid name parameter type:', { name, type: typeof name });
-      throw new Error(`Invalid input: Expected string, got ${typeof name}`);
-    }
-
-    // Validate ALL parameters before creating (especially important offline!)
-    if (!selectedCommunity?.id || typeof selectedCommunity.id !== 'string' || selectedCommunity.id.trim() === '') {
-      throw new Error('Please select a valid community first');
-    }
-    if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
-      throw new Error('Team ID is required to create a route');
-    }
-    if (!currentUser?.uid || typeof currentUser.uid !== 'string' || currentUser.uid.trim() === '') {
-      throw new Error('User authentication is required to create a route');
-    }
-
-    try {
-      // Validate and sanitize the route name
-      const sanitizedName = validateName(name, {
-        required: true,
-        minLength: 1,
-        maxLength: 100,
-        fieldName: 'Route name',
-      });
-
-      const newRoute = await createRoute(
-        sanitizedName,
-        selectedCommunity.id,
-        teamId,
-        currentUser.uid
-      );
-
-      // Validate returned object to catch any corruption
-      if (!newRoute || typeof newRoute !== 'object' ||
-          !newRoute.id || typeof newRoute.id !== 'string' ||
-          !newRoute.name || typeof newRoute.name !== 'string') {
-        console.error('❌ Invalid route created:', newRoute);
-        throw new Error('Failed to create route: server returned invalid data');
-      }
-
-      return newRoute;
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        throw new Error(`Invalid route name: ${err.message}`);
-      }
-      throw err;
-    }
-  }, [selectedCommunity?.id, teamId, currentUser?.uid]);
-
   const createBuildingItem = useCallback(async (name) => {
     // Type check the name parameter first
     console.log('🔍 createBuildingItem called with:', { name, type: typeof name });
@@ -487,7 +414,7 @@ export default function VisitForm({ onClose, onSaved }) {
       const buildingData = {
         name: sanitizedName,
         address: '',
-        routeId: selectedRoute?.id || null,
+        routeId: null, // No longer using routes - buildings are community-based
         communityId: selectedCommunity.id,
         teamId,
         units: [],
@@ -510,7 +437,7 @@ export default function VisitForm({ onClose, onSaved }) {
       }
       throw err;
     }
-  }, [selectedRoute?.id, selectedCommunity?.id, teamId, currentUser?.uid]);
+  }, [selectedCommunity?.id, teamId, currentUser?.uid]);
 
   // Handle selections
   function handleCommunitySelect(community) {
@@ -526,34 +453,7 @@ export default function VisitForm({ onClose, onSaved }) {
     setSelectedCommunity(community);
     setCommunityName(community.name);
     // Reset downstream
-    setSelectedRoute(null);
-    setRouteName('');
-    setSelectedBuilding(null);
-    setBuildingName('');
-    setUnitNumber('');
-  }
-
-  function handleRouteSelect(route) {
-    // Handle null route selection (when user clears the route field)
-    if (!route) {
-      setSelectedRoute(null);
-      setRouteName('');
-      // Don't reset building/unit - they can remain under community
-      return;
-    }
-
-    // Validate the route object before setting it
-    if (typeof route !== 'object' ||
-        !route.id || typeof route.id !== 'string' ||
-        !route.name || typeof route.name !== 'string') {
-      console.error('❌ Invalid route object received:', route);
-      setError('Invalid route selected. Please try again.');
-      return;
-    }
-
-    setSelectedRoute(route);
-    setRouteName(route.name);
-    // Reset downstream when route changes
+    setSelectedRouteLeader(null);
     setSelectedBuilding(null);
     setBuildingName('');
     setUnitNumber('');
@@ -721,15 +621,15 @@ export default function VisitForm({ onClose, onSaved }) {
 
       const visitData = {
         unitNumber: sanitizedUnitNumber,
-        routeLeaderId: role === 'route_leader' ? currentUser.uid : null,
+        routeLeaderId: selectedRouteLeader?.id || null,
         people: validPeople,
         notes: sanitizedNotes,
         photoUrls: [],
       };
 
       // Create visit - this works offline (Firebase queues the write)
-      // Pass selectedRoute?.id to ensure visit uses form selection, not building's stored route
-      await createVisit(buildingId, visitData, currentUser.uid, selectedRoute?.id || null);
+      // Pass routeId from selected route leader (if they have one assigned)
+      await createVisit(buildingId, visitData, currentUser.uid, selectedRouteLeader?.routeId || null);
 
       // Save form data to LocalStorage for auto-fill on next visit
       saveLastVisitFormData({
@@ -737,8 +637,7 @@ export default function VisitForm({ onClose, onSaved }) {
         teamName: teams.find((t) => t.id === teamId)?.name || '',
         communityId: selectedCommunity.id,
         communityName: selectedCommunity.name,
-        routeId: selectedRoute?.id || null,
-        routeName: selectedRoute?.name || '',
+        routeLeaderId: selectedRouteLeader?.id || null,
         buildingId: selectedBuilding.id,
         buildingName: selectedBuilding.name,
         unitNumber: sanitizedUnitNumber,
@@ -780,8 +679,7 @@ export default function VisitForm({ onClose, onSaved }) {
     // Reset form for new visit
     setSelectedCommunity(null);
     setCommunityName('');
-    setSelectedRoute(null);
-    setRouteName('');
+    setSelectedRouteLeader(null);
     setSelectedBuilding(null);
     setBuildingName('');
     setUnitNumber('');
@@ -984,22 +882,27 @@ export default function VisitForm({ onClose, onSaved }) {
             />
           </label>
 
-          {/* Route field */}
+          {/* Route Leader field */}
           <label className="visit-field">
             <span className="visit-label">
-              Route <span style={{ fontWeight: 'normal', color: '#666' }}>(Optional)</span>
+              Route Leader <span style={{ fontWeight: 'normal', color: '#666' }}>(Optional)</span>
             </span>
-            <Autocomplete
-              value={routeName}
-              onChange={setRouteName}
-              onSelect={handleRouteSelect}
-              fetchOptions={fetchRoutes}
-              onCreate={createRouteItem}
-              placeholder="Search or create route (optional)..."
-              disabled={!selectedCommunity}
-              minCreateLength={3}
-              debounceDelay={debounceDelay}
-            />
+            <select
+              className="visit-input"
+              value={selectedRouteLeader?.id || ''}
+              onChange={(e) => {
+                const leader = routeLeaders.find(l => l.id === e.target.value);
+                setSelectedRouteLeader(leader || null);
+              }}
+              disabled={!teamId || routeLeaders.length === 0}
+            >
+              <option value="">No route leader</option>
+              {routeLeaders.map((leader) => (
+                <option key={leader.id} value={leader.id}>
+                  {leader.displayName || leader.email || 'Unknown'}
+                </option>
+              ))}
+            </select>
           </label>
 
           {/* Building/Block and Apt#/House# on same line */}
@@ -1044,19 +947,6 @@ export default function VisitForm({ onClose, onSaved }) {
               )}
             </label>
           </div>
-
-          {/* Route Leader */}
-          {role === 'route_leader' && (
-            <label className="visit-field">
-              <span className="visit-label">Route Leader</span>
-              <input
-                className="visit-input visit-input--readonly"
-                value={routeLeader}
-                readOnly
-                disabled
-              />
-            </label>
-          )}
 
           {/* Loading past people */}
           {loadingPastPeople && (

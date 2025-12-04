@@ -6,14 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { updateVisit, deleteVisit } from '../services/buildingService';
 import { getAllTeams } from '../services/teamService';
 import { getCommunitiesByTeam } from '../services/communityService';
-import {
-  getRoutesByCommunity,
-  getRoutesByTeam,
-} from '../services/routeService';
-import {
-  getBuildingsByRoute,
-  getBuildingsByCommunity,
-} from '../services/buildingService';
+import { getAllRouteLeaders } from '../services/userService';
+import { getBuildingsByCommunity } from '../services/buildingService';
 import './header.css';
 import './VisitHistory.css';
 import menuIcon from '../assets/menu-button.png';
@@ -127,18 +121,17 @@ const VisitHistory = () => {
   // Entity data for dropdowns
   const [teams, setTeams] = useState([]);
   const [communities, setCommunities] = useState([]);
-  const [routes, setRoutes] = useState([]);
+  const [routeLeaders, setRouteLeaders] = useState([]);
   const [buildings, setBuildings] = useState([]);
 
   // Name lookups (only needed for filter dropdowns, not for display)
-  const [routeNames, setRouteNames] = useState({});
   const [communityNames, setCommunityNames] = useState({});
   const [teamNames, setTeamNames] = useState({});
 
   // Filter state
   const [selectedTeamId, setSelectedTeamId] = useState(userTeamId || '');
   const [selectedCommunityId, setSelectedCommunityId] = useState('');
-  const [selectedRouteId, setSelectedRouteId] = useState(userRouteId || '');
+  const [selectedRouteLeaderId, setSelectedRouteLeaderId] = useState('');
   const [selectedBuildingId, setSelectedBuildingId] = useState('');
 
   // View options
@@ -267,48 +260,28 @@ const VisitHistory = () => {
     }
   }, [selectedTeamId]);
 
-  // Load routes when community is selected
+  // Load route leaders when team is selected
   useEffect(() => {
-    if (selectedCommunityId) {
-      getRoutesByCommunity(selectedCommunityId)
-        .then((routes) => {
-          setRoutes(routes);
-          const nameMap = Object.fromEntries(routes.map((r) => [r.id, r.name]));
-          setRouteNames(nameMap);
+    if (selectedTeamId) {
+      getAllRouteLeaders()
+        .then((allLeaders) => {
+          // Filter to only route leaders in the selected team
+          const teamLeaders = allLeaders.filter(leader => leader.teamId === selectedTeamId);
+          setRouteLeaders(teamLeaders);
         })
         .catch((err) => {
-          console.error('Error fetching routes:', err);
-        });
-    } else if (selectedTeamId) {
-      // If no community selected but team is, show all routes in team
-      getRoutesByTeam(selectedTeamId)
-        .then((routes) => {
-          setRoutes(routes);
-          const nameMap = Object.fromEntries(routes.map((r) => [r.id, r.name]));
-          setRouteNames(nameMap);
-        })
-        .catch((err) => {
-          console.error('Error fetching routes:', err);
+          console.error('Error fetching route leaders:', err);
         });
     } else {
-      setRoutes([]);
-      setSelectedRouteId(userRouteId || '');
+      setRouteLeaders([]);
+      setSelectedRouteLeaderId('');
     }
-  }, [selectedCommunityId, selectedTeamId, userRouteId]);
+  }, [selectedTeamId]);
 
-  // Load buildings when route OR community is selected (route is now optional)
+  // Load buildings when community is selected
   useEffect(() => {
-    if (selectedRouteId) {
-      // If route is selected, get buildings by route
-      getBuildingsByRoute(selectedRouteId)
-        .then((buildings) => {
-          setBuildings(buildings);
-        })
-        .catch((err) => {
-          console.error('Error fetching buildings:', err);
-        });
-    } else if (selectedCommunityId) {
-      // If no route but community is selected, get buildings by community
+    if (selectedCommunityId) {
+      // Get all buildings in the community
       getBuildingsByCommunity(selectedCommunityId)
         .then((buildings) => {
           setBuildings(buildings);
@@ -320,7 +293,7 @@ const VisitHistory = () => {
       setBuildings([]);
       setSelectedBuildingId('');
     }
-  }, [selectedRouteId, selectedCommunityId]);
+  }, [selectedCommunityId]);
 
   // Filter visits based on selected filters
   const filteredVisits = useMemo(() => {
@@ -336,9 +309,9 @@ const VisitHistory = () => {
       filtered = filtered.filter((v) => v.communityId === selectedCommunityId);
     }
 
-    // Apply route filter
-    if (selectedRouteId) {
-      filtered = filtered.filter((v) => v.routeId === selectedRouteId);
+    // Apply route leader filter
+    if (selectedRouteLeaderId) {
+      filtered = filtered.filter((v) => v.routeLeaderId === selectedRouteLeaderId);
     }
 
     // Apply building filter
@@ -363,7 +336,7 @@ const VisitHistory = () => {
     visits,
     selectedTeamId,
     selectedCommunityId,
-    selectedRouteId,
+    selectedRouteLeaderId,
     selectedBuildingId,
     searchText,
   ]);
@@ -397,10 +370,12 @@ const VisitHistory = () => {
     }
 
     if (groupBy === 'route') {
+      // Group by route leader
       return filteredVisits.reduce((acc, visit) => {
-        const key = visit.routeId || 'Unknown';
-        // Use denormalized routeName from visit document
-        const label = visit.routeName || routeNames[key] || `Route ${key}`;
+        const key = visit.routeLeaderId || 'No Leader';
+        // Find the route leader's display name
+        const leader = routeLeaders.find(l => l.id === visit.routeLeaderId);
+        const label = leader ? (leader.displayName || leader.email || 'Unknown') : 'No Route Leader';
         if (!acc[key]) {
           acc[key] = { label, visits: [] };
         }
@@ -410,7 +385,7 @@ const VisitHistory = () => {
     }
 
     return {};
-  }, [filteredVisits, groupBy, routeNames]);
+  }, [filteredVisits, groupBy, routeLeaders]);
 
   const toggleGroup = (groupKey) => {
     setExpandedGroups((prev) => ({
@@ -736,11 +711,7 @@ const VisitHistory = () => {
                   setSelectedTeamId('');
                 }
                 setSelectedCommunityId('');
-                if (role !== 'route_leader') {
-                  setSelectedRouteId('');
-                } else {
-                  setSelectedRouteId(userRouteId || '');
-                }
+                setSelectedRouteLeaderId('');
                 setSelectedBuildingId('');
                 setSearchText('');
               }}
@@ -789,28 +760,23 @@ const VisitHistory = () => {
               </select>
             </div>
 
-            {/* Route Filter - locked for route_leader */}
+            {/* Route Leader Filter */}
             <div className="filter-group">
-              <label htmlFor="route-filter">Route</label>
+              <label htmlFor="route-leader-filter">Route Leader</label>
               <select
-                id="route-filter"
-                value={selectedRouteId}
-                onChange={(e) => setSelectedRouteId(e.target.value)}
+                id="route-leader-filter"
+                value={selectedRouteLeaderId}
+                onChange={(e) => setSelectedRouteLeaderId(e.target.value)}
                 className="filter-select"
-                disabled={role === 'route_leader'}
+                disabled={!selectedTeamId || routeLeaders.length === 0}
               >
-                <option value="">All Routes</option>
-                {routes.map((route) => (
-                  <option key={route.id} value={route.id}>
-                    {route.name}
+                <option value="">All Route Leaders</option>
+                {routeLeaders.map((leader) => (
+                  <option key={leader.id} value={leader.id}>
+                    {leader.displayName || leader.email || 'Unknown'}
                   </option>
                 ))}
               </select>
-              {role === 'route_leader' && (
-                <small className="filter-note">
-                  Locked to your assigned route
-                </small>
-              )}
             </div>
 
             {/* Building Filter */}
@@ -866,7 +832,7 @@ const VisitHistory = () => {
                   checked={groupBy === 'route'}
                   onChange={(e) => setGroupBy(e.target.value)}
                 />
-                Route
+                Route Leader
               </label>
               <label className="radio-label">
                 <input
@@ -888,7 +854,7 @@ const VisitHistory = () => {
             {filteredVisits.length !== 1 ? 's' : ''}
             {groupBy !== 'flat' &&
               ` in ${Object.keys(groupedVisits).length} ${
-                groupBy === 'building' ? 'unit' : 'route'
+                groupBy === 'building' ? 'unit' : 'route leader'
               }${Object.keys(groupedVisits).length !== 1 ? 's' : ''}`}
           </p>
         </div>
@@ -938,8 +904,14 @@ const VisitHistory = () => {
                       <span>{visit.unitNumber || 'N/A'}</span>
                     </div>
                     <div className="detail-item">
-                      <label>Route:</label>
-                      <span>{routeNames[visit.routeId] || 'Unknown'}</span>
+                      <label>Route Leader:</label>
+                      <span>
+                        {visit.routeLeaderId
+                          ? (routeLeaders.find(l => l.id === visit.routeLeaderId)?.displayName ||
+                             routeLeaders.find(l => l.id === visit.routeLeaderId)?.email ||
+                             'Unknown')
+                          : 'None'}
+                      </span>
                     </div>
                     <div className="detail-item">
                       <label>Visit Date:</label>
