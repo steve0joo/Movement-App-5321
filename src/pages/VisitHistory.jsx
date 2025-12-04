@@ -10,7 +10,10 @@ import {
   getRoutesByCommunity,
   getRoutesByTeam,
 } from '../services/routeService';
-import { getBuildingsByRoute } from '../services/buildingService';
+import {
+  getBuildingsByRoute,
+  getBuildingsByCommunity,
+} from '../services/buildingService';
 import './header.css';
 import './VisitHistory.css';
 import menuIcon from '../assets/menu-button.png';
@@ -293,10 +296,20 @@ const VisitHistory = () => {
     }
   }, [selectedCommunityId, selectedTeamId, userRouteId]);
 
-  // Load buildings when route is selected
+  // Load buildings when route OR community is selected (route is now optional)
   useEffect(() => {
     if (selectedRouteId) {
+      // If route is selected, get buildings by route
       getBuildingsByRoute(selectedRouteId)
+        .then((buildings) => {
+          setBuildings(buildings);
+        })
+        .catch((err) => {
+          console.error('Error fetching buildings:', err);
+        });
+    } else if (selectedCommunityId) {
+      // If no route but community is selected, get buildings by community
+      getBuildingsByCommunity(selectedCommunityId)
         .then((buildings) => {
           setBuildings(buildings);
         })
@@ -307,7 +320,7 @@ const VisitHistory = () => {
       setBuildings([]);
       setSelectedBuildingId('');
     }
-  }, [selectedRouteId]);
+  }, [selectedRouteId, selectedCommunityId]);
 
   // Filter visits based on selected filters
   const filteredVisits = useMemo(() => {
@@ -808,7 +821,7 @@ const VisitHistory = () => {
                 value={selectedBuildingId}
                 onChange={(e) => setSelectedBuildingId(e.target.value)}
                 className="filter-select"
-                disabled={!selectedRouteId}
+                disabled={!selectedCommunityId}
               >
                 <option value="">All Buildings</option>
                 {buildings.map((building) => (
