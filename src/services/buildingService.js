@@ -253,17 +253,141 @@ export async function getBuildingsByCommunity(communityId) {
  * Update building information
  * @param {string} buildingId - Building ID
  * @param {Object} updates - Fields to update
+ * @param {string} updates.name - Building name (optional)
+ * @param {string} updates.address - Building address (optional)
+ * @param {string} updates.routeId - Route ID (optional)
+ * @param {string} updates.communityId - Community ID (optional)
+ * @param {string} updates.teamId - Team ID (optional)
+ * @param {Array<string>} updates.units - Array of unit numbers (optional)
  * @returns {Promise<void>}
  */
 export async function updateBuilding(buildingId, updates) {
   try {
+    // Define allowed fields for update
+    const allowedFields = [
+      'name',
+      'address',
+      'routeId',
+      'communityId',
+      'teamId',
+      'units',
+      'isActive',
+    ];
+
+    // Protected fields that should not be updated directly
+    const protectedFields = [
+      'createdBy',
+      'createdAt',
+      'updatedAt',
+      'visitCount',
+      'lastVisitDate',
+    ];
+
+    // Check for protected fields
+    const protectedFieldsInUpdate = Object.keys(updates).filter((key) =>
+      protectedFields.includes(key)
+    );
+
+    if (protectedFieldsInUpdate.length > 0) {
+      throw new Error(
+        `Cannot update protected fields: ${protectedFieldsInUpdate.join(', ')}`
+      );
+    }
+
+    // Filter to only allowed fields
+    const filteredUpdates = {};
+
+    // Validate and sanitize each field
+    for (const [key, value] of Object.entries(updates)) {
+      if (!allowedFields.includes(key)) {
+        console.warn(`Ignoring unknown field in building update: ${key}`);
+        continue;
+      }
+
+      switch (key) {
+        case 'name':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.name = validateName(value, {
+              required: true,
+              minLength: 1,
+              maxLength: 100,
+              fieldName: 'Building name',
+            });
+          }
+          break;
+
+        case 'address':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.address =
+              validateText(value, {
+                required: false,
+                maxLength: 500,
+                fieldName: 'Building address',
+              }) || '';
+          }
+          break;
+
+        case 'routeId':
+          if (value !== undefined) {
+            // Allow null for routeId (buildings without routes)
+            filteredUpdates.routeId = value === null ? null : String(value);
+          }
+          break;
+
+        case 'communityId':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.communityId = String(value);
+          }
+          break;
+
+        case 'teamId':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.teamId = String(value);
+          }
+          break;
+
+        case 'units':
+          if (value !== undefined && value !== null) {
+            if (!Array.isArray(value)) {
+              throw new Error('Units must be an array');
+            }
+            filteredUpdates.units = value
+              .map((unit) =>
+                sanitizeString(unit, {
+                  maxLength: 20,
+                  allowEmpty: false,
+                })
+              )
+              .filter((unit) => unit !== null && unit !== '');
+          }
+          break;
+
+        case 'isActive':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.isActive = Boolean(value);
+          }
+          break;
+
+        default:
+          console.warn(`Unhandled field in building update: ${key}`);
+      }
+    }
+
+    // Check if there are any valid updates
+    if (Object.keys(filteredUpdates).length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
     const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
     await updateDoc(buildingRef, {
-      ...updates,
+      ...filteredUpdates,
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
     console.error('Error updating building:', error);
+    if (error instanceof ValidationError) {
+      throw new Error(`Invalid building data: ${error.message}`);
+    }
     throw error;
   }
 }
@@ -627,45 +751,38 @@ export async function deleteVisit(buildingId, visitId) {
     );
     await deleteDoc(visitRef);
 
-    // Decrement the building's visitCount and reset lastVisitDate if needed
+    // Decrement the building's visitCount and update lastVisitDate
     const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
-    const building = await getDoc(buildingRef);
-    const currentCount = building.data()?.visitCount || 0;
-    const newCount = Math.max(0, currentCount - 1);
 
-    // If this was the last visit, we need to reset lastVisitDate
-    if (newCount === 0) {
-      await updateDoc(buildingRef, {
-        visitCount: 0,
-        lastVisitDate: null, // Reset to null when no visits remain
-      });
+    // Check if there are any remaining visits after deletion
+    const visitsRef = collection(
+      db,
+      BUILDINGS_COLLECTION,
+      buildingId,
+      VISITS_SUBCOLLECTION
+    );
+    const visitsQuery = query(
+      visitsRef,
+      orderBy('visitDate', 'desc'),
+      limit(1)
+    );
+    const visitsSnapshot = await getDocs(visitsQuery);
+
+    // Prepare the update
+    const updateData = {
+      visitCount: increment(-1), // ✅ Decrement - no race condition
+    };
+
+    // If no visits remain, reset lastVisitDate to null
+    if (visitsSnapshot.empty) {
+      updateData.lastVisitDate = null;
     } else {
-      // If there are still visits, update the count and find the most recent visit date
-      const visitsRef = collection(
-        db,
-        BUILDINGS_COLLECTION,
-        buildingId,
-        VISITS_SUBCOLLECTION
-      );
-      const visitsQuery = query(
-        visitsRef,
-        orderBy('visitDate', 'desc'),
-        limit(1)
-      );
-      const visitsSnapshot = await getDocs(visitsQuery);
-
-      const updateData = {
-        visitCount: newCount,
-      };
-
       // Update lastVisitDate to the most recent remaining visit
-      if (!visitsSnapshot.empty) {
-        const mostRecentVisit = visitsSnapshot.docs[0].data();
-        updateData.lastVisitDate = mostRecentVisit.visitDate;
-      }
-
-      await updateDoc(buildingRef, updateData);
+      const mostRecentVisit = visitsSnapshot.docs[0].data();
+      updateData.lastVisitDate = mostRecentVisit.visitDate;
     }
+
+    await updateDoc(buildingRef, updateData);
   } catch (error) {
     console.error('Error deleting visit:', error);
     throw error;
