@@ -1129,8 +1129,8 @@ const VisitHistory = () => {
                 >
                   <h3>{groupData.label}</h3>
                   <span className="visit-count">
-                    {groupData.visits.length} visit
-                    {groupData.visits.length !== 1 ? 's' : ''}
+                    {groupData.visits.reduce((sum, v) => sum + (v.people?.length || 0), 0)} person
+                    {groupData.visits.reduce((sum, v) => sum + (v.people?.length || 0), 0) !== 1 ? 's' : ''}
                   </span>
                   <span className="expand-icon">
                     {expandedGroups[groupKey] ? '−' : '+'}
@@ -1138,254 +1138,160 @@ const VisitHistory = () => {
                 </div>
                 {expandedGroups[groupKey] && (
                   <div className="group-visits">
-                    {groupData.visits.map((visit) => (
-                      <div key={visit.id} className="visit-item">
-                        <div
-                          className="visit-item-header"
-                          onClick={() => toggleVisit(visit.id)}
-                        >
-                          <span className="visit-unit">
-                            {visit.visitDate?.toDate
-                              ? visit.visitDate.toDate().toLocaleDateString()
-                              : 'N/A'}
-                          </span>
-                          <span className="expand-icon-small">
-                            {expandedVisits[visit.id] ? '−' : '+'}
-                          </span>
-                        </div>
-                        {expandedVisits[visit.id] && (
-                          <div className="visit-item-details">
-                            <div className="detail-grid">
-                              <div className="detail-item">
-                                <label>Visit Date:</label>
-                                <span>
-                                  {visit.visitDate?.toDate
-                                    ? visit.visitDate
-                                        .toDate()
-                                        .toLocaleDateString()
-                                    : 'N/A'}
-                                </span>
-                              </div>
-                              {visit.people && visit.people.length > 0 && (
-                                <div className="detail-item full-width">
-                                  <label>People Visited:</label>
-                                  <div className="people-list">
-                                    {visit.people.map((person, idx) => {
-                                      const isEditing =
-                                        editingVisit?.visitId === visit.id &&
-                                        editingVisit?.personIndex === idx;
+                    {/* Flatten all people from all visits */}
+                    {groupData.visits.flatMap((visit) =>
+                      visit.people && visit.people.length > 0
+                        ? visit.people.map((person, idx) => {
+                            const isEditing =
+                              editingVisit?.visitId === visit.id &&
+                              editingVisit?.personIndex === idx;
 
-                                      return (
-                                        <div key={idx} className="person-item">
-                                          {isEditing ? (
-                                            // Edit mode
-                                            <div className="person-edit-form">
-                                              <div className="edit-form-row">
-                                                <label>Name:</label>
-                                                <input
-                                                  type="text"
-                                                  value={editFormData.name}
-                                                  onChange={(e) =>
-                                                    setEditFormData({
-                                                      ...editFormData,
-                                                      name: e.target.value,
-                                                    })
-                                                  }
-                                                  className="edit-input"
-                                                />
-                                              </div>
-                                              <div className="edit-form-row">
-                                                <label>Age:</label>
-                                                <input
-                                                  type="number"
-                                                  value={editFormData.age}
-                                                  onChange={(e) =>
-                                                    setEditFormData({
-                                                      ...editFormData,
-                                                      age: e.target.value,
-                                                    })
-                                                  }
-                                                  className="edit-input"
-                                                />
-                                              </div>
-                                              <div className="edit-form-row">
-                                                <label>Phone:</label>
-                                                <input
-                                                  type="text"
-                                                  value={editFormData.phone}
-                                                  onChange={(e) =>
-                                                    setEditFormData({
-                                                      ...editFormData,
-                                                      phone: e.target.value,
-                                                    })
-                                                  }
-                                                  className="edit-input"
-                                                />
-                                              </div>
-                                              <div className="edit-form-row">
-                                                <label>Follow-up:</label>
-                                                <textarea
-                                                  value={editFormData.followUp}
-                                                  onChange={(e) =>
-                                                    setEditFormData({
-                                                      ...editFormData,
-                                                      followUp: e.target.value,
-                                                    })
-                                                  }
-                                                  className="edit-textarea"
-                                                  rows="3"
-                                                />
-                                              </div>
-                                              <div className="edit-form-row">
-                                                <label>Involvement:</label>
-                                                <textarea
-                                                  value={
-                                                    editFormData.involvement
-                                                  }
-                                                  onChange={(e) =>
-                                                    setEditFormData({
-                                                      ...editFormData,
-                                                      involvement:
-                                                        e.target.value,
-                                                    })
-                                                  }
-                                                  className="edit-textarea"
-                                                  rows="2"
-                                                />
-                                              </div>
-                                              <div className="edit-form-actions">
-                                                <button
-                                                  onClick={() =>
-                                                    saveEdit(visit)
-                                                  }
-                                                  disabled={saving}
-                                                  className="save-btn"
-                                                >
-                                                  {saving
-                                                    ? 'Saving...'
-                                                    : 'Save'}
-                                                </button>
-                                                <button
-                                                  onClick={cancelEdit}
-                                                  disabled={saving}
-                                                  className="cancel-btn"
-                                                >
-                                                  Cancel
-                                                </button>
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            // View mode
-                                            <>
-                                              <div className="person-header">
-                                                <div>
-                                                  <strong>
-                                                    {person.name || 'Unknown'}
-                                                  </strong>
-                                                  {person.age && (
-                                                    <span>
-                                                      {' '}
-                                                      (Age: {person.age})
-                                                    </span>
-                                                  )}
-                                                  {person.phone && (
-                                                    <span>
-                                                      {' '}
-                                                      • Phone: {person.phone}
-                                                    </span>
-                                                  )}
-                                                </div>
-                                                <div className="person-actions">
-                                                  {canEditVisit(visit) && (
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        startEditingPerson(
-                                                          visit,
-                                                          idx
-                                                        );
-                                                      }}
-                                                      className="edit-person-btn"
-                                                      title="Edit person"
-                                                    >
-                                                      Edit
-                                                    </button>
-                                                  )}
-                                                  {canDeleteVisit(visit) && (
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeletePerson(
-                                                          visit,
-                                                          idx
-                                                        );
-                                                      }}
-                                                      className="delete-person-btn"
-                                                      title="Delete person"
-                                                      disabled={saving}
-                                                    >
-                                                      Delete
-                                                    </button>
-                                                  )}
-                                                </div>
-                                              </div>
-                                              {person.followUp && (
-                                                <div className="person-followup">
-                                                  Follow-up: {person.followUp}
-                                                </div>
-                                              )}
-                                              {person.involvement && (
-                                                <div className="person-involvement">
-                                                  Involvement:{' '}
-                                                  {person.involvement}
-                                                </div>
-                                              )}
-                                            </>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
+                            return (
+                              <div key={`${visit.id}-${idx}`} className="person-item">
+                                {isEditing ? (
+                                  // Edit mode
+                                  <div className="person-edit-form">
+                                    <div className="edit-form-row">
+                                      <label>Name:</label>
+                                      <input
+                                        type="text"
+                                        value={editFormData.name}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            name: e.target.value,
+                                          })
+                                        }
+                                        className="edit-input"
+                                      />
+                                    </div>
+                                    <div className="edit-form-row">
+                                      <label>Age:</label>
+                                      <input
+                                        type="number"
+                                        value={editFormData.age}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            age: e.target.value,
+                                          })
+                                        }
+                                        className="edit-input"
+                                      />
+                                    </div>
+                                    <div className="edit-form-row">
+                                      <label>Phone:</label>
+                                      <input
+                                        type="text"
+                                        value={editFormData.phone}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            phone: e.target.value,
+                                          })
+                                        }
+                                        className="edit-input"
+                                      />
+                                    </div>
+                                    <div className="edit-form-row">
+                                      <label>Follow-up:</label>
+                                      <textarea
+                                        value={editFormData.followUp}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            followUp: e.target.value,
+                                          })
+                                        }
+                                        className="edit-textarea"
+                                        rows="3"
+                                      />
+                                    </div>
+                                    <div className="edit-form-row">
+                                      <label>Involvement:</label>
+                                      <textarea
+                                        value={editFormData.involvement}
+                                        onChange={(e) =>
+                                          setEditFormData({
+                                            ...editFormData,
+                                            involvement: e.target.value,
+                                          })
+                                        }
+                                        className="edit-textarea"
+                                        rows="2"
+                                      />
+                                    </div>
+                                    <div className="edit-form-actions">
+                                      <button
+                                        onClick={() => saveEdit(visit)}
+                                        disabled={saving}
+                                        className="save-btn"
+                                      >
+                                        {saving ? 'Saving...' : 'Save'}
+                                      </button>
+                                      <button
+                                        onClick={cancelEdit}
+                                        disabled={saving}
+                                        className="cancel-btn"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                              <div className="detail-item full-width">
-                                <label>Notes:</label>
-                                <p>{visit.notes || 'No notes'}</p>
-                              </div>
-                              {visit.photoUrls &&
-                                visit.photoUrls.length > 0 && (
-                                  <div className="detail-item">
-                                    <label>Photos:</label>
-                                    <span>
-                                      {visit.photoUrls.length} photo(s)
-                                    </span>
-                                  </div>
+                                ) : (
+                                  // View mode
+                                  <>
+                                    <div className="person-header">
+                                      <div>
+                                        <strong>{person.name || 'Unknown'}</strong>
+                                        {person.age && <span> (Age: {person.age})</span>}
+                                        {person.phone && <span> • Phone: {person.phone}</span>}
+                                      </div>
+                                      <div className="person-actions">
+                                        {canEditVisit(visit) && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              startEditingPerson(visit, idx);
+                                            }}
+                                            className="edit-person-btn"
+                                            title="Edit person"
+                                          >
+                                            Edit
+                                          </button>
+                                        )}
+                                        {canDeleteVisit(visit) && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeletePerson(visit, idx);
+                                            }}
+                                            className="delete-person-btn"
+                                            title="Delete person"
+                                            disabled={saving}
+                                          >
+                                            Delete
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {person.followUp && (
+                                      <div className="person-followup">
+                                        Follow-up: {person.followUp}
+                                      </div>
+                                    )}
+                                    {person.involvement && (
+                                      <div className="person-involvement">
+                                        Involvement: {person.involvement}
+                                      </div>
+                                    )}
+                                  </>
                                 )}
-                              {canDeleteVisit(visit) && (
-                                <div
-                                  className="detail-item full-width"
-                                  style={{
-                                    marginTop: '16px',
-                                    display: 'flex',
-                                    justifyContent: 'flex-end',
-                                  }}
-                                >
-                                  <button
-                                    onClick={() => handleDeleteVisit(visit)}
-                                    disabled={saving}
-                                    className="delete-visit-btn"
-                                  >
-                                    {saving
-                                      ? 'Deleting...'
-                                      : '🗑️ Delete Entire Visit'}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                              </div>
+                            );
+                          })
+                        : []
+                    )}
                   </div>
                 )}
               </div>
