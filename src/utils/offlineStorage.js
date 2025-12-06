@@ -53,16 +53,19 @@ export function disableOfflineMode() {
 }
 
 /**
- * Set offline user info (for display purposes)
+ * Set offline user info (for display purposes and authentication)
  */
 export function setOfflineUser(userInfo) {
   try {
     localStorage.setItem(
       OFFLINE_STORAGE_KEYS.OFFLINE_USER,
       JSON.stringify({
+        uid: userInfo.uid || null,
         displayName: userInfo.displayName || 'Offline User',
         email: userInfo.email || null,
         role: userInfo.role || 'volunteer',
+        teamId: userInfo.teamId || null,
+        routeId: userInfo.routeId || null,
         timestamp: new Date().toISOString(),
       })
     );

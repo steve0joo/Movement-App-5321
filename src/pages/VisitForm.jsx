@@ -199,7 +199,9 @@ export default function VisitForm({ onClose, onSaved }) {
       try {
         const allLeaders = await getAllRouteLeaders();
         // Filter to only route leaders in the selected team
-        const teamLeaders = allLeaders.filter(leader => leader.teamId === teamId);
+        const teamLeaders = allLeaders.filter(
+          (leader) => leader.teamId === teamId
+        );
         setRouteLeaders(teamLeaders);
       } catch (err) {
         console.error('Error loading route leaders:', err);
@@ -257,194 +259,255 @@ export default function VisitForm({ onClose, onSaved }) {
 
   // Fetch functions for Autocomplete with cache-first optimization
   // Use preferCache when offline for instant response
-  const fetchCommunities = useCallback(async (searchTerm) => {
-    if (!teamId) return [];
+  const fetchCommunities = useCallback(
+    async (searchTerm) => {
+      if (!teamId) return [];
 
-    try {
-      const communities = await getCommunitiesByTeam(teamId, !isOnline);
+      try {
+        const communities = await getCommunitiesByTeam(teamId, !isOnline);
 
-      // Filter out any invalid entries (null, undefined, false, etc.)
-      const validCommunities = (communities || []).filter(c => c && c.id && c.name);
+        // Filter out any invalid entries (null, undefined, false, etc.)
+        const validCommunities = (communities || []).filter(
+          (c) => c && c.id && c.name
+        );
 
-      console.log('📦 Fetched communities:', {
-        count: validCommunities.length,
-        offline: !isOnline,
-        teamId,
-        sample: validCommunities[0]
-      });
+        console.log('📦 Fetched communities:', {
+          count: validCommunities.length,
+          offline: !isOnline,
+          teamId,
+          sample: validCommunities[0],
+        });
 
-      if (!searchTerm) return validCommunities;
+        if (!searchTerm) return validCommunities;
 
-      const lowerSearch = searchTerm.toLowerCase();
-      return validCommunities.filter((c) =>
-        c.name.toLowerCase().includes(lowerSearch)
-      );
-    } catch (err) {
-      console.error('❌ Error fetching communities:', err);
-      return [];
-    }
-  }, [teamId, isOnline]);
+        const lowerSearch = searchTerm.toLowerCase();
+        return validCommunities.filter((c) =>
+          c.name.toLowerCase().includes(lowerSearch)
+        );
+      } catch (err) {
+        console.error('❌ Error fetching communities:', err);
+        return [];
+      }
+    },
+    [teamId, isOnline]
+  );
 
-  const fetchBuildings = useCallback(async (searchTerm) => {
-    if (!selectedCommunity?.id) {
-      console.log('fetchBuildings: No community selected');
-      return [];
-    }
+  const fetchBuildings = useCallback(
+    async (searchTerm) => {
+      if (!selectedCommunity?.id) {
+        console.log('fetchBuildings: No community selected');
+        return [];
+      }
 
-    try {
-      console.log(
-        'fetchBuildings: Fetching buildings for community',
-        selectedCommunity.id
-      );
+      try {
+        console.log(
+          'fetchBuildings: Fetching buildings for community',
+          selectedCommunity.id
+        );
 
-      // Fetch all buildings in the community
-      const buildings = await getBuildingsByCommunity(selectedCommunity.id);
+        // Fetch all buildings in the community
+        const buildings = await getBuildingsByCommunity(selectedCommunity.id);
 
-      // Filter out any invalid entries
-      const validBuildings = (buildings || []).filter(b => b && b.id && b.name);
+        // Filter out any invalid entries
+        const validBuildings = (buildings || []).filter(
+          (b) => b && b.id && b.name
+        );
 
-      console.log('📦 Fetched buildings:', {
-        count: validBuildings.length,
-        offline: !isOnline,
-        communityId: selectedCommunity.id,
-        sample: validBuildings[0]
-      });
+        console.log('📦 Fetched buildings:', {
+          count: validBuildings.length,
+          offline: !isOnline,
+          communityId: selectedCommunity.id,
+          sample: validBuildings[0],
+        });
 
-      if (!searchTerm) return validBuildings;
+        if (!searchTerm) return validBuildings;
 
-      const lowerSearch = searchTerm.toLowerCase();
-      const filtered = validBuildings.filter(
-        (b) =>
-          b.name.toLowerCase().includes(lowerSearch) ||
-          b.address?.toLowerCase().includes(lowerSearch)
-      );
-      console.log(
-        'fetchBuildings: Filtered to',
-        filtered.length,
-        'buildings matching',
-        searchTerm
-      );
-      return filtered;
-    } catch (err) {
-      console.error('❌ Error fetching buildings:', err);
-      return [];
-    }
-  }, [selectedCommunity?.id, isOnline]);
+        const lowerSearch = searchTerm.toLowerCase();
+        const filtered = validBuildings.filter(
+          (b) =>
+            b.name.toLowerCase().includes(lowerSearch) ||
+            b.address?.toLowerCase().includes(lowerSearch)
+        );
+        console.log(
+          'fetchBuildings: Filtered to',
+          filtered.length,
+          'buildings matching',
+          searchTerm
+        );
+        return filtered;
+      } catch (err) {
+        console.error('❌ Error fetching buildings:', err);
+        return [];
+      }
+    },
+    [selectedCommunity?.id, isOnline]
+  );
 
   // Create functions for autocomplete with validations
-  const createCommunityItem = useCallback(async (name) => {
-    // Type check the name parameter first
-    console.log('🔍 createCommunityItem called with:', { name, type: typeof name });
-
-    if (!name || typeof name !== 'string') {
-      console.error('❌ Invalid name parameter type:', { name, type: typeof name });
-      throw new Error(`Invalid input: Expected string, got ${typeof name}`);
-    }
-
-    // Validate ALL parameters before creating (especially important offline!)
-    if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
-      throw new Error('Team ID is required to create a community');
-    }
-    if (!currentUser?.uid || typeof currentUser.uid !== 'string' || currentUser.uid.trim() === '') {
-      throw new Error('User authentication is required to create a community');
-    }
-
-    try {
-      // Validate and sanitize community name
-      const sanitizedName = validateName(name, {
-        required: true,
-        minLength: 1,
-        maxLength: 100,
-        fieldName: 'Community name',
+  const createCommunityItem = useCallback(
+    async (name) => {
+      // Type check the name parameter first
+      console.log('🔍 createCommunityItem called with:', {
+        name,
+        type: typeof name,
       });
 
-      const newCommunity = await createCommunity(
-        sanitizedName,
-        teamId,
-        currentUser.uid
-      );
-
-      // Validate returned object to catch any corruption
-      if (!newCommunity || typeof newCommunity !== 'object' ||
-          !newCommunity.id || typeof newCommunity.id !== 'string' ||
-          !newCommunity.name || typeof newCommunity.name !== 'string') {
-        console.error('❌ Invalid community created:', newCommunity);
-        throw new Error('Failed to create community: server returned invalid data');
+      if (!name || typeof name !== 'string') {
+        console.error('❌ Invalid name parameter type:', {
+          name,
+          type: typeof name,
+        });
+        throw new Error(`Invalid input: Expected string, got ${typeof name}`);
       }
 
-      return newCommunity;
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        throw new Error(`Invalid community name: ${err.message}`);
+      // Validate ALL parameters before creating (especially important offline!)
+      if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
+        throw new Error('Team ID is required to create a community');
       }
-      throw err;
-    }
-  }, [teamId, currentUser?.uid]);
+      if (
+        !currentUser?.uid ||
+        typeof currentUser.uid !== 'string' ||
+        currentUser.uid.trim() === ''
+      ) {
+        throw new Error(
+          'User authentication is required to create a community'
+        );
+      }
 
-  const createBuildingItem = useCallback(async (name) => {
-    // Type check the name parameter first
-    console.log('🔍 createBuildingItem called with:', { name, type: typeof name });
+      try {
+        // Validate and sanitize community name
+        const sanitizedName = validateName(name, {
+          required: true,
+          minLength: 1,
+          maxLength: 100,
+          fieldName: 'Community name',
+        });
 
-    if (!name || typeof name !== 'string') {
-      console.error('❌ Invalid name parameter type:', { name, type: typeof name });
-      throw new Error(`Invalid input: Expected string, got ${typeof name}`);
-    }
+        const newCommunity = await createCommunity(
+          sanitizedName,
+          teamId,
+          currentUser.uid
+        );
 
-    // Validate ALL parameters before creating (especially important offline!)
-    // Route is now optional - removed route validation
-    if (!selectedCommunity?.id || typeof selectedCommunity.id !== 'string' || selectedCommunity.id.trim() === '') {
-      throw new Error('Please select a valid community first');
-    }
-    if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
-      throw new Error('Team ID is required to create a building');
-    }
-    if (!currentUser?.uid || typeof currentUser.uid !== 'string' || currentUser.uid.trim() === '') {
-      throw new Error('User authentication is required to create a building');
-    }
+        // Validate returned object to catch any corruption
+        if (
+          !newCommunity ||
+          typeof newCommunity !== 'object' ||
+          !newCommunity.id ||
+          typeof newCommunity.id !== 'string' ||
+          !newCommunity.name ||
+          typeof newCommunity.name !== 'string'
+        ) {
+          console.error('❌ Invalid community created:', newCommunity);
+          throw new Error(
+            'Failed to create community: server returned invalid data'
+          );
+        }
 
-    try {
-      // Validate and sanitize the building name
-      const sanitizedName = validateName(name, {
-        required: true,
-        minLength: 1,
-        maxLength: 100,
-        fieldName: 'Building name',
+        return newCommunity;
+      } catch (err) {
+        if (err instanceof ValidationError) {
+          throw new Error(`Invalid community name: ${err.message}`);
+        }
+        throw err;
+      }
+    },
+    [teamId, currentUser?.uid]
+  );
+
+  const createBuildingItem = useCallback(
+    async (name) => {
+      // Type check the name parameter first
+      console.log('🔍 createBuildingItem called with:', {
+        name,
+        type: typeof name,
       });
 
-      const buildingData = {
-        name: sanitizedName,
-        address: '',
-        routeId: null, // No longer using routes - buildings are community-based
-        communityId: selectedCommunity.id,
-        teamId,
-        units: [],
-      };
-
-      const newBuilding = await createBuilding(buildingData, currentUser.uid);
-
-      // Validate returned object to catch any corruption
-      if (!newBuilding || typeof newBuilding !== 'object' ||
-          !newBuilding.id || typeof newBuilding.id !== 'string' ||
-          !newBuilding.name || typeof newBuilding.name !== 'string') {
-        console.error('❌ Invalid building created:', newBuilding);
-        throw new Error('Failed to create building: server returned invalid data');
+      if (!name || typeof name !== 'string') {
+        console.error('❌ Invalid name parameter type:', {
+          name,
+          type: typeof name,
+        });
+        throw new Error(`Invalid input: Expected string, got ${typeof name}`);
       }
 
-      return newBuilding;
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        throw new Error(`Invalid building name: ${err.message}`);
+      // Validate ALL parameters before creating (especially important offline!)
+      // Route is now optional - removed route validation
+      if (
+        !selectedCommunity?.id ||
+        typeof selectedCommunity.id !== 'string' ||
+        selectedCommunity.id.trim() === ''
+      ) {
+        throw new Error('Please select a valid community first');
       }
-      throw err;
-    }
-  }, [selectedCommunity?.id, teamId, currentUser?.uid]);
+      if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
+        throw new Error('Team ID is required to create a building');
+      }
+      if (
+        !currentUser?.uid ||
+        typeof currentUser.uid !== 'string' ||
+        currentUser.uid.trim() === ''
+      ) {
+        throw new Error('User authentication is required to create a building');
+      }
+
+      try {
+        // Validate and sanitize the building name
+        const sanitizedName = validateName(name, {
+          required: true,
+          minLength: 1,
+          maxLength: 100,
+          fieldName: 'Building name',
+        });
+
+        const buildingData = {
+          name: sanitizedName,
+          address: '',
+          routeId: null, // No longer using routes - buildings are community-based
+          communityId: selectedCommunity.id,
+          teamId,
+          units: [],
+        };
+
+        const newBuilding = await createBuilding(buildingData, currentUser.uid);
+
+        // Validate returned object to catch any corruption
+        if (
+          !newBuilding ||
+          typeof newBuilding !== 'object' ||
+          !newBuilding.id ||
+          typeof newBuilding.id !== 'string' ||
+          !newBuilding.name ||
+          typeof newBuilding.name !== 'string'
+        ) {
+          console.error('❌ Invalid building created:', newBuilding);
+          throw new Error(
+            'Failed to create building: server returned invalid data'
+          );
+        }
+
+        return newBuilding;
+      } catch (err) {
+        if (err instanceof ValidationError) {
+          throw new Error(`Invalid building name: ${err.message}`);
+        }
+        throw err;
+      }
+    },
+    [selectedCommunity?.id, teamId, currentUser?.uid]
+  );
 
   // Handle selections
   function handleCommunitySelect(community) {
     // Validate the community object before setting it
-    if (!community || typeof community !== 'object' ||
-        !community.id || typeof community.id !== 'string' ||
-        !community.name || typeof community.name !== 'string') {
+    if (
+      !community ||
+      typeof community !== 'object' ||
+      !community.id ||
+      typeof community.id !== 'string' ||
+      !community.name ||
+      typeof community.name !== 'string'
+    ) {
       console.error('❌ Invalid community object received:', community);
       setError('Invalid community selected. Please try again.');
       return;
@@ -461,9 +524,14 @@ export default function VisitForm({ onClose, onSaved }) {
 
   function handleBuildingSelect(building) {
     // Validate the building object before setting it
-    if (!building || typeof building !== 'object' ||
-        !building.id || typeof building.id !== 'string' ||
-        !building.name || typeof building.name !== 'string') {
+    if (
+      !building ||
+      typeof building !== 'object' ||
+      !building.id ||
+      typeof building.id !== 'string' ||
+      !building.name ||
+      typeof building.name !== 'string'
+    ) {
       console.error('❌ Invalid building object received:', building);
       setError('Invalid building selected. Please try again.');
       return;
@@ -629,7 +697,12 @@ export default function VisitForm({ onClose, onSaved }) {
 
       // Create visit - this works offline (Firebase queues the write)
       // Pass routeId from selected route leader (if they have one assigned)
-      await createVisit(buildingId, visitData, currentUser.uid, selectedRouteLeader?.routeId || null);
+      await createVisit(
+        buildingId,
+        visitData,
+        currentUser.uid,
+        selectedRouteLeader?.routeId || null
+      );
 
       // Save form data to LocalStorage for auto-fill on next visit
       saveLastVisitFormData({
@@ -810,7 +883,7 @@ export default function VisitForm({ onClose, onSaved }) {
 
       <main className="visit-form-main">
         <form className="visit-form-card" onSubmit={handleSubmit}>
-          {/* Warning banner for users without team assignment (but skip for offline mode) */}
+          {/* Warning banner for online users without team assignment */}
           {role !== 'super_admin' && !userTeamId && !isOfflineModeActive() && (
             <div
               style={{
@@ -826,6 +899,33 @@ export default function VisitForm({ onClose, onSaved }) {
               <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
                 You haven't been assigned to a team yet. Please contact your
                 administrator to assign you to a team before recording visits.
+              </p>
+            </div>
+          )}
+
+          {/* Error banner for offline users without team assignment */}
+          {role !== 'super_admin' && !userTeamId && isOfflineModeActive() && (
+            <div
+              style={{
+                backgroundColor: '#FEF9E7',
+                border: '2px solid #F39C12',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '16px',
+                color: '#7D6608',
+              }}
+            >
+              <strong>Offline Mode - Limited Access</strong>
+              <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
+                You are using offline mode without a team assignment. You must{' '}
+                <strong>log in online at least once</strong> to sync your team
+                assignment before you can record visits offline.
+              </p>
+              <p
+                style={{ margin: '8px 0 0 0', fontSize: '13px', opacity: 0.9 }}
+              >
+                You can view cached data, but cannot create new visits until you
+                connect online and log in.
               </p>
             </div>
           )}
@@ -885,13 +985,18 @@ export default function VisitForm({ onClose, onSaved }) {
           {/* Route Leader field */}
           <label className="visit-field">
             <span className="visit-label">
-              Route Leader <span style={{ fontWeight: 'normal', color: '#666' }}>(Optional)</span>
+              Route Leader{' '}
+              <span style={{ fontWeight: 'normal', color: '#666' }}>
+                (Optional)
+              </span>
             </span>
             <select
               className="visit-input"
               value={selectedRouteLeader?.id || ''}
               onChange={(e) => {
-                const leader = routeLeaders.find(l => l.id === e.target.value);
+                const leader = routeLeaders.find(
+                  (l) => l.id === e.target.value
+                );
                 setSelectedRouteLeader(leader || null);
               }}
               disabled={!teamId || routeLeaders.length === 0}

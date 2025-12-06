@@ -13,6 +13,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import { createUserProfile, getUserProfile } from '../services/userService';
+import { isOfflineModeActive, getOfflineUser, setOfflineUser } from '../utils/offlineStorage';
 
 
 const AuthContext = createContext(null);
@@ -98,7 +99,11 @@ export function AuthProvider({ children }) {
     return cred;
   }
 
-  function logout() {
+  async function logout() {
+    // Import exitOfflineMode to clear offline data
+    const { exitOfflineMode } = await import('../utils/offlineStorage');
+    exitOfflineMode(); // Clear localStorage offline data
+    console.log('[AUTH] Logged out - offline data cleared');
     return signOut(auth);
   }
 
@@ -152,9 +157,35 @@ export function AuthProvider({ children }) {
   // Keep app state in sync with Auth + Firestore profile
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
+      console.log('🔐 [AUTH] Auth state changed:', user ? 'Authenticated' : 'Not authenticated');
+
       try {
         setCurrentUser(user);
         if (!user) {
+          console.log('🔐 [AUTH] No authenticated user');
+
+          // Check if we're in offline mode with cached user data
+          if (isOfflineModeActive()) {
+            const offlineUser = getOfflineUser();
+            if (offlineUser) {
+              console.log('[AUTH] Using offline mode with cached credentials');
+              // Create a mock user object for offline mode
+              setCurrentUser({
+                uid: offlineUser.uid || 'offline-user',
+                email: offlineUser.email,
+                displayName: offlineUser.displayName,
+              });
+              setRole(offlineUser.role ?? 'volunteer');
+              setTeamId(offlineUser.teamId ?? null);
+              setRouteId(offlineUser.routeId ?? null);
+              setNeedsProfile(false);
+              setLoading(false);
+              return;
+            }
+          }
+
+          // No user and not in offline mode
+          console.log('🔐 [AUTH] No offline mode - clearing state');
           setRole(null);
           setTeamId(null);
           setRouteId(null);
@@ -163,18 +194,57 @@ export function AuthProvider({ children }) {
           return;
         }
 
+        console.log('🔐 [AUTH] Authenticated user found. Loading profile...');
         const profile = await getUserProfile(user.uid);
+
         if (!profile) {
+          console.warn('⚠️ [AUTH] No profile found - needs profile creation');
           // NEW: block app; Login will complete profile (role picker)
           setNeedsProfile(true);
         } else {
+          console.log('✅ [AUTH] Profile loaded successfully!');
+
+          // Auto-save profile to localStorage for offline access
+          // This enables "Continue Offline" to work even if Firebase Auth session expires
+          const offlineUserData = {
+            uid: user.uid,
+            displayName: profile.displayName || user.displayName || 'User',
+            email: profile.email || user.email || null,
+            role: profile.role || 'volunteer',
+            teamId: profile.teamId || null,
+            routeId: profile.routeId || null,
+          };
+          setOfflineUser(offlineUserData);
+          console.log('✅ [AUTH] 🎉 DASHBOARD READY - You can now use "Continue Offline" mode!');
+
           setNeedsProfile(false);
           setRole(profile.role ?? null);
           setTeamId(profile.teamId ?? null);
           setRouteId(profile.routeId ?? null);
         }
       } catch (err) {
-        console.error('Auth/profile sync error:', err);
+        console.error('❌ [AUTH] Error during profile sync:', err);
+
+        // If offline mode is active, use cached data instead of signing out
+        if (isOfflineModeActive()) {
+          const offlineUser = getOfflineUser();
+          if (offlineUser) {
+            console.log('[AUTH] Profile sync failed - using offline mode with cached credentials');
+            setCurrentUser({
+              uid: offlineUser.uid || 'offline-user',
+              email: offlineUser.email,
+              displayName: offlineUser.displayName,
+            });
+            setRole(offlineUser.role ?? 'volunteer');
+            setTeamId(offlineUser.teamId ?? null);
+            setRouteId(offlineUser.routeId ?? null);
+            setNeedsProfile(false);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Not in offline mode - sign out
         await signOut(auth);
         setCurrentUser(null);
         setRole(null);

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
-import { enableOfflineMode, setOfflineUser } from '../utils/offlineStorage';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { enableOfflineMode, setOfflineUser, getOfflineUser } from '../utils/offlineStorage';
+import { auth } from '../services/firebase';
 import { createUserProfile, getUserProfile } from '../services/userService';
 import { getAllTeams } from '../services/teamService';
 import './Login.css';
@@ -176,15 +176,92 @@ export default function Login() {
   }
 
   /* ---------------- Offline flow ---------------- */
-  function handleContinueOffline() {
-    const offlineUser = {
-      displayName: displayName || 'Offline User',
-      email: email || null,
-      role: 'volunteer',
-    };
-    setOfflineUser(offlineUser);
-    enableOfflineMode();
-    navigate('/');
+  async function handleContinueOffline() {
+    setError('');
+    setLoading(true);
+
+    console.log('🔍 [OFFLINE] Starting offline mode check...');
+
+    try {
+      // Step 1: Check localStorage
+      console.log('🔍 [STEP 1] Checking localStorage...');
+      const existingOfflineUser = getOfflineUser();
+
+      if (existingOfflineUser) {
+        if (existingOfflineUser.uid) {
+          console.log('✅ [STEP 1] Valid cached data found - resuming offline mode');
+          enableOfflineMode();
+          navigate('/');
+          return;
+        } else {
+          console.log('⚠️ [STEP 1] Legacy format detected - upgrading...');
+        }
+      } else {
+        console.log('⚠️ [STEP 1] No localStorage data found');
+      }
+
+      // Step 2: Check Firebase Auth
+      console.log('🔍 [STEP 2] Checking Firebase Auth cache...');
+      const cachedUser = auth.currentUser;
+      console.log('🔍 [STEP 2] Firebase Auth:', cachedUser ? 'Session found' : 'No session');
+
+      if (cachedUser) {
+        console.log('✅ [STEP 2] Loading profile from cache...');
+
+        try {
+          const cachedProfile = await getUserProfile(cachedUser.uid);
+
+          if (cachedProfile) {
+            const offlineUser = {
+              uid: cachedUser.uid,
+              displayName: cachedProfile.displayName || cachedUser.displayName || 'Offline User',
+              email: cachedProfile.email || cachedUser.email || null,
+              role: cachedProfile.role || 'volunteer',
+              teamId: cachedProfile.teamId || null,
+              routeId: cachedProfile.routeId || null,
+            };
+
+            console.log('✅ [STEP 2] Profile loaded - enabling offline mode');
+            setOfflineUser(offlineUser);
+            enableOfflineMode();
+            navigate('/');
+            return;
+          } else {
+            console.warn('⚠️ [STEP 2] Profile not found in cache');
+            setError('Profile not cached. Please connect online once.');
+            return;
+          }
+        } catch (profileError) {
+          console.error('❌ [STEP 2] Profile load error:', profileError.message);
+
+          const offlineUser = {
+            uid: cachedUser.uid,
+            displayName: cachedUser.displayName || 'Offline User',
+            email: cachedUser.email || null,
+            role: 'volunteer',
+            teamId: null,
+            routeId: null,
+          };
+
+          console.log('⚠️ [STEP 2] Enabling limited offline access');
+          setOfflineUser(offlineUser);
+          enableOfflineMode();
+          navigate('/');
+          return;
+        }
+      }
+
+      // Step 3: Blocked
+      console.log('❌ [STEP 3] No cached credentials - offline mode unavailable');
+      setError(
+        'You must log in online at least once before using offline mode.'
+      );
+    } catch (err) {
+      console.error('❌ [ERROR]:', err);
+      setError('Unable to enter offline mode.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   /* ---------------- Back button ---------------- */
