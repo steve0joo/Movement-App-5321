@@ -1083,10 +1083,10 @@ const VisitHistory = () => {
                                           {person.name || 'Unknown'}
                                         </strong>
                                         {person.age && (
-                                          <span> (Age: {person.age})</span>
+                                          <span> • 🎂 {person.age}</span>
                                         )}
                                         {person.phone && (
-                                          <span> • Phone: {person.phone}</span>
+                                          <span> • 📞 {person.phone}</span>
                                         )}
                                       </div>
                                       <div className="person-actions">
@@ -1296,8 +1296,8 @@ const VisitHistory = () => {
                                     <div className="person-header">
                                       <div>
                                         <strong>{person.name || 'Unknown'}</strong>
-                                        {person.age && <span> (Age: {person.age})</span>}
-                                        {person.phone && <span> • Phone: {person.phone}</span>}
+                                        {person.age && <span> • 🎂 {person.age}</span>}
+                                        {person.phone && <span> • 📞 {person.phone}</span>}
                                       </div>
                                       <div className="person-actions">
                                         {canEditVisit(visit) && (
