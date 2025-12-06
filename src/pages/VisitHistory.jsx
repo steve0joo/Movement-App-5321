@@ -8,6 +8,7 @@ import { getAllTeams } from '../services/teamService';
 import { getCommunitiesByTeam } from '../services/communityService';
 import { getAllRouteLeaders } from '../services/userService';
 import { getBuildingsByCommunity } from '../services/buildingService';
+import { getFollowUpsByTeam } from '../services/communityInvolvementService';
 import './header.css';
 import './VisitHistory.css';
 import menuIcon from '../assets/menu-button.png';
@@ -123,6 +124,7 @@ const VisitHistory = () => {
   const [communities, setCommunities] = useState([]);
   const [routeLeaders, setRouteLeaders] = useState([]);
   const [buildings, setBuildings] = useState([]);
+  const [followUps, setFollowUps] = useState([]);
 
   // Name lookups (only needed for filter dropdowns, not for display)
   const [communityNames, setCommunityNames] = useState({});
@@ -133,6 +135,7 @@ const VisitHistory = () => {
   const [selectedCommunityId, setSelectedCommunityId] = useState('');
   const [selectedRouteLeaderId, setSelectedRouteLeaderId] = useState('');
   const [selectedBuildingId, setSelectedBuildingId] = useState('');
+  const [selectedFollowUpId, setSelectedFollowUpId] = useState('');
 
   // View options
   const [groupBy, setGroupBy] = useState('building'); // 'building', 'route', 'flat'
@@ -278,6 +281,22 @@ const VisitHistory = () => {
     }
   }, [selectedTeamId]);
 
+  // Load follow-ups when team is selected
+  useEffect(() => {
+    if (selectedTeamId) {
+      getFollowUpsByTeam(selectedTeamId)
+        .then((teamFollowUps) => {
+          setFollowUps(teamFollowUps);
+        })
+        .catch((err) => {
+          console.error('Error fetching follow-ups:', err);
+        });
+    } else {
+      setFollowUps([]);
+      setSelectedFollowUpId('');
+    }
+  }, [selectedTeamId]);
+
   // Load buildings when community is selected
   useEffect(() => {
     if (selectedCommunityId) {
@@ -319,6 +338,17 @@ const VisitHistory = () => {
       filtered = filtered.filter((v) => v.buildingId === selectedBuildingId);
     }
 
+    // Apply follow-up filter
+    if (selectedFollowUpId) {
+      // Find the follow-up name from the ID
+      const followUp = followUps.find(f => f.id === selectedFollowUpId);
+      if (followUp) {
+        filtered = filtered.filter((v) =>
+          v.people && v.people.some(person => person.followUp === followUp.name)
+        );
+      }
+    }
+
     // Apply search filter
     if (searchText.trim()) {
       const search = searchText.toLowerCase();
@@ -338,6 +368,8 @@ const VisitHistory = () => {
     selectedCommunityId,
     selectedRouteLeaderId,
     selectedBuildingId,
+    selectedFollowUpId,
+    followUps,
     searchText,
   ]);
 
@@ -713,6 +745,7 @@ const VisitHistory = () => {
                 setSelectedCommunityId('');
                 setSelectedRouteLeaderId('');
                 setSelectedBuildingId('');
+                setSelectedFollowUpId('');
                 setSearchText('');
               }}
             >
@@ -793,6 +826,25 @@ const VisitHistory = () => {
                 {buildings.map((building) => (
                   <option key={building.id} value={building.id}>
                     {building.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Follow-ups/Urgency Filter */}
+            <div className="filter-group">
+              <label htmlFor="followup-filter">Follow-ups/Urgency</label>
+              <select
+                id="followup-filter"
+                value={selectedFollowUpId}
+                onChange={(e) => setSelectedFollowUpId(e.target.value)}
+                className="filter-select"
+                disabled={!selectedTeamId || followUps.length === 0}
+              >
+                <option value="">All Follow-ups</option>
+                {followUps.map((followUp) => (
+                  <option key={followUp.id} value={followUp.id}>
+                    {followUp.name}
                   </option>
                 ))}
               </select>
