@@ -79,6 +79,19 @@ const IconTrash = (p) => (
   </svg>
 );
 
+const IconClipboard = (p) => (
+  <svg viewBox="0 0 24 24" {...p}>
+    <path
+      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+      stroke="currentColor"
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export default function VisitForm({ onClose, onSaved }) {
   const {
     currentUser,
@@ -1071,7 +1084,8 @@ export default function VisitForm({ onClose, onSaved }) {
                   onClick={() => setShowRecordsList(true)}
                   title="View past member records for this unit"
                 >
-                  📋 View Past Records
+                  <IconClipboard style={{ width: 16, height: 16 }} />
+                  View Past Records
                 </button>
               )}
             </div>
@@ -1088,7 +1102,7 @@ export default function VisitForm({ onClose, onSaved }) {
 
               {people.map((person, index) => (
                 <div key={index} className="visit-people-row">
-                  <div className="visit-col-name visit-name-wrapper">
+                  <div className="visit-col-name">
                     <input
                       className="visit-input"
                       placeholder="Name"
@@ -1099,16 +1113,6 @@ export default function VisitForm({ onClose, onSaved }) {
                       readOnly={!!person.locked}
                       disabled={!!person.locked}
                     />
-                    {person.name && selectedBuilding && unitNumber && (
-                      <button
-                        type="button"
-                        className="visit-view-record-btn"
-                        onClick={() => setSelectedPersonForRecord(person)}
-                        title="View member record"
-                      >
-                        📋
-                      </button>
-                    )}
                   </div>
                   <input
                     className="visit-input visit-col-age"
@@ -1142,7 +1146,7 @@ export default function VisitForm({ onClose, onSaved }) {
                     }
                     disabled={!!person.locked}
                   >
-                    <option value="">Select follow-up...</option>
+                    <option value="">Select follow-up</option>
                     {followUpOptions.map((option) => (
                       <option key={option.id} value={option.name}>
                         {option.name}
@@ -1157,7 +1161,7 @@ export default function VisitForm({ onClose, onSaved }) {
                     }
                     disabled={!!person.locked}
                   >
-                    <option value="">Select involvement...</option>
+                    <option value="">Select involvement</option>
                     {involvementOptions.map((option) => (
                       <option key={option.id} value={option.name}>
                         {option.name}
@@ -1165,28 +1169,42 @@ export default function VisitForm({ onClose, onSaved }) {
                     ))}
                   </select>
 
-                  {/* Edit button: shown when the row is locked so user can unlock for editing */}
-                  {person.locked && (
+                  <div className="visit-col-actions">
+                    {/* Edit button: shown when the row is locked so user can unlock for editing */}
+                    {person.locked && (
+                      <button
+                        type="button"
+                        className="visit-delete-btn"
+                        onClick={() => togglePersonEdit(index)}
+                        aria-label="Edit person"
+                        title="Edit"
+                      >
+                        Edit
+                      </button>
+                    )}
+
+                    {/* Member record button */}
+                    {person.name && selectedBuilding && unitNumber && (
+                      <button
+                        type="button"
+                        className="visit-view-record-btn"
+                        onClick={() => setSelectedPersonForRecord(person)}
+                        title="View member record"
+                      >
+                        <IconClipboard style={{ width: 20, height: 20 }} />
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       className="visit-delete-btn"
-                      onClick={() => togglePersonEdit(index)}
-                      aria-label="Edit person"
-                      title="Edit"
+                      onClick={() => handleRemovePerson(index)}
+                      disabled={people.length <= 1 || !!person.locked}
+                      aria-label="Delete person"
                     >
-                      Edit
+                      <IconTrash style={{ width: 20, height: 20 }} />
                     </button>
-                  )}
-
-                  <button
-                    type="button"
-                    className="visit-delete-btn"
-                    onClick={() => handleRemovePerson(index)}
-                    disabled={people.length <= 1 || !!person.locked}
-                    aria-label="Delete person"
-                  >
-                    <IconTrash style={{ width: 16, height: 16 }} />
-                  </button>
+                  </div>
                 </div>
               ))}
 
@@ -1206,7 +1224,7 @@ export default function VisitForm({ onClose, onSaved }) {
             <span className="visit-label">Notes</span>
             <textarea
               className="visit-input visit-textarea"
-              placeholder="General visit notes..."
+              placeholder="Enter any additional notes"
               rows={4}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
