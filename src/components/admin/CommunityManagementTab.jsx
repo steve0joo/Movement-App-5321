@@ -197,12 +197,11 @@ export default function CommunityManagementTab() {
       {/* Team selector for super_admin */}
       {isSuperAdmin && (
         // <div className="filters-panel">
-          <div className='filter-row'>
-          <label style={{fontSize: '18px'}}>Team: </label>
+          <div className='form-group'>
+          <label style={{fontSize: '16px'}}>Team: </label>
             <select
               value={selectedTeamId}
               onChange={(e) => setSelectedTeamId(e.target.value)}
-              className="sort-select"
             >
               <option value=""> Select a team </option>
               {teams.map(team => (

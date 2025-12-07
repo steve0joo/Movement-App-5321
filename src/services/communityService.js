@@ -21,6 +21,10 @@ import {
   validateName,
   ValidationError,
 } from '../utils/validation.js';
+import {
+  handleOfflineWrite,
+  handleOfflineQuery,
+} from '../utils/offlineErrorHandler.js';
 
 const COMMUNITIES_COLLECTION = 'communities';
 
@@ -32,43 +36,57 @@ const COMMUNITIES_COLLECTION = 'communities';
  * @returns {Promise<Object>} Created community with ID
  */
 export async function createCommunity(communityName, teamId, createdBy) {
+  // Validate and sanitize community name first (before any async operations)
+  const sanitizedName = validateName(communityName, {
+    required: true,
+    minLength: 1,
+    maxLength: 100,
+    fieldName: 'Community name'
+  });
+
+  // Generate temporary ID for offline optimistic response
+  const tempId = `temp_community_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+  const optimisticData = {
+    id: tempId,
+    name: sanitizedName,
+    teamId,
+    createdBy,
+    createdAt: new Date(),
+    isActive: true,
+  };
+
   try {
-    // Validate and sanitize community name
-    const sanitizedName = validateName(communityName, {
-      required: true,
-      minLength: 1,
-      maxLength: 100,
-      fieldName: 'Community name'
-    });
-
-    // Check for the duplicated community name within the same team
-    const duplicateQuery = query(
-      collection(db, COMMUNITIES_COLLECTION),
-      where('teamId', '==', teamId),
-      where('name', '==', sanitizedName),
-      where('isActive', '==', true)
-    );
-    const duplicateSnapshot = await getDocs(duplicateQuery);
-
-    if (!duplicateSnapshot.empty) {
-      throw new Error(
-        `A community with the name "${sanitizedName}" already exists in this team`
+    return await handleOfflineWrite(async () => {
+      // Check for duplicate community name within the same team
+      const duplicateQuery = query(
+        collection(db, COMMUNITIES_COLLECTION),
+        where('teamId', '==', teamId),
+        where('name', '==', sanitizedName),
+        where('isActive', '==', true)
       );
-    }
+      const duplicateSnapshot = await getDocs(duplicateQuery);
 
-    const communityRef = await addDoc(collection(db, COMMUNITIES_COLLECTION), {
-      name: sanitizedName,
-      teamId,
-      createdBy,
-      createdAt: serverTimestamp(),
-      isActive: true,
-    });
+      if (!duplicateSnapshot.empty) {
+        throw new Error(
+          `A community with the name "${sanitizedName}" already exists in this team`
+        );
+      }
 
-    return {
-      id: communityRef.id,
-      name: sanitizedName,
-      teamId,
-    };
+      const communityRef = await addDoc(collection(db, COMMUNITIES_COLLECTION), {
+        name: sanitizedName,
+        teamId,
+        createdBy,
+        createdAt: serverTimestamp(),
+        isActive: true,
+      });
+
+      return {
+        id: communityRef.id,
+        name: sanitizedName,
+        teamId,
+      };
+    }, optimisticData);
   } catch (error) {
     console.error('Error creating community:', error);
     if (error instanceof ValidationError) {
@@ -187,7 +205,8 @@ export async function updateCommunity(communityId, updates) {
  * - The community itself
  * - All routes in the community
  * - All buildings in those routes
- * - Preserves visits (they remain as historical records)
+ * - All visits in those buildings (hard delete with batch operations)
+ * Uses batch operations forvall-or-nothing deletion
  * @param {string} communityId - Community ID
  * @param {boolean} skipCascade - If true, only deletes the community without cascading (default: false)
  * @returns {Promise<void>}
@@ -195,20 +214,81 @@ export async function updateCommunity(communityId, updates) {
 export async function deleteCommunity(communityId, skipCascade = false) {
   try {
     if (!skipCascade) {
-      // Import route and building services to handle cascade
-      const { getRoutesByCommunity, deleteRoute } = await import('./routeService.js');
+      // Import route and building services and batch helpers
+      const { getRoutesByCommunity } = await import('./routeService.js');
+      const { getBuildingsByRoute } = await import('./buildingService.js');
+      const { batchDelete, batchUpdate } = await import('./batchHelpers.js');
 
       // Get all routes in this community
       const routes = await getRoutesByCommunity(communityId);
 
-      // Delete each route (which will cascade to buildings)
-      const deletePromises = routes.map(route =>
-        deleteRoute(route.id, false) // false = with cascade
-      );
+      if (routes.length > 0) {
+        // Collect all document references to delete (routes + buildings + visits)
+        const docRefsToDelete = [];
+        const userUpdates = [];
+        const ROUTES_COLLECTION = 'routes';
+        const BUILDINGS_COLLECTION = 'buildings';
+        const VISITS_SUBCOLLECTION = 'visits';
 
-      await Promise.all(deletePromises);
+        let totalBuildings = 0;
+        let totalVisits = 0;
 
-      console.log(`Cascade deleted ${routes.length} routes from community ${communityId}`);
+        // For each route, get buildings and visits
+        for (const route of routes) {
+          // Collect route leader updates if needed
+          if (route.routeLeaderId) {
+            userUpdates.push({
+              ref: doc(db, 'users', route.routeLeaderId),
+              data: {
+                routeId: null,
+                updatedAt: serverTimestamp(),
+              },
+            });
+          }
+
+          // Get all buildings in this route
+          const buildings = await getBuildingsByRoute(route.id);
+          totalBuildings += buildings.length;
+
+          // For each building, get its visits
+          for (const building of buildings) {
+            const visitsRef = collection(
+              db,
+              BUILDINGS_COLLECTION,
+              building.id,
+              VISITS_SUBCOLLECTION
+            );
+            const visitsSnapshot = await getDocs(visitsRef);
+            totalVisits += visitsSnapshot.docs.length;
+
+            // Add all visit document references
+            visitsSnapshot.docs.forEach((visitDoc) => {
+              docRefsToDelete.push(
+                doc(db, BUILDINGS_COLLECTION, building.id, VISITS_SUBCOLLECTION, visitDoc.id)
+              );
+            });
+
+            // Add the building document reference
+            docRefsToDelete.push(doc(db, BUILDINGS_COLLECTION, building.id));
+          }
+
+          // Add the route document reference
+          docRefsToDelete.push(doc(db, ROUTES_COLLECTION, route.id));
+        }
+
+        // Perform batch delete for all routes, buildings, and visits
+        const deleteResult = await batchDelete(docRefsToDelete);
+
+        console.log(
+          `✅ Cascade deleted ${routes.length} routes, ${totalBuildings} buildings, and ${totalVisits} visits from community ${communityId} using ${deleteResult.batchCount} batch(es)`
+        );
+
+        // Update user profiles to clear route assignments (separate batch)
+        if (userUpdates.length > 0) {
+          await batchUpdate(userUpdates);
+          console.log(`✅ Cleared route assignments for ${userUpdates.length} route leaders`);
+        }
+      }
     }
 
     // Finally, soft delete the community itself

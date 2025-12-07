@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getMemberRecord, saveMemberRecord } from '../services/memberRecordService';
+import {
+  getMemberRecord,
+  saveMemberRecord,
+} from '../services/memberRecordService';
 import './MemberRecord.css';
 
-export default function MemberRecord({ person, buildingId, unitNumber, onClose }) {
+export default function MemberRecord({
+  person,
+  buildingId,
+  unitNumber,
+  onClose,
+}) {
   const { currentUser } = useAuth();
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,10 +104,15 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
         </div>
 
         {/* Form */}
-        <form className="member-record-form" onSubmit={(e) => e.preventDefault()}>
+        <form
+          className="member-record-form"
+          onSubmit={(e) => e.preventDefault()}
+        >
           {/* Level 1: Basic Information */}
           <div className="member-record-section">
-            <h3 className="member-record-section-title">Level 1: Basic Information</h3>
+            <h3 className="member-record-section-title">
+              Level 1: Basic Information
+            </h3>
 
             <div className="member-record-field">
               <label>First Name</label>
@@ -128,7 +141,7 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
                 onChange={(e) => handleChange('gender', e.target.value)}
                 className="member-record-input"
               >
-                <option value="">Select...</option>
+                <option value="">Select</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
                 <option value="Other">Other</option>
@@ -172,7 +185,9 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
 
           {/* Level 2: Contact & Education */}
           <div className="member-record-section">
-            <h3 className="member-record-section-title">Level 2: Contact & Education</h3>
+            <h3 className="member-record-section-title">
+              Level 2: Contact & Education
+            </h3>
 
             <div className="member-record-field">
               <label>What School do You Attend?</label>
@@ -199,7 +214,9 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <input
                 type="number"
                 value={record.highSchoolGradYear}
-                onChange={(e) => handleChange('highSchoolGradYear', e.target.value)}
+                onChange={(e) =>
+                  handleChange('highSchoolGradYear', e.target.value)
+                }
                 className="member-record-input"
                 min="1900"
                 max="2100"
@@ -211,7 +228,9 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <input
                 type="text"
                 value={record.lastGradeCompleted}
-                onChange={(e) => handleChange('lastGradeCompleted', e.target.value)}
+                onChange={(e) =>
+                  handleChange('lastGradeCompleted', e.target.value)
+                }
                 className="member-record-input"
               />
             </div>
@@ -221,7 +240,9 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <input
                 type="number"
                 value={record.collegeGradYear}
-                onChange={(e) => handleChange('collegeGradYear', e.target.value)}
+                onChange={(e) =>
+                  handleChange('collegeGradYear', e.target.value)
+                }
                 className="member-record-input"
                 min="1900"
                 max="2100"
@@ -283,7 +304,9 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <input
                 type="text"
                 value={record.emergencyContactName}
-                onChange={(e) => handleChange('emergencyContactName', e.target.value)}
+                onChange={(e) =>
+                  handleChange('emergencyContactName', e.target.value)
+                }
                 className="member-record-input"
               />
             </div>
@@ -293,7 +316,9 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <input
                 type="tel"
                 value={record.emergencyContactPhone}
-                onChange={(e) => handleChange('emergencyContactPhone', e.target.value)}
+                onChange={(e) =>
+                  handleChange('emergencyContactPhone', e.target.value)
+                }
                 className="member-record-input"
               />
             </div>
@@ -321,12 +346,23 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
             <div className="member-record-field">
               <label>Lives With</label>
               <div className="member-record-checkbox-group">
-                {['Father', 'Mother', 'Guardians', 'Friends', 'Siblings', 'Spouse', 'Children', 'Other'].map((option) => (
+                {[
+                  'Father',
+                  'Mother',
+                  'Guardians',
+                  'Friends',
+                  'Siblings',
+                  'Spouse',
+                  'Children',
+                  'Other',
+                ].map((option) => (
                   <label key={option} className="member-record-checkbox-label">
                     <input
                       type="checkbox"
                       checked={(record.livesWith || []).includes(option)}
-                      onChange={() => handleMultiSelectChange('livesWith', option)}
+                      onChange={() =>
+                        handleMultiSelectChange('livesWith', option)
+                      }
                     />
                     {option}
                   </label>
@@ -337,7 +373,9 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
 
           {/* Level 3: Detailed Information */}
           <div className="member-record-section">
-            <h3 className="member-record-section-title">Level 3: Detailed Information</h3>
+            <h3 className="member-record-section-title">
+              Level 3: Detailed Information
+            </h3>
 
             <div className="member-record-field">
               <label>Income</label>
@@ -357,7 +395,7 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
                 onChange={(e) => handleChange('englishFluency', e.target.value)}
                 className="member-record-input"
               >
-                <option value="">Select...</option>
+                <option value="">Select</option>
                 <option value="Fluent">Fluent</option>
                 <option value="Intermediate">Intermediate</option>
                 <option value="Basic">Basic</option>
@@ -372,7 +410,7 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
                 onChange={(e) => handleChange('eslInterest', e.target.value)}
                 className="member-record-input"
               >
-                <option value="">Select...</option>
+                <option value="">Select</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
                 <option value="Maybe">Maybe</option>
@@ -384,20 +422,33 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <input
                 type="text"
                 value={record.immigrationStatus}
-                onChange={(e) => handleChange('immigrationStatus', e.target.value)}
+                onChange={(e) =>
+                  handleChange('immigrationStatus', e.target.value)
+                }
                 className="member-record-input"
               />
             </div>
 
             <div className="member-record-field">
-              <label>Are You Using Any Government Programs for Assistance?</label>
+              <label>
+                Are You Using Any Government Programs for Assistance?
+              </label>
               <div className="member-record-checkbox-group">
-                {['Food assistance', 'Housing assistance', 'Medical insurance', 'Other'].map((option) => (
+                {[
+                  'Food assistance',
+                  'Housing assistance',
+                  'Medical insurance',
+                  'Other',
+                ].map((option) => (
                   <label key={option} className="member-record-checkbox-label">
                     <input
                       type="checkbox"
-                      checked={(record.governmentPrograms || []).includes(option)}
-                      onChange={() => handleMultiSelectChange('governmentPrograms', option)}
+                      checked={(record.governmentPrograms || []).includes(
+                        option
+                      )}
+                      onChange={() =>
+                        handleMultiSelectChange('governmentPrograms', option)
+                      }
                     />
                     {option}
                   </label>
@@ -409,10 +460,12 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <label>Do You Have Medical Insurance?</label>
               <select
                 value={record.hasMedicalInsurance}
-                onChange={(e) => handleChange('hasMedicalInsurance', e.target.value)}
+                onChange={(e) =>
+                  handleChange('hasMedicalInsurance', e.target.value)
+                }
                 className="member-record-input"
               >
-                <option value="">Select...</option>
+                <option value="">Select</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
@@ -429,13 +482,15 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
             </div>
 
             <div className="member-record-field">
-              <label>Have You Been a Victim of Crime in Your Neighborhood?</label>
+              <label>
+                Have You Been a Victim of Crime in Your Neighborhood?
+              </label>
               <select
                 value={record.crimeVictim}
                 onChange={(e) => handleChange('crimeVictim', e.target.value)}
                 className="member-record-input"
               >
-                <option value="">Select...</option>
+                <option value="">Select</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
                 <option value="Prefer not to say">Prefer not to say</option>
@@ -449,7 +504,7 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
                 onChange={(e) => handleChange('buyOnCredit', e.target.value)}
                 className="member-record-input"
               >
-                <option value="">Select...</option>
+                <option value="">Select</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
                 <option value="Sometimes">Sometimes</option>
@@ -460,10 +515,12 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <label>Are You Late Paying Bills?</label>
               <select
                 value={record.latePayingBills}
-                onChange={(e) => handleChange('latePayingBills', e.target.value)}
+                onChange={(e) =>
+                  handleChange('latePayingBills', e.target.value)
+                }
                 className="member-record-input"
               >
-                <option value="">Select...</option>
+                <option value="">Select</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
                 <option value="Sometimes">Sometimes</option>
@@ -474,10 +531,12 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <label>Do You Have Savings for Emergencies?</label>
               <select
                 value={record.emergencySavings}
-                onChange={(e) => handleChange('emergencySavings', e.target.value)}
+                onChange={(e) =>
+                  handleChange('emergencySavings', e.target.value)
+                }
                 className="member-record-input"
               >
-                <option value="">Select...</option>
+                <option value="">Select</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
                 <option value="Some">Some</option>
@@ -488,10 +547,12 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
               <label>How Satisfied Are You With Your Job/Where You Work?</label>
               <select
                 value={record.jobSatisfaction}
-                onChange={(e) => handleChange('jobSatisfaction', e.target.value)}
+                onChange={(e) =>
+                  handleChange('jobSatisfaction', e.target.value)
+                }
                 className="member-record-input"
               >
-                <option value="">Select...</option>
+                <option value="">Select</option>
                 <option value="Very satisfied">Very satisfied</option>
                 <option value="Satisfied">Satisfied</option>
                 <option value="Neutral">Neutral</option>
@@ -504,7 +565,9 @@ export default function MemberRecord({ person, buildingId, unitNumber, onClose }
 
           {/* Messages */}
           {error && <div className="member-record-error">{error}</div>}
-          {successMessage && <div className="member-record-success">{successMessage}</div>}
+          {successMessage && (
+            <div className="member-record-success">{successMessage}</div>
+          )}
 
           {/* Actions */}
           <div className="member-record-actions">

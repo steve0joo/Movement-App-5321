@@ -16,6 +16,7 @@ import {
   orderBy,
   limit,
   serverTimestamp,
+  increment,
 } from 'firebase/firestore';
 import { db } from './firebase.js';
 import {
@@ -26,6 +27,7 @@ import {
   sanitizeString,
   ValidationError,
 } from '../utils/validation.js';
+import { handleOfflineWrite } from '../utils/offlineErrorHandler.js';
 
 const BUILDINGS_COLLECTION = 'buildings';
 const VISITS_SUBCOLLECTION = 'visits';
@@ -43,72 +45,90 @@ const VISITS_SUBCOLLECTION = 'visits';
  * @returns {Promise<Object>} Created building with ID
  */
 export async function createBuilding(buildingData, createdBy) {
+  // Validate and sanitize inputs first (before any async operations)
+  const sanitizedName = validateName(buildingData.name, {
+    required: true,
+    minLength: 1,
+    maxLength: 100,
+    fieldName: 'Building name',
+  });
+
+  const sanitizedAddress = buildingData.address
+    ? validateText(buildingData.address, {
+        required: false,
+        maxLength: 500,
+        fieldName: 'Building address',
+      }) || ''
+    : '';
+
+  const sanitizedUnits = (buildingData.units || [])
+    .map((unit) => {
+      return sanitizeString(unit, {
+        maxLength: 20,
+        allowEmpty: false,
+      });
+    })
+    .filter((unit) => unit !== null && unit !== '');
+
+  // Generate temporary ID for offline optimistic response
+  const tempId = `temp_building_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+  const optimisticData = {
+    id: tempId,
+    name: sanitizedName,
+    address: sanitizedAddress,
+    routeId: buildingData.routeId || null,
+    communityId: buildingData.communityId,
+    teamId: buildingData.teamId,
+    units: sanitizedUnits,
+    createdBy,
+    createdAt: new Date(),
+    lastVisitDate: null,
+    visitCount: 0,
+    isActive: true,
+  };
+
   try {
-    // Validate and sanitize the building name
-    const sanitizedName = validateName(buildingData.name, {
-      required: true,
-      minLength: 1,
-      maxLength: 100,
-      fieldName: 'Building name',
-    });
-
-    // Validate and sanitize the address (optional)
-    const sanitizedAddress = buildingData.address
-      ? validateText(buildingData.address, {
-          required: false,
-          maxLength: 500,
-          fieldName: 'Building address',
-        }) || ''
-      : '';
-
-    // Validate the units array if provided
-    const sanitizedUnits = (buildingData.units || [])
-      .map((unit) => {
-        return sanitizeString(unit, {
-          maxLength: 20,
-          allowEmpty: false,
-        });
-      })
-      .filter((unit) => unit !== null && unit !== '');
-
-    // Check for duplicate building name within the same community
-    const duplicateQuery = query(
-      collection(db, BUILDINGS_COLLECTION),
-      where('communityId', '==', buildingData.communityId),
-      where('name', '==', sanitizedName),
-      where('isActive', '==', true)
-    );
-    const duplicateSnapshot = await getDocs(duplicateQuery);
-
-    if (!duplicateSnapshot.empty) {
-      throw new Error(
-        `A building with the name "${sanitizedName}" already exists in this community`
+    return await handleOfflineWrite(async () => {
+      // Check for duplicate building name within the same community
+      const duplicateQuery = query(
+        collection(db, BUILDINGS_COLLECTION),
+        where('communityId', '==', buildingData.communityId),
+        where('name', '==', sanitizedName),
+        where('isActive', '==', true)
       );
-    }
+      const duplicateSnapshot = await getDocs(duplicateQuery);
 
-    const buildingRef = await addDoc(collection(db, BUILDINGS_COLLECTION), {
-      name: sanitizedName,
-      address: sanitizedAddress,
-      routeId: buildingData.routeId,
-      communityId: buildingData.communityId,
-      teamId: buildingData.teamId,
-      units: sanitizedUnits,
-      createdBy,
-      createdAt: serverTimestamp(),
-      lastVisitDate: null,
-      visitCount: 0,
-      isActive: true,
-    });
+      if (!duplicateSnapshot.empty) {
+        throw new Error(
+          `A building with the name "${sanitizedName}" already exists in this community`
+        );
+      }
 
-    return {
-      id: buildingRef.id,
-      name: sanitizedName,
-      address: sanitizedAddress,
-      routeId: buildingData.routeId,
-      communityId: buildingData.communityId,
-      teamId: buildingData.teamId,
-      units: sanitizedUnits,
-    };
+      const buildingRef = await addDoc(collection(db, BUILDINGS_COLLECTION), {
+        name: sanitizedName,
+        address: sanitizedAddress,
+        routeId: buildingData.routeId || null,
+        communityId: buildingData.communityId,
+        teamId: buildingData.teamId,
+        units: sanitizedUnits,
+        createdBy,
+        createdAt: serverTimestamp(),
+        lastVisitDate: null,
+        visitCount: 0,
+        isActive: true,
+      });
+
+      return {
+        id: buildingRef.id,
+        name: sanitizedName,
+        address: sanitizedAddress,
+        routeId: buildingData.routeId || null,
+        communityId: buildingData.communityId,
+        teamId: buildingData.teamId,
+        units: sanitizedUnits,
+      };
+    }, optimisticData);
   } catch (error) {
     console.error('Error creating building:', error);
     if (error instanceof ValidationError) {
@@ -233,17 +253,141 @@ export async function getBuildingsByCommunity(communityId) {
  * Update building information
  * @param {string} buildingId - Building ID
  * @param {Object} updates - Fields to update
+ * @param {string} updates.name - Building name (optional)
+ * @param {string} updates.address - Building address (optional)
+ * @param {string} updates.routeId - Route ID (optional)
+ * @param {string} updates.communityId - Community ID (optional)
+ * @param {string} updates.teamId - Team ID (optional)
+ * @param {Array<string>} updates.units - Array of unit numbers (optional)
  * @returns {Promise<void>}
  */
 export async function updateBuilding(buildingId, updates) {
   try {
+    // Define allowed fields for update
+    const allowedFields = [
+      'name',
+      'address',
+      'routeId',
+      'communityId',
+      'teamId',
+      'units',
+      'isActive',
+    ];
+
+    // Protected fields that should not be updated directly
+    const protectedFields = [
+      'createdBy',
+      'createdAt',
+      'updatedAt',
+      'visitCount',
+      'lastVisitDate',
+    ];
+
+    // Check for protected fields
+    const protectedFieldsInUpdate = Object.keys(updates).filter((key) =>
+      protectedFields.includes(key)
+    );
+
+    if (protectedFieldsInUpdate.length > 0) {
+      throw new Error(
+        `Cannot update protected fields: ${protectedFieldsInUpdate.join(', ')}`
+      );
+    }
+
+    // Filter to only allowed fields
+    const filteredUpdates = {};
+
+    // Validate and sanitize each field
+    for (const [key, value] of Object.entries(updates)) {
+      if (!allowedFields.includes(key)) {
+        console.warn(`Ignoring unknown field in building update: ${key}`);
+        continue;
+      }
+
+      switch (key) {
+        case 'name':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.name = validateName(value, {
+              required: true,
+              minLength: 1,
+              maxLength: 100,
+              fieldName: 'Building name',
+            });
+          }
+          break;
+
+        case 'address':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.address =
+              validateText(value, {
+                required: false,
+                maxLength: 500,
+                fieldName: 'Building address',
+              }) || '';
+          }
+          break;
+
+        case 'routeId':
+          if (value !== undefined) {
+            // Allow null for routeId (buildings without routes)
+            filteredUpdates.routeId = value === null ? null : String(value);
+          }
+          break;
+
+        case 'communityId':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.communityId = String(value);
+          }
+          break;
+
+        case 'teamId':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.teamId = String(value);
+          }
+          break;
+
+        case 'units':
+          if (value !== undefined && value !== null) {
+            if (!Array.isArray(value)) {
+              throw new Error('Units must be an array');
+            }
+            filteredUpdates.units = value
+              .map((unit) =>
+                sanitizeString(unit, {
+                  maxLength: 20,
+                  allowEmpty: false,
+                })
+              )
+              .filter((unit) => unit !== null && unit !== '');
+          }
+          break;
+
+        case 'isActive':
+          if (value !== undefined && value !== null) {
+            filteredUpdates.isActive = Boolean(value);
+          }
+          break;
+
+        default:
+          console.warn(`Unhandled field in building update: ${key}`);
+      }
+    }
+
+    // Check if there are any valid updates
+    if (Object.keys(filteredUpdates).length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
     const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
     await updateDoc(buildingRef, {
-      ...updates,
+      ...filteredUpdates,
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
     console.error('Error updating building:', error);
+    if (error instanceof ValidationError) {
+      throw new Error(`Invalid building data: ${error.message}`);
+    }
     throw error;
   }
 }
@@ -279,12 +423,13 @@ export async function addUnit(buildingId, unitNumber) {
 /**
  * Hard delete a building and all its visits (PERMANENT)
  * WARNING: This permanently deletes the building document and all visit subcollections
+ * Uses batch operations for all-or-nothing deletion
  * @param {string} buildingId - Building ID
  * @returns {Promise<void>}
  */
 export async function deleteBuilding(buildingId) {
   try {
-    // First, delete all visits in the subcollection
+    // Get all visits in the subcollection
     const visitsRef = collection(
       db,
       BUILDINGS_COLLECTION,
@@ -293,24 +438,24 @@ export async function deleteBuilding(buildingId) {
     );
     const visitsSnapshot = await getDocs(visitsRef);
 
-    // Delete each visit document
-    const deletePromises = visitsSnapshot.docs.map((visitDoc) =>
-      deleteDoc(
-        doc(
-          db,
-          BUILDINGS_COLLECTION,
-          buildingId,
-          VISITS_SUBCOLLECTION,
-          visitDoc.id
-        )
-      )
-    );
+    // Collect all document references to delete
+    const docRefsToDelete = [];
 
-    await Promise.all(deletePromises);
+    // Add all visit document references
+    visitsSnapshot.docs.forEach((visitDoc) => {
+      docRefsToDelete.push(
+        doc(db, BUILDINGS_COLLECTION, buildingId, VISITS_SUBCOLLECTION, visitDoc.id)
+      );
+    });
 
-    // Then delete the building document itself
-    const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
-    await deleteDoc(buildingRef);
+    // Add the building document reference
+    docRefsToDelete.push(doc(db, BUILDINGS_COLLECTION, buildingId));
+
+    // Perform atomic batch delete
+    const { batchDelete } = await import('./batchHelpers.js');
+    const result = await batchDelete(docRefsToDelete);
+
+    console.log(`✅ Deleted building ${buildingId} with ${result.deletedCount - 1} visits using ${result.batchCount} batch(es)`);
   } catch (error) {
     console.error('Error deleting building:', error);
     throw error;
@@ -338,7 +483,7 @@ export async function deleteBuilding(buildingId) {
  * @param {string} createdBy - User ID of creator
  * @returns {Promise<Object>} Created visit with ID
  */
-export async function createVisit(buildingId, visitData, createdBy) {
+export async function createVisit(buildingId, visitData, createdBy, routeId = null) {
   try {
     // Validate that at least one person is provided
     if (!visitData.people || visitData.people.length === 0) {
@@ -413,7 +558,24 @@ export async function createVisit(buildingId, visitData, createdBy) {
     }
 
     const buildingData = buildingSnap.data();
-    const currentCount = buildingData?.visitCount || 0;
+
+    // Fetch parent entity names for denormalization (performance optimization)
+    // This prevents N+1 query problem when loading visit history
+    const { getRoute } = await import('./routeService.js');
+    const { getCommunity } = await import('./communityService.js');
+    const { getTeam } = await import('./teamService.js');
+
+    // Use routeId from FORM, not from building
+    // This ensures the visit uses the route selected in the form, not the building's stored route
+    const routeDataPromise = routeId
+      ? getRoute(routeId)
+      : Promise.resolve(null);
+
+    const [routeData, communityData, teamData] = await Promise.all([
+      routeDataPromise,
+      getCommunity(buildingData.communityId),
+      getTeam(buildingData.teamId),
+    ]);
 
     const visitsRef = collection(
       db,
@@ -425,8 +587,15 @@ export async function createVisit(buildingId, visitData, createdBy) {
     const visitRef = await addDoc(visitsRef, {
       buildingId, // Store parent building reference
       teamId: buildingData.teamId,
-      routeId: buildingData.routeId,
+      routeId: routeId || null, // Use form selection, not building's route
       communityId: buildingData.communityId,
+
+      // Denormalized names for performance (prevents N+1 queries in VisitHistory)
+      buildingName: buildingData.name || '',
+      routeName: routeData?.name || '',
+      communityName: communityData?.name || '',
+      teamName: teamData?.name || '',
+
       unitNumber,
       routeLeaderId: visitData.routeLeaderId || null,
       people: sanitizedPeople,
@@ -441,7 +610,7 @@ export async function createVisit(buildingId, visitData, createdBy) {
     // Update building's lastVisitDate and visitCount
     await updateDoc(buildingRef, {
       lastVisitDate: serverTimestamp(),
-      visitCount: currentCount + 1,
+      visitCount: increment(1),
     });
 
     return {
@@ -582,45 +751,38 @@ export async function deleteVisit(buildingId, visitId) {
     );
     await deleteDoc(visitRef);
 
-    // Decrement the building's visitCount and reset lastVisitDate if needed
+    // Decrement the building's visitCount and update lastVisitDate
     const buildingRef = doc(db, BUILDINGS_COLLECTION, buildingId);
-    const building = await getDoc(buildingRef);
-    const currentCount = building.data()?.visitCount || 0;
-    const newCount = Math.max(0, currentCount - 1);
 
-    // If this was the last visit, we need to reset lastVisitDate
-    if (newCount === 0) {
-      await updateDoc(buildingRef, {
-        visitCount: 0,
-        lastVisitDate: null, // Reset to null when no visits remain
-      });
+    // Check if there are any remaining visits after deletion
+    const visitsRef = collection(
+      db,
+      BUILDINGS_COLLECTION,
+      buildingId,
+      VISITS_SUBCOLLECTION
+    );
+    const visitsQuery = query(
+      visitsRef,
+      orderBy('visitDate', 'desc'),
+      limit(1)
+    );
+    const visitsSnapshot = await getDocs(visitsQuery);
+
+    // Prepare the update
+    const updateData = {
+      visitCount: increment(-1), // ✅ Decrement - no race condition
+    };
+
+    // If no visits remain, reset lastVisitDate to null
+    if (visitsSnapshot.empty) {
+      updateData.lastVisitDate = null;
     } else {
-      // If there are still visits, update the count and find the most recent visit date
-      const visitsRef = collection(
-        db,
-        BUILDINGS_COLLECTION,
-        buildingId,
-        VISITS_SUBCOLLECTION
-      );
-      const visitsQuery = query(
-        visitsRef,
-        orderBy('visitDate', 'desc'),
-        limit(1)
-      );
-      const visitsSnapshot = await getDocs(visitsQuery);
-
-      const updateData = {
-        visitCount: newCount,
-      };
-
       // Update lastVisitDate to the most recent remaining visit
-      if (!visitsSnapshot.empty) {
-        const mostRecentVisit = visitsSnapshot.docs[0].data();
-        updateData.lastVisitDate = mostRecentVisit.visitDate;
-      }
-
-      await updateDoc(buildingRef, updateData);
+      const mostRecentVisit = visitsSnapshot.docs[0].data();
+      updateData.lastVisitDate = mostRecentVisit.visitDate;
     }
+
+    await updateDoc(buildingRef, updateData);
   } catch (error) {
     console.error('Error deleting visit:', error);
     throw error;
@@ -630,48 +792,34 @@ export async function deleteVisit(buildingId, visitId) {
 // Helper Functions for Visit People
 
 /**
- * Extract the people from past visits at a specific unit
- * Merge information from multiple visits for the same person (matching by name)
+ * Extract the people from the most recent visit at a specific unit
+ * Return people from only the latest visit to reflect the current state
  * @param {string} buildingId
  * @param {string} unitNumber
- * @returns {Promise<Array<Object>>} Array of the people with merged data
+ * @returns {Promise<Array<Object>>} Array of people from the most recent visit
  */
 export async function getPastPeopleAtUnit(buildingId, unitNumber) {
   try {
     const visits = await getVisitsByUnit(buildingId, unitNumber);
 
-    // Extract all people from all visits
-    const allPeople = visits.flatMap((visit) => visit.people || []);
+    // If no visits, return empty array
+    if (visits.length === 0) {
+      return [];
+    }
 
-    // Group people by name (not case-sensitive)
-    const peopleMap = {};
+    // Visits are already sorted by visitDate (most recent first)
+    // Get people from the most recent visit only
+    const mostRecentVisit = visits[0];
+    const people = mostRecentVisit.people || [];
 
-    allPeople.forEach((person) => {
-      const normalizedName = person.name.toLowerCase().trim();
-
-      if (!peopleMap[normalizedName]) {
-        // First occurrence of this person
-        peopleMap[normalizedName] = {
-          name: person.name, // Keep original casing
-          age: person.age || null,
-          phone: person.phone || '',
-          followUp: person.followUp || '',
-          involvement: person.involvement || '',
-          visitCount: 1,
-        };
-      } else {
-        // If person already exists, merge data (prefer non-empty values)
-        const existing = peopleMap[normalizedName];
-        existing.age = existing.age || person.age || null;
-        existing.phone = existing.phone || person.phone || '';
-        existing.followUp = existing.followUp || person.followUp || '';
-        existing.involvement = existing.involvement || person.involvement || '';
-        existing.visitCount += 1;
-      }
-    });
-
-    // Convert the map to array and sort by visit count (most frequent first)
-    return Object.values(peopleMap).sort((a, b) => b.visitCount - a.visitCount);
+    // Return people with consistent structure (remove visitCount since we're not merging)
+    return people.map((person) => ({
+      name: person.name,
+      age: person.age || null,
+      phone: person.phone || '',
+      followUp: person.followUp || '',
+      involvement: person.involvement || '',
+    }));
   } catch (error) {
     console.error('Error getting past people at unit:', error);
     throw error;

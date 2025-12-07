@@ -2,25 +2,21 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getAllTeams } from '../../services/teamService';
 import { getCommunitiesByTeam } from '../../services/communityService';
-import { getRoutesByCommunity } from '../../services/routeService';
 import '../../pages/AdminStyles.css';
-import { getBuildingsByRoute, updateBuilding, deleteBuilding } from '../../services/buildingService';
+import { getBuildingsByCommunity, updateBuilding, deleteBuilding } from '../../services/buildingService';
 
 export default function BuildingManagementTab() {
-  const { currentUser, role, teamId: userTeamId, routeId: userRouteId } = useAuth();
+  const { role, teamId: userTeamId } = useAuth();
 
   // Permissions
   const isSuperAdmin = role === 'super_admin';
   const isTeamAdmin = role === 'team_admin';
-  const isRouteLeader = role === 'route_leader';
 
   // Filter state
   const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState(userTeamId || '');
   const [communities, setCommunities] = useState([]);
   const [selectedCommunityId, setSelectedCommunityId] = useState('');
-  const [routes, setRoutes] = useState([]);
-  const [selectedRouteId, setSelectedRouteId] = useState(userRouteId || '');
 
   // Buildings state
   const [buildings, setBuildings] = useState([]);
@@ -56,31 +52,18 @@ export default function BuildingManagementTab() {
     } else {
       setCommunities([]);
       setSelectedCommunityId('');
-      setRoutes([]);
-      setSelectedRouteId('');
       setBuildings([]);
     }
   }, [selectedTeamId]);
 
-  // Load routes when community changes
+  // Load buildings when community changes
   useEffect(() => {
     if (selectedCommunityId) {
-      loadRoutes(selectedCommunityId);
+      loadBuildings();
     } else {
-      setRoutes([]);
-      setSelectedRouteId('');
       setBuildings([]);
     }
   }, [selectedCommunityId]);
-
-  // Load buildings when route changes
-  useEffect(() => {
-    if (selectedRouteId) {
-      loadBuildings(selectedRouteId);
-    } else {
-      setBuildings([]);
-    }
-  }, [selectedRouteId]);
 
   async function loadTeams() {
     try {
@@ -102,22 +85,17 @@ export default function BuildingManagementTab() {
     }
   }
 
-  async function loadRoutes(communityId) {
-    try {
-      const communityRoutes = await getRoutesByCommunity(communityId);
-      setRoutes(communityRoutes);
-    } catch (err) {
-      console.error('Error loading routes:', err);
-      setError('Failed to load routes');
-    }
-  }
-
-  async function loadBuildings(routeId) {
+  async function loadBuildings() {
     try {
       setLoading(true);
       setError('');
-      const routeBuildings = await getBuildingsByRoute(routeId);
-      setBuildings(routeBuildings);
+
+      // Get all buildings in the selected community
+      const buildingsData = selectedCommunityId
+        ? await getBuildingsByCommunity(selectedCommunityId)
+        : [];
+
+      setBuildings(buildingsData);
     } catch (err) {
       console.error('Error loading buildings:', err);
       setError('Failed to load buildings');
@@ -178,7 +156,7 @@ export default function BuildingManagementTab() {
       setShowEditModal(false);
       setEditingBuilding(null);
 
-      await loadBuildings(selectedRouteId);
+      await loadBuildings();
 
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -207,7 +185,7 @@ export default function BuildingManagementTab() {
       setShowDeleteModal(false);
       setDeletingBuilding(null);
 
-      await loadBuildings(selectedRouteId);
+      await loadBuildings();
 
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -279,30 +257,6 @@ export default function BuildingManagementTab() {
             </select>
           </div>
         )}
-
-        {/* Route Dropdown */}
-        {selectedCommunityId && !isRouteLeader && (
-          <div className="form-group">
-            <label>Route</label>
-            <select
-              value={selectedRouteId}
-              onChange={(e) => setSelectedRouteId(e.target.value)}
-              disabled={routes.length === 0}
-            >
-              <option value="">Select a route...</option>
-              {routes.map(route => (
-                <option key={route.id} value={route.id}>{route.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Route Leaders see their assigned route automatically */}
-        {isRouteLeader && userRouteId && (
-          <div style={{ padding: '12px', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
-            <strong>Your Route:</strong> {routes.find(r => r.id === userRouteId)?.name || 'Loading...'}
-          </div>
-        )}
       </div>
 
       {/* Buildings List */}
@@ -310,13 +264,13 @@ export default function BuildingManagementTab() {
         <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
           Loading buildings...
         </div>
-      ) : !selectedRouteId ? (
+      ) : !selectedCommunityId ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-          Please select a route to view buildings.
+          Please select a community to view buildings.
         </div>
       ) : buildings.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-          No buildings found in this route.
+          No buildings found in this community.
         </div>
       ) : (
         <div className="user-list">

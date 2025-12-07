@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { validateName, ValidationError } from '../utils/validation.js';
+import { handleOfflineWrite } from '../utils/offlineErrorHandler.js';
 
 const ROUTES_COLLECTION = 'routes';
 
@@ -36,47 +37,63 @@ export async function createRoute(
   createdBy,
   routeLeaderId = null
 ) {
+  // Validate and sanitize the route name first (before any async operations)
+  const sanitizedName = validateName(routeName, {
+    required: true,
+    minLength: 1,
+    maxLength: 100,
+    fieldName: 'Route name',
+  });
+
+  // Generate temporary ID for offline optimistic response
+  const tempId = `temp_route_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+  const optimisticData = {
+    id: tempId,
+    name: sanitizedName,
+    communityId,
+    teamId,
+    routeLeaderId,
+    createdBy,
+    createdAt: new Date(),
+    isActive: true,
+  };
+
   try {
-    // Validate and sanitize the route name
-    const sanitizedName = validateName(routeName, {
-      required: true,
-      minLength: 1,
-      maxLength: 100,
-      fieldName: 'Route name',
-    });
-
-    // Check for the duplicated route name within the same community
-    const duplicateQuery = query(
-      collection(db, ROUTES_COLLECTION),
-      where('communityId', '==', communityId),
-      where('name', '==', sanitizedName),
-      where('isActive', '==', true)
-    );
-    const duplicateSnapshot = await getDocs(duplicateQuery);
-
-    if (!duplicateSnapshot.empty) {
-      throw new Error(
-        `A route with the name "${sanitizedName}" already exists in this community`
+    return await handleOfflineWrite(async () => {
+      // Check for duplicate route name within the same community
+      const duplicateQuery = query(
+        collection(db, ROUTES_COLLECTION),
+        where('communityId', '==', communityId),
+        where('name', '==', sanitizedName),
+        where('isActive', '==', true)
       );
-    }
+      const duplicateSnapshot = await getDocs(duplicateQuery);
 
-    const routeRef = await addDoc(collection(db, ROUTES_COLLECTION), {
-      name: sanitizedName,
-      communityId,
-      teamId,
-      routeLeaderId,
-      createdBy,
-      createdAt: serverTimestamp(),
-      isActive: true,
-    });
+      if (!duplicateSnapshot.empty) {
+        throw new Error(
+          `A route with the name "${sanitizedName}" already exists in this community`
+        );
+      }
 
-    return {
-      id: routeRef.id,
-      name: sanitizedName,
-      communityId,
-      teamId,
-      routeLeaderId,
-    };
+      const routeRef = await addDoc(collection(db, ROUTES_COLLECTION), {
+        name: sanitizedName,
+        communityId,
+        teamId,
+        routeLeaderId,
+        createdBy,
+        createdAt: serverTimestamp(),
+        isActive: true,
+      });
+
+      return {
+        id: routeRef.id,
+        name: sanitizedName,
+        communityId,
+        teamId,
+        routeLeaderId,
+      };
+    }, optimisticData);
   } catch (error) {
     console.error('Error creating route:', error);
     if (error instanceof ValidationError) {
@@ -290,7 +307,8 @@ export async function assignRouteLeader(routeId, routeLeaderId) {
  * - The route itself
  * - All buildings in the route
  * - Updates any route leaders assigned to this route (sets their routeId to null)
- * - Preserves visits (they will remain as historical records)
+ * - All visits in those buildings (hard delete with batch operations)
+ * Uses batch operations for all-or-nothing deletion
  * @param {string} routeId - Route ID
  * @param {boolean} skipCascade - If true, only delete the route without cascading (default: false)
  * @returns {Promise<void>}
@@ -309,34 +327,64 @@ export async function deleteRoute(routeId, skipCascade = false) {
     const routeLeaderId = routeData.routeLeaderId;
 
     if (!skipCascade) {
-      // Import building service to handle cascade
-      const { getBuildingsByRoute, deleteBuilding } = await import(
-        './buildingService.js'
-      );
+      // Import building service and batch helpers
+      const { getBuildingsByRoute } = await import('./buildingService.js');
+      const { batchUpdate, batchDelete } = await import('./batchHelpers.js');
 
       // Get all buildings in this route
       const buildings = await getBuildingsByRoute(routeId);
 
-      // Soft delete each building (buildings handle their own visit cascade)
-      const deletePromises = buildings.map(
-        (building) => deleteBuilding(building.id) // This already handles visits
-      );
+      if (buildings.length > 0) {
+        // Collect all document references to delete (buildings + their visits)
+        const docRefsToDelete = [];
+        const BUILDINGS_COLLECTION = 'buildings';
+        const VISITS_SUBCOLLECTION = 'visits';
 
-      await Promise.all(deletePromises);
+        // For each building, get its visits and add all refs to delete list
+        for (const building of buildings) {
+          // Get visits for this building
+          const visitsRef = collection(
+            db,
+            BUILDINGS_COLLECTION,
+            building.id,
+            VISITS_SUBCOLLECTION
+          );
+          const visitsSnapshot = await getDocs(visitsRef);
 
-      console.log(
-        `Cascade deleted ${buildings.length} buildings from route ${routeId}`
-      );
+          // Add all visit document references
+          visitsSnapshot.docs.forEach((visitDoc) => {
+            docRefsToDelete.push(
+              doc(db, BUILDINGS_COLLECTION, building.id, VISITS_SUBCOLLECTION, visitDoc.id)
+            );
+          });
+
+          // Add the building document reference
+          docRefsToDelete.push(doc(db, BUILDINGS_COLLECTION, building.id));
+        }
+
+        // Perform batch delete for all buildings and visits
+        const deleteResult = await batchDelete(docRefsToDelete);
+
+        console.log(
+          `✅ Cascade deleted ${buildings.length} buildings with ${deleteResult.deletedCount - buildings.length} visits from route ${routeId} using ${deleteResult.batchCount} batch(es)`
+        );
+      }
 
       // Clear the route assignment from the route leader's user profile
       if (routeLeaderId) {
-        const userRef = doc(db, 'users', routeLeaderId);
-        await updateDoc(userRef, {
-          routeId: null,
-          updatedAt: serverTimestamp(),
-        });
+        const updates = [
+          {
+            ref: doc(db, 'users', routeLeaderId),
+            data: {
+              routeId: null,
+              updatedAt: serverTimestamp(),
+            },
+          },
+        ];
+
+        await batchUpdate(updates);
         console.log(
-          `Cleared route assignment for route leader ${routeLeaderId}`
+          `✅ Cleared route assignment for route leader ${routeLeaderId}`
         );
       }
     }

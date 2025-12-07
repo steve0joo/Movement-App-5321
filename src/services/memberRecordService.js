@@ -10,6 +10,11 @@ import {
   updateDoc,
   serverTimestamp,
 } from 'firebase/firestore';
+import {
+  handleOfflineRead,
+  handleOfflineWrite,
+  handleOfflineQuery,
+} from '../utils/offlineErrorHandler';
 
 /**
  * Member Record Service
@@ -32,16 +37,9 @@ export async function getMemberRecord(personName, buildingId, unitNumber) {
   const recordId = `${buildingId}_${unitNumber}_${personName
     .toLowerCase()
     .replace(/\s+/g, '_')}`;
-  const recordRef = doc(db, 'memberRecords', recordId);
 
-  const recordSnap = await getDoc(recordRef);
-
-  if (recordSnap.exists()) {
-    return { id: recordSnap.id, ...recordSnap.data() };
-  }
-
-  // Return the empty record structure if doesn't exist
-  return {
+  // Default empty record structure
+  const emptyRecord = {
     id: recordId,
     personName,
     buildingId,
@@ -88,6 +86,17 @@ export async function getMemberRecord(personName, buildingId, unitNumber) {
     createdAt: null,
     updatedAt: null,
   };
+
+  return handleOfflineRead(async () => {
+    const recordRef = doc(db, 'memberRecords', recordId);
+    const recordSnap = await getDoc(recordRef);
+
+    if (recordSnap.exists()) {
+      return { id: recordSnap.id, ...recordSnap.data() };
+    }
+
+    return emptyRecord;
+  }, emptyRecord);
 }
 
 /**
@@ -102,31 +111,40 @@ export async function saveMemberRecord(recordId, data, userId) {
     throw new Error('Record ID is required');
   }
 
-  const recordRef = doc(db, 'memberRecords', recordId);
-  const recordSnap = await getDoc(recordRef);
+  const optimisticData = {
+    id: recordId,
+    ...data,
+    updatedAt: new Date(),
+    updatedBy: userId,
+  };
 
-  const now = serverTimestamp();
+  return handleOfflineWrite(async () => {
+    const recordRef = doc(db, 'memberRecords', recordId);
+    const recordSnap = await getDoc(recordRef);
 
-  if (recordSnap.exists()) {
-    // Update existing record
-    await updateDoc(recordRef, {
-      ...data,
-      updatedAt: now,
-      updatedBy: userId,
-    });
-  } else {
-    // Create new record
-    await setDoc(recordRef, {
-      ...data,
-      createdAt: now,
-      createdBy: userId,
-      updatedAt: now,
-      updatedBy: userId,
-    });
-  }
+    const now = serverTimestamp();
 
-  const updatedSnap = await getDoc(recordRef);
-  return { id: updatedSnap.id, ...updatedSnap.data() };
+    if (recordSnap.exists()) {
+      // Update existing record
+      await updateDoc(recordRef, {
+        ...data,
+        updatedAt: now,
+        updatedBy: userId,
+      });
+    } else {
+      // Create new record
+      await setDoc(recordRef, {
+        ...data,
+        createdAt: now,
+        createdBy: userId,
+        updatedAt: now,
+        updatedBy: userId,
+      });
+    }
+
+    const updatedSnap = await getDoc(recordRef);
+    return { id: updatedSnap.id, ...updatedSnap.data() };
+  }, optimisticData);
 }
 
 /**
@@ -140,21 +158,23 @@ export async function getMemberRecordsByUnit(buildingId, unitNumber) {
     throw new Error('Building ID and unit number are required');
   }
 
-  const recordsRef = collection(db, 'memberRecords');
-  const q = query(
-    recordsRef,
-    where('buildingId', '==', buildingId),
-    where('unitNumber', '==', unitNumber)
-  );
+  return handleOfflineQuery(async () => {
+    const recordsRef = collection(db, 'memberRecords');
+    const q = query(
+      recordsRef,
+      where('buildingId', '==', buildingId),
+      where('unitNumber', '==', unitNumber)
+    );
 
-  const querySnapshot = await getDocs(q);
-  const records = [];
+    const querySnapshot = await getDocs(q);
+    const records = [];
 
-  querySnapshot.forEach((doc) => {
-    records.push({ id: doc.id, ...doc.data() });
+    querySnapshot.forEach((doc) => {
+      records.push({ id: doc.id, ...doc.data() });
+    });
+
+    return records;
   });
-
-  return records;
 }
 
 /**
@@ -167,15 +187,17 @@ export async function getMemberRecordsByBuilding(buildingId) {
     throw new Error('Building ID is required');
   }
 
-  const recordsRef = collection(db, 'memberRecords');
-  const q = query(recordsRef, where('buildingId', '==', buildingId));
+  return handleOfflineQuery(async () => {
+    const recordsRef = collection(db, 'memberRecords');
+    const q = query(recordsRef, where('buildingId', '==', buildingId));
 
-  const querySnapshot = await getDocs(q);
-  const records = [];
+    const querySnapshot = await getDocs(q);
+    const records = [];
 
-  querySnapshot.forEach((doc) => {
-    records.push({ id: doc.id, ...doc.data() });
+    querySnapshot.forEach((doc) => {
+      records.push({ id: doc.id, ...doc.data() });
+    });
+
+    return records;
   });
-
-  return records;
 }

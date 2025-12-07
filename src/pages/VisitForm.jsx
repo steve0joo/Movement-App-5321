@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
@@ -30,8 +30,12 @@ import {
   getCommunitiesByTeam,
   createCommunity,
 } from '../services/communityService';
-import { getRoutesByCommunity, createRoute } from '../services/routeService';
-import { getBuildingsByRoute } from '../services/buildingService';
+import { getBuildingsByCommunity } from '../services/buildingService';
+import {
+  getFollowUpsByTeam,
+  getInvolvementsByTeam,
+} from '../services/communityInvolvementService';
+import { getAllRouteLeaders } from '../services/userService';
 import './header.css';
 import './VisitForm.css';
 import logoHome from '../assets/logo-home-button.png';
@@ -75,6 +79,19 @@ const IconTrash = (p) => (
   </svg>
 );
 
+const IconClipboard = (p) => (
+  <svg viewBox="0 0 24 24" {...p}>
+    <path
+      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+      stroke="currentColor"
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export default function VisitForm({ onClose, onSaved }) {
   const {
     currentUser,
@@ -93,9 +110,9 @@ export default function VisitForm({ onClose, onSaved }) {
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [communityName, setCommunityName] = useState('');
 
-  // Route (not shown in screenshot, but needed for data hierarchy)
-  const [selectedRoute, setSelectedRoute] = useState(null);
-  const [routeName, setRouteName] = useState('');
+  // Route Leader (replaces Route)
+  const [routeLeaders, setRouteLeaders] = useState([]);
+  const [selectedRouteLeader, setSelectedRouteLeader] = useState(null);
 
   // Building
   const [selectedBuilding, setSelectedBuilding] = useState(null);
@@ -103,9 +120,11 @@ export default function VisitForm({ onClose, onSaved }) {
 
   // Unit
   const [unitNumber, setUnitNumber] = useState('');
-
-  const [routeLeader, setRouteLeader] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Follow-up and involvement options
+  const [followUpOptions, setFollowUpOptions] = useState([]);
+  const [involvementOptions, setInvolvementOptions] = useState([]);
 
   // People table state
   const [people, setPeople] = useState([
@@ -158,6 +177,52 @@ export default function VisitForm({ onClose, onSaved }) {
     loadTeams();
   }, [role, userTeamId, isOnline, currentUser]);
 
+  // Load follow-up and involvement options when team changes
+  useEffect(() => {
+    async function loadOptions() {
+      if (!teamId) {
+        setFollowUpOptions([]);
+        setInvolvementOptions([]);
+        return;
+      }
+
+      try {
+        const [followUps, involvements] = await Promise.all([
+          getFollowUpsByTeam(teamId),
+          getInvolvementsByTeam(teamId),
+        ]);
+        setFollowUpOptions(followUps);
+        setInvolvementOptions(involvements);
+      } catch (err) {
+        console.error('Error loading follow-up/involvement options:', err);
+      }
+    }
+    loadOptions();
+  }, [teamId]);
+
+  // Load route leaders when team changes
+  useEffect(() => {
+    async function loadRouteLeaders() {
+      if (!teamId) {
+        setRouteLeaders([]);
+        setSelectedRouteLeader(null);
+        return;
+      }
+
+      try {
+        const allLeaders = await getAllRouteLeaders();
+        // Filter to only route leaders in the selected team
+        const teamLeaders = allLeaders.filter(
+          (leader) => leader.teamId === teamId
+        );
+        setRouteLeaders(teamLeaders);
+      } catch (err) {
+        console.error('Error loading route leaders:', err);
+      }
+    }
+    loadRouteLeaders();
+  }, [teamId]);
+
   // Note: Form is always empty on load (both online and offline)
   // Cached data is only used to speed up the autocomplete suggestions when offline
   // Users must manually type to search and select from suggestions
@@ -205,225 +270,286 @@ export default function VisitForm({ onClose, onSaved }) {
     loadPastPeople();
   }, [selectedBuilding, unitNumber]);
 
-  // Auto-fill route leader
-  useEffect(() => {
-    if (role === 'route_leader' && currentUser) {
-      setRouteLeader(
-        currentUser.displayName || currentUser.email || 'Route Leader'
-      );
-    }
-  }, [role, currentUser]);
-
   // Fetch functions for Autocomplete with cache-first optimization
   // Use preferCache when offline for instant response
-  async function fetchCommunities(searchTerm) {
-    if (!teamId) return [];
+  const fetchCommunities = useCallback(
+    async (searchTerm) => {
+      if (!teamId) return [];
 
-    try {
-      const communities = await getCommunitiesByTeam(teamId, !isOnline);
+      try {
+        const communities = await getCommunitiesByTeam(teamId, !isOnline);
 
-      // Filter out any invalid entries (null, undefined, false, etc.)
-      const validCommunities = (communities || []).filter(c => c && c.id && c.name);
+        // Filter out any invalid entries (null, undefined, false, etc.)
+        const validCommunities = (communities || []).filter(
+          (c) => c && c.id && c.name
+        );
 
-      console.log('📦 Fetched communities:', {
-        count: validCommunities.length,
-        offline: !isOnline,
-        teamId,
-        sample: validCommunities[0]
-      });
+        console.log('📦 Fetched communities:', {
+          count: validCommunities.length,
+          offline: !isOnline,
+          teamId,
+          sample: validCommunities[0],
+        });
 
-      if (!searchTerm) return validCommunities;
+        if (!searchTerm) return validCommunities;
 
-      const lowerSearch = searchTerm.toLowerCase();
-      return validCommunities.filter((c) =>
-        c.name.toLowerCase().includes(lowerSearch)
-      );
-    } catch (err) {
-      console.error('❌ Error fetching communities:', err);
-      return [];
-    }
-  }
+        const lowerSearch = searchTerm.toLowerCase();
+        return validCommunities.filter((c) =>
+          c.name.toLowerCase().includes(lowerSearch)
+        );
+      } catch (err) {
+        console.error('❌ Error fetching communities:', err);
+        return [];
+      }
+    },
+    [teamId, isOnline]
+  );
 
-  async function fetchRoutes(searchTerm) {
-    if (!selectedCommunity?.id) return [];
+  const fetchBuildings = useCallback(
+    async (searchTerm) => {
+      if (!selectedCommunity?.id) {
+        console.log('fetchBuildings: No community selected');
+        return [];
+      }
 
-    try {
-      const routes = await getRoutesByCommunity(selectedCommunity.id, !isOnline);
+      try {
+        console.log(
+          'fetchBuildings: Fetching buildings for community',
+          selectedCommunity.id
+        );
 
-      // Filter out any invalid entries
-      const validRoutes = (routes || []).filter(r => r && r.id && r.name);
+        // Fetch all buildings in the community
+        const buildings = await getBuildingsByCommunity(selectedCommunity.id);
 
-      console.log('📦 Fetched routes:', {
-        count: validRoutes.length,
-        offline: !isOnline,
-        communityId: selectedCommunity.id,
-        sample: validRoutes[0]
-      });
+        // Filter out any invalid entries
+        const validBuildings = (buildings || []).filter(
+          (b) => b && b.id && b.name
+        );
 
-      if (!searchTerm) return validRoutes;
+        console.log('📦 Fetched buildings:', {
+          count: validBuildings.length,
+          offline: !isOnline,
+          communityId: selectedCommunity.id,
+          sample: validBuildings[0],
+        });
 
-      const lowerSearch = searchTerm.toLowerCase();
-      return validRoutes.filter((r) => r.name.toLowerCase().includes(lowerSearch));
-    } catch (err) {
-      console.error('❌ Error fetching routes:', err);
-      return [];
-    }
-  }
+        if (!searchTerm) return validBuildings;
 
-  async function fetchBuildings(searchTerm) {
-    if (!selectedRoute?.id) {
-      console.log('fetchBuildings: No route selected');
-      return [];
-    }
-
-    try {
-      console.log(
-        'fetchBuildings: Fetching buildings for route',
-        selectedRoute.id,
-        selectedRoute.name
-      );
-      const buildings = await getBuildingsByRoute(selectedRoute.id, !isOnline);
-
-      // Filter out any invalid entries
-      const validBuildings = (buildings || []).filter(b => b && b.id && b.name);
-
-      console.log('📦 Fetched buildings:', {
-        count: validBuildings.length,
-        offline: !isOnline,
-        routeId: selectedRoute.id,
-        sample: validBuildings[0]
-      });
-
-      if (!searchTerm) return validBuildings;
-
-      const lowerSearch = searchTerm.toLowerCase();
-      const filtered = validBuildings.filter(
-        (b) =>
-          b.name.toLowerCase().includes(lowerSearch) ||
-          b.address?.toLowerCase().includes(lowerSearch)
-      );
-      console.log(
-        'fetchBuildings: Filtered to',
-        filtered.length,
-        'buildings matching',
-        searchTerm
-      );
-      return filtered;
-    } catch (err) {
-      console.error('❌ Error fetching buildings:', err);
-      return [];
-    }
-  }
+        const lowerSearch = searchTerm.toLowerCase();
+        const filtered = validBuildings.filter(
+          (b) =>
+            b.name.toLowerCase().includes(lowerSearch) ||
+            b.address?.toLowerCase().includes(lowerSearch)
+        );
+        console.log(
+          'fetchBuildings: Filtered to',
+          filtered.length,
+          'buildings matching',
+          searchTerm
+        );
+        return filtered;
+      } catch (err) {
+        console.error('❌ Error fetching buildings:', err);
+        return [];
+      }
+    },
+    [selectedCommunity?.id, isOnline]
+  );
 
   // Create functions for autocomplete with validations
-  async function createCommunityItem(name) {
-    try {
-      // Validate and sanitize community name
-      const sanitizedName = validateName(name, {
-        required: true,
-        minLength: 1,
-        maxLength: 100,
-        fieldName: 'Community name',
+  const createCommunityItem = useCallback(
+    async (name) => {
+      // Type check the name parameter first
+      console.log('🔍 createCommunityItem called with:', {
+        name,
+        type: typeof name,
       });
 
-      const newCommunity = await createCommunity(
-        sanitizedName,
-        teamId,
-        currentUser.uid
-      );
-      return newCommunity;
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        throw new Error(`Invalid community name: ${err.message}`);
+      if (!name || typeof name !== 'string') {
+        console.error('❌ Invalid name parameter type:', {
+          name,
+          type: typeof name,
+        });
+        throw new Error(`Invalid input: Expected string, got ${typeof name}`);
       }
-      throw err;
-    }
-  }
 
-  async function createRouteItem(name) {
-    if (!selectedCommunity?.id) {
-      throw new Error('Please select a community first');
-    }
+      // Validate ALL parameters before creating (especially important offline!)
+      if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
+        throw new Error('Team ID is required to create a community');
+      }
+      if (
+        !currentUser?.uid ||
+        typeof currentUser.uid !== 'string' ||
+        currentUser.uid.trim() === ''
+      ) {
+        throw new Error(
+          'User authentication is required to create a community'
+        );
+      }
 
-    try {
-      // Validate and sanitize the route name
-      const sanitizedName = validateName(name, {
-        required: true,
-        minLength: 1,
-        maxLength: 100,
-        fieldName: 'Route name',
+      try {
+        // Validate and sanitize community name
+        const sanitizedName = validateName(name, {
+          required: true,
+          minLength: 1,
+          maxLength: 100,
+          fieldName: 'Community name',
+        });
+
+        const newCommunity = await createCommunity(
+          sanitizedName,
+          teamId,
+          currentUser.uid
+        );
+
+        // Validate returned object to catch any corruption
+        if (
+          !newCommunity ||
+          typeof newCommunity !== 'object' ||
+          !newCommunity.id ||
+          typeof newCommunity.id !== 'string' ||
+          !newCommunity.name ||
+          typeof newCommunity.name !== 'string'
+        ) {
+          console.error('❌ Invalid community created:', newCommunity);
+          throw new Error(
+            'Failed to create community: server returned invalid data'
+          );
+        }
+
+        return newCommunity;
+      } catch (err) {
+        if (err instanceof ValidationError) {
+          throw new Error(`Invalid community name: ${err.message}`);
+        }
+        throw err;
+      }
+    },
+    [teamId, currentUser?.uid]
+  );
+
+  const createBuildingItem = useCallback(
+    async (name) => {
+      // Type check the name parameter first
+      console.log('🔍 createBuildingItem called with:', {
+        name,
+        type: typeof name,
       });
 
-      const newRoute = await createRoute(
-        sanitizedName,
-        selectedCommunity.id,
-        teamId,
-        currentUser.uid
-      );
-      return newRoute;
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        throw new Error(`Invalid route name: ${err.message}`);
+      if (!name || typeof name !== 'string') {
+        console.error('❌ Invalid name parameter type:', {
+          name,
+          type: typeof name,
+        });
+        throw new Error(`Invalid input: Expected string, got ${typeof name}`);
       }
-      throw err;
-    }
-  }
 
-  async function createBuildingItem(name) {
-    if (!selectedRoute?.id) {
-      throw new Error('Please select a route first');
-    }
-
-    try {
-      // Validate and sanitize the building name
-      const sanitizedName = validateName(name, {
-        required: true,
-        minLength: 1,
-        maxLength: 100,
-        fieldName: 'Building name',
-      });
-
-      const buildingData = {
-        name: sanitizedName,
-        address: '',
-        routeId: selectedRoute.id,
-        communityId: selectedCommunity.id,
-        teamId,
-        units: [],
-      };
-
-      const newBuilding = await createBuilding(buildingData, currentUser.uid);
-      return newBuilding;
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        throw new Error(`Invalid building name: ${err.message}`);
+      // Validate ALL parameters before creating (especially important offline!)
+      // Route is now optional - removed route validation
+      if (
+        !selectedCommunity?.id ||
+        typeof selectedCommunity.id !== 'string' ||
+        selectedCommunity.id.trim() === ''
+      ) {
+        throw new Error('Please select a valid community first');
       }
-      throw err;
-    }
-  }
+      if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
+        throw new Error('Team ID is required to create a building');
+      }
+      if (
+        !currentUser?.uid ||
+        typeof currentUser.uid !== 'string' ||
+        currentUser.uid.trim() === ''
+      ) {
+        throw new Error('User authentication is required to create a building');
+      }
+
+      try {
+        // Validate and sanitize the building name
+        const sanitizedName = validateName(name, {
+          required: true,
+          minLength: 1,
+          maxLength: 100,
+          fieldName: 'Building name',
+        });
+
+        const buildingData = {
+          name: sanitizedName,
+          address: '',
+          routeId: null, // No longer using routes - buildings are community-based
+          communityId: selectedCommunity.id,
+          teamId,
+          units: [],
+        };
+
+        const newBuilding = await createBuilding(buildingData, currentUser.uid);
+
+        // Validate returned object to catch any corruption
+        if (
+          !newBuilding ||
+          typeof newBuilding !== 'object' ||
+          !newBuilding.id ||
+          typeof newBuilding.id !== 'string' ||
+          !newBuilding.name ||
+          typeof newBuilding.name !== 'string'
+        ) {
+          console.error('❌ Invalid building created:', newBuilding);
+          throw new Error(
+            'Failed to create building: server returned invalid data'
+          );
+        }
+
+        return newBuilding;
+      } catch (err) {
+        if (err instanceof ValidationError) {
+          throw new Error(`Invalid building name: ${err.message}`);
+        }
+        throw err;
+      }
+    },
+    [selectedCommunity?.id, teamId, currentUser?.uid]
+  );
 
   // Handle selections
   function handleCommunitySelect(community) {
+    // Validate the community object before setting it
+    if (
+      !community ||
+      typeof community !== 'object' ||
+      !community.id ||
+      typeof community.id !== 'string' ||
+      !community.name ||
+      typeof community.name !== 'string'
+    ) {
+      console.error('❌ Invalid community object received:', community);
+      setError('Invalid community selected. Please try again.');
+      return;
+    }
+
     setSelectedCommunity(community);
     setCommunityName(community.name);
     // Reset downstream
-    setSelectedRoute(null);
-    setRouteName('');
-    setSelectedBuilding(null);
-    setBuildingName('');
-    setUnitNumber('');
-  }
-
-  function handleRouteSelect(route) {
-    setSelectedRoute(route);
-    setRouteName(route.name);
-    // Reset downstream
+    setSelectedRouteLeader(null);
     setSelectedBuilding(null);
     setBuildingName('');
     setUnitNumber('');
   }
 
   function handleBuildingSelect(building) {
+    // Validate the building object before setting it
+    if (
+      !building ||
+      typeof building !== 'object' ||
+      !building.id ||
+      typeof building.id !== 'string' ||
+      !building.name ||
+      typeof building.name !== 'string'
+    ) {
+      console.error('❌ Invalid building object received:', building);
+      setError('Invalid building selected. Please try again.');
+      return;
+    }
+
     setSelectedBuilding(building);
     setBuildingName(building.name);
     setUnitNumber('');
@@ -467,10 +593,7 @@ export default function VisitForm({ onClose, onSaved }) {
       return false;
     }
 
-    if (!selectedRoute) {
-      setError('Please select or create a route');
-      return false;
-    }
+    // Route is now optional - removed validation
 
     if (!selectedBuilding) {
       setError('Please select or create a building');
@@ -579,14 +702,20 @@ export default function VisitForm({ onClose, onSaved }) {
 
       const visitData = {
         unitNumber: sanitizedUnitNumber,
-        routeLeaderId: role === 'route_leader' ? currentUser.uid : null,
+        routeLeaderId: selectedRouteLeader?.id || null,
         people: validPeople,
         notes: sanitizedNotes,
         photoUrls: [],
       };
 
       // Create visit - this works offline (Firebase queues the write)
-      await createVisit(buildingId, visitData, currentUser.uid);
+      // Pass routeId from selected route leader (if they have one assigned)
+      await createVisit(
+        buildingId,
+        visitData,
+        currentUser.uid,
+        selectedRouteLeader?.routeId || null
+      );
 
       // Save form data to LocalStorage for auto-fill on next visit
       saveLastVisitFormData({
@@ -594,8 +723,7 @@ export default function VisitForm({ onClose, onSaved }) {
         teamName: teams.find((t) => t.id === teamId)?.name || '',
         communityId: selectedCommunity.id,
         communityName: selectedCommunity.name,
-        routeId: selectedRoute.id,
-        routeName: selectedRoute.name,
+        routeLeaderId: selectedRouteLeader?.id || null,
         buildingId: selectedBuilding.id,
         buildingName: selectedBuilding.name,
         unitNumber: sanitizedUnitNumber,
@@ -637,8 +765,7 @@ export default function VisitForm({ onClose, onSaved }) {
     // Reset form for new visit
     setSelectedCommunity(null);
     setCommunityName('');
-    setSelectedRoute(null);
-    setRouteName('');
+    setSelectedRouteLeader(null);
     setSelectedBuilding(null);
     setBuildingName('');
     setUnitNumber('');
@@ -769,7 +896,7 @@ export default function VisitForm({ onClose, onSaved }) {
 
       <main className="visit-form-main">
         <form className="visit-form-card" onSubmit={handleSubmit}>
-          {/* Warning banner for users without team assignment (but skip for offline mode) */}
+          {/* Warning banner for online users without team assignment */}
           {role !== 'super_admin' && !userTeamId && !isOfflineModeActive() && (
             <div
               style={{
@@ -785,6 +912,33 @@ export default function VisitForm({ onClose, onSaved }) {
               <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
                 You haven't been assigned to a team yet. Please contact your
                 administrator to assign you to a team before recording visits.
+              </p>
+            </div>
+          )}
+
+          {/* Error banner for offline users without team assignment */}
+          {role !== 'super_admin' && !userTeamId && isOfflineModeActive() && (
+            <div
+              style={{
+                backgroundColor: '#FEF9E7',
+                border: '2px solid #F39C12',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '16px',
+                color: '#7D6608',
+              }}
+            >
+              <strong>Offline Mode - Limited Access</strong>
+              <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
+                You are using offline mode without a team assignment. You must{' '}
+                <strong>log in online at least once</strong> to sync your team
+                assignment before you can record visits offline.
+              </p>
+              <p
+                style={{ margin: '8px 0 0 0', fontSize: '13px', opacity: 0.9 }}
+              >
+                You can view cached data, but cannot create new visits until you
+                connect online and log in.
               </p>
             </div>
           )}
@@ -836,23 +990,37 @@ export default function VisitForm({ onClose, onSaved }) {
               onCreate={createCommunityItem}
               placeholder="Search or create community..."
               disabled={!teamId}
+              minCreateLength={3}
               debounceDelay={debounceDelay}
             />
           </label>
 
-          {/* Route field */}
+          {/* Route Leader field */}
           <label className="visit-field">
-            <span className="visit-label">Route</span>
-            <Autocomplete
-              value={routeName}
-              onChange={setRouteName}
-              onSelect={handleRouteSelect}
-              fetchOptions={fetchRoutes}
-              onCreate={createRouteItem}
-              placeholder="Search or create route..."
-              disabled={!selectedCommunity}
-              debounceDelay={debounceDelay}
-            />
+            <span className="visit-label">
+              Route Leader{' '}
+              <span style={{ fontWeight: 'normal', color: '#666' }}>
+                (Optional)
+              </span>
+            </span>
+            <select
+              className="visit-input"
+              value={selectedRouteLeader?.id || ''}
+              onChange={(e) => {
+                const leader = routeLeaders.find(
+                  (l) => l.id === e.target.value
+                );
+                setSelectedRouteLeader(leader || null);
+              }}
+              disabled={!teamId || routeLeaders.length === 0}
+            >
+              <option value="">No route leader</option>
+              {routeLeaders.map((leader) => (
+                <option key={leader.id} value={leader.id}>
+                  {leader.displayName || leader.email || 'Unknown'}
+                </option>
+              ))}
+            </select>
           </label>
 
           {/* Building/Block and Apt#/House# on same line */}
@@ -866,7 +1034,8 @@ export default function VisitForm({ onClose, onSaved }) {
                 fetchOptions={fetchBuildings}
                 onCreate={createBuildingItem}
                 placeholder="Search or create building..."
-                disabled={!selectedRoute}
+                disabled={!selectedCommunity}
+                minCreateLength={1}
                 debounceDelay={debounceDelay}
                 renderOption={(building) => (
                   <div>
@@ -897,19 +1066,6 @@ export default function VisitForm({ onClose, onSaved }) {
             </label>
           </div>
 
-          {/* Route Leader */}
-          {role === 'route_leader' && (
-            <label className="visit-field">
-              <span className="visit-label">Route Leader</span>
-              <input
-                className="visit-input visit-input--readonly"
-                value={routeLeader}
-                readOnly
-                disabled
-              />
-            </label>
-          )}
-
           {/* Loading past people */}
           {loadingPastPeople && (
             <div className="visit-loading-people">Loading past visitors...</div>
@@ -928,7 +1084,8 @@ export default function VisitForm({ onClose, onSaved }) {
                   onClick={() => setShowRecordsList(true)}
                   title="View past member records for this unit"
                 >
-                  📋 View Past Records
+                  <IconClipboard style={{ width: 16, height: 16 }} />
+                  View Past Records
                 </button>
               )}
             </div>
@@ -945,7 +1102,7 @@ export default function VisitForm({ onClose, onSaved }) {
 
               {people.map((person, index) => (
                 <div key={index} className="visit-people-row">
-                  <div className="visit-col-name visit-name-wrapper">
+                  <div className="visit-col-name">
                     <input
                       className="visit-input"
                       placeholder="Name"
@@ -956,16 +1113,6 @@ export default function VisitForm({ onClose, onSaved }) {
                       readOnly={!!person.locked}
                       disabled={!!person.locked}
                     />
-                    {person.name && selectedBuilding && unitNumber && (
-                      <button
-                        type="button"
-                        className="visit-view-record-btn"
-                        onClick={() => setSelectedPersonForRecord(person)}
-                        title="View member record"
-                      >
-                        📋
-                      </button>
-                    )}
                   </div>
                   <input
                     className="visit-input visit-col-age"
@@ -991,49 +1138,73 @@ export default function VisitForm({ onClose, onSaved }) {
                     readOnly={!!person.locked}
                     disabled={!!person.locked}
                   />
-                  <input
+                  <select
                     className="visit-input visit-col-followup"
-                    placeholder="Follow-up notes"
                     value={person.followUp}
                     onChange={(e) =>
                       handlePersonChange(index, 'followUp', e.target.value)
                     }
-                    readOnly={!!person.locked}
                     disabled={!!person.locked}
-                  />
-                  <input
+                  >
+                    <option value="">Select follow-up</option>
+                    {followUpOptions.map((option) => (
+                      <option key={option.id} value={option.name}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
                     className="visit-input visit-col-involvement"
-                    placeholder="Involvement"
                     value={person.involvement}
                     onChange={(e) =>
                       handlePersonChange(index, 'involvement', e.target.value)
                     }
-                    readOnly={!!person.locked}
                     disabled={!!person.locked}
-                  />
+                  >
+                    <option value="">Select involvement</option>
+                    {involvementOptions.map((option) => (
+                      <option key={option.id} value={option.name}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
 
-                  {/* Edit button: shown when the row is locked so user can unlock for editing */}
-                  {person.locked && (
+                  <div className="visit-col-actions">
+                    {/* Edit button: shown when the row is locked so user can unlock for editing */}
+                    {person.locked && (
+                      <button
+                        type="button"
+                        className="visit-delete-btn"
+                        onClick={() => togglePersonEdit(index)}
+                        aria-label="Edit person"
+                        title="Edit"
+                      >
+                        Edit
+                      </button>
+                    )}
+
+                    {/* Member record button */}
+                    {person.name && selectedBuilding && unitNumber && (
+                      <button
+                        type="button"
+                        className="visit-view-record-btn"
+                        onClick={() => setSelectedPersonForRecord(person)}
+                        title="View member record"
+                      >
+                        <IconClipboard style={{ width: 20, height: 20 }} />
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       className="visit-delete-btn"
-                      onClick={() => togglePersonEdit(index)}
-                      aria-label="Edit person"
-                      title="Edit"
+                      onClick={() => handleRemovePerson(index)}
+                      disabled={people.length <= 1 || !!person.locked}
+                      aria-label="Delete person"
                     >
-                      Edit
+                      <IconTrash style={{ width: 20, height: 20 }} />
                     </button>
-                  )}
-
-                  <button
-                    type="button"
-                    className="visit-delete-btn"
-                    onClick={() => handleRemovePerson(index)}
-                    disabled={people.length <= 1 || !!person.locked}
-                    aria-label="Delete person"
-                  >
-                    <IconTrash style={{ width: 16, height: 16 }} />
-                  </button>
+                  </div>
                 </div>
               ))}
 
@@ -1053,7 +1224,7 @@ export default function VisitForm({ onClose, onSaved }) {
             <span className="visit-label">Notes</span>
             <textarea
               className="visit-input visit-textarea"
-              placeholder="General visit notes..."
+              placeholder="Enter any additional notes"
               rows={4}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

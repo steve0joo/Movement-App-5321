@@ -16,6 +16,7 @@ import './Autocomplete.css';
  * @param {Function} props.getOptionLabel - Function to get label from option object
  * @param {Function} props.getOptionValue - Function to get value from option object
  * @param {number} props.minSearchLength - Minimum characters before searching (default: 0)
+ * @param {number} props.minCreateLength - Minimum characters before allowing creation (default: 2)
  * @param {number} props.debounceDelay - Debounce delay in ms (default: 100, use lower for offline/cache-first)
  */
 export default function Autocomplete({
@@ -30,6 +31,7 @@ export default function Autocomplete({
   getOptionLabel = (opt) => opt?.name || opt,
   getOptionValue = (opt) => opt?.id || opt,
   minSearchLength = 0,
+  minCreateLength = 2,
   debounceDelay = 100,
 }) {
   const [inputValue, setInputValue] = useState(value || '');
@@ -71,13 +73,16 @@ export default function Autocomplete({
           getOptionLabel(opt).toLowerCase() === trimmedValue.toLowerCase()
         );
 
-        // Only allow create if there's actual text and no exact match
-        setCanCreate(!exactMatch && trimmedValue.length > 0 && onCreate);
+        // Only allow create if:
+        // 1. onCreate function is provided
+        // 2. No exact match exists
+        // 3. Input meets minimum creation length requirement
+        setCanCreate(!exactMatch && trimmedValue.length >= minCreateLength && onCreate);
       } catch (err) {
         console.error('Error fetching options:', err);
         setOptions([]);
-        // Still allow create on error, but only if there's text
-        setCanCreate(trimmedValue.length > 0 && onCreate);
+        // Still allow create on error, but only if meets minimum length
+        setCanCreate(trimmedValue.length >= minCreateLength && onCreate);
       } finally {
         setIsLoading(false);
       }
@@ -85,13 +90,15 @@ export default function Autocomplete({
 
     const debounce = setTimeout(search, debounceDelay);
     return () => clearTimeout(debounce);
-  }, [inputValue, fetchOptions, minSearchLength, debounceDelay]);
+  }, [inputValue, fetchOptions, minSearchLength, minCreateLength, debounceDelay]);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside - DO NOT create items on blur
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setIsOpen(false);
+        // Reset highlightedIndex to prevent accidental selection
+        setHighlightedIndex(-1);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -123,14 +130,31 @@ export default function Autocomplete({
 
     const trimmedValue = inputValue.trim();
 
-    // Don't create if input is empty
-    if (!trimmedValue) {
+    // Don't create if input is empty or too short
+    if (!trimmedValue || trimmedValue.length < minCreateLength) {
+      return;
+    }
+
+    // Additional safety check: don't create invalid strings
+    if (trimmedValue === 'false' || trimmedValue === 'true' ||
+        trimmedValue === 'null' || trimmedValue === 'undefined' ||
+        trimmedValue.toLowerCase().includes('object') ||
+        trimmedValue.toLowerCase().includes('promise')) {
+      console.error('❌ Blocked invalid creation attempt:', trimmedValue);
+      alert('Invalid input: Cannot create item with this name. Please enter a valid name.');
       return;
     }
 
     try {
       setIsLoading(true);
       const newItem = await onCreate(trimmedValue);
+
+      // Validate the returned item before selecting it
+      if (!newItem || typeof newItem !== 'object') {
+        console.error('❌ onCreate returned invalid item:', newItem);
+        alert('Failed to create: Server returned invalid data');
+        return;
+      }
 
       if (newItem) {
         handleSelectOption(newItem);

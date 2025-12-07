@@ -443,7 +443,7 @@ export default function TeamManagementTab() {
             )}
 
             <div className="modal-actions">
-              <button onClick={closeUsersModal} className="btn-primary">
+              <button onClick={closeUsersModal} className="btn-cancel">
                 Close
               </button>
             </div>

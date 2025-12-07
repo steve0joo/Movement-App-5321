@@ -5,7 +5,6 @@ import {
   setPersistence,
   browserLocalPersistence,
   GoogleAuthProvider,
-  OAuthProvider,
 } from 'firebase/auth';
 import {
   initializeFirestore,
@@ -33,6 +32,8 @@ export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
   }),
+  // Enable experimental auto garbage collection to manage cache size
+  experimentalAutoDetectLongPolling: true,
 });
 
 export const storage = getStorage(app);
