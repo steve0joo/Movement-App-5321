@@ -1,13 +1,93 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>movement-app</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"
+    />
+
+    <!-- PWA Primary Meta Tags -->
+    <title>Movement App</title>
+    <meta name="title" content="Movement App" />
+    <meta
+      name="description"
+      content="Mobile-first nonprofit data management for field workers to track visits, families, and community impact."
+    />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Favicons - Using PWA Icons -->
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/icons/icon-72x72.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="/icons/icon-72x72.png"
+    />
+    <link rel="shortcut icon" href="/icons/icon-192x192.png" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#007AFF" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!-- Apple Touch Icons -->
+    <link
+      rel="apple-touch-icon"
+      sizes="152x152"
+      href="/icons/icon-152x152.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="192x192"
+      href="/icons/icon-192x192.png"
+    />
+
+    <!-- Apple Web App Capable -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Movement" />
+
+    <!-- Microsoft Tiles -->
+    <meta name="msapplication-TileColor" content="#007AFF" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/service-worker.js')
+            .then((registration) => {
+              console.log(
+                '✅ PWA: Service Worker registered successfully:',
+                registration.scope
+              );
+
+              // Check for updates every hour
+              setInterval(() => {
+                registration.update();
+              }, 60 * 60 * 1000);
+            })
+            .catch((error) => {
+              console.error(
+                '❌ PWA: Service Worker registration failed:',
+                error
+              );
+            });
+        });
+      } else {
+        console.warn('⚠️ PWA: Service Workers not supported in this browser');
+      }
+    </script>
   </body>
 </html>
