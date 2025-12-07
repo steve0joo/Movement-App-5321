@@ -77,7 +77,20 @@
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 6px;              /* space between label and field */
+}
+
+/* Search filter: full width row, a bit of breathing room above */
+.filter-group.search-filter-group {
+  grid-column: 1 / -1;
+  margin-top: 4px;         /* subtle separation from filters row */
+}
+
+/* Make sure the input fills that full row nicely */
+#search-filter {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .filter-group label {
@@ -88,7 +101,7 @@
 
 .filter-select,
 .filter-input {
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 14px;
@@ -182,7 +195,7 @@
 }
 
 .primary-button:hover {
-  background-color: #E0F1E7;
+  background-color: #3b7a77;
 }
 
 /* Loading and Error States */
@@ -304,17 +317,20 @@
   align-items: center;
   padding: 16px 20px;
   cursor: pointer;
-  background-color: #f3f4f6;
-  transition: background-color 0.2s;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.2s, box-shadow 0.2s;
 }
 
 .group-header:hover {
-  background-color: #e5e7eb;
+  background-color: #f3f4f6;
 }
 
 .group-header.expanded {
-  background-color: #dbeafe;
+  background-color: #E0F1E7;  /* same light green as involvement */
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
+
 
 .group-header h3 {
   margin: 0;
@@ -481,22 +497,27 @@
   font-size: 14px;
 }
 
-.person-followup,
-.person-involvement {
+/* Follow-up = warm yellow alert, Involvement = green tag (client style) */
+.person-followup {
   margin-top: 8px;
-  padding: 8px;
-  background-color: #fef3c7;
-  border-left: 3px solid #f59e0b;
-  border-radius: 4px;
+  padding: 8px 10px;
+  background-color: #FEF3C7;      /* soft yellow */
+  border-left: 3px solid #F59E0B; /* amber */
+  border-radius: 6px;
   font-size: 14px;
-  color: #92400e;
+  color: #92400E;
 }
 
 .person-involvement {
-  background-color: #DBEAFE;
-  border-left-color: #3B82F6;
-  color: #4A8F8C;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background-color: #E0F1E7;      /* light green/teal (same family as admin) */
+  border-left: 3px solid #4A8F8C; /* brand teal */
+  border-radius: 6px;
+  font-size: 14px;
+  color: #166534;                 /* green text for “involvement color is green” */
 }
+
 
 /* Edit Person Functionality */
 .person-header {
@@ -623,6 +644,51 @@
   background-color: #9ca3af;
   cursor: not-allowed;
 }
+
+/* Small chip-style buttons for each person (matches admin UI) */
+.edit-person-btn,
+.delete-person-btn {
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+/* Edit = soft green pill */
+.edit-person-btn {
+  background-color: #E0F1E7;
+  border-color: #C6E4D5;
+  color: #166534;
+}
+
+.edit-person-btn:hover {
+  background-color: #4A8F8C;
+  border-color: #4A8F8C;
+  color: #ffffff;
+}
+
+/* Delete = subtle red pill */
+.delete-person-btn {
+  background-color: #FEF2F2;
+  border-color: #FCA5A5;
+  color: #B91C1C;
+}
+
+.delete-person-btn:hover:not(:disabled) {
+  background-color: #FCA5A5;
+  border-color: #DC2626;
+  color: #7F1D1D;
+}
+
+.delete-person-btn:disabled,
+.edit-person-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 
 /* Delete Entire Visit Button */
 .delete-visit-btn {

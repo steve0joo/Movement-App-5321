@@ -1,3 +1,4 @@
+// src/components/admin/UserManagementTab.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -11,6 +12,7 @@ import {
   getRoutesByTeam,
   assignRouteLeader,
 } from '../../services/routeService';
+
 import '../../pages/AdminStyles.css';
 import editIcon from '../../assets/edit-button.png';
 import trashIcon from '../../assets/trash-button.png';
@@ -41,50 +43,30 @@ export default function UserManagementTab() {
 
   const isSuperAdmin = role === 'super_admin';
 
-  // Helper function: Check if current user can edit a target user
+  /* ---------- Permissions helpers ---------- */
+
   const canEditUser = (targetUser) => {
-    // Super admin can edit anyone
-    if (isSuperAdmin) {
-      return true;
-    }
+    if (isSuperAdmin) return true;                       // super_admin → can edit anyone
+    if (targetUser.id === currentUser?.uid) return false; // cannot edit self
+    if (targetUser.role === 'super_admin') return false;  // cannot edit super_admins
 
-    // Cannot edit yourself
-    if (targetUser.id === currentUser?.uid) {
-      return false;
-    }
-
-    // Cannot edit super admins
-    if (targetUser.role === 'super_admin') {
-      return false;
-    }
-
-    // Team admin can edit users in their team (except super admins and themselves)
     if (role === 'team_admin') {
       return targetUser.teamId === userTeamId;
     }
 
-    // Route leaders and volunteers cannot edit anyone
     return false;
   };
 
-  // Helper function: Check if current user can delete a target user
   const canDeleteUser = (targetUser) => {
-    // Super admin can delete anyone except other super admins
     if (isSuperAdmin) {
-      return targetUser.role !== 'super_admin';
+      return targetUser.role !== 'super_admin'; // can delete anyone except other super_admins
     }
 
-    // Can delete yourself (but not edit)
-    if (targetUser.id === currentUser?.uid) {
-      return true;
-    }
+    // always can delete yourself
+    if (targetUser.id === currentUser?.uid) return true;
 
-    // Cannot delete super admins
-    if (targetUser.role === 'super_admin') {
-      return false;
-    }
+    if (targetUser.role === 'super_admin') return false;
 
-    // Cannot delete supervisors (higher roles)
     const roleHierarchy = {
       volunteer: 0,
       route_leader: 1,
@@ -95,19 +77,20 @@ export default function UserManagementTab() {
     const currentRoleLevel = roleHierarchy[role] || 0;
     const targetRoleLevel = roleHierarchy[targetUser.role] || 0;
 
-    // Cannot delete users with higher or equal role
     if (targetRoleLevel >= currentRoleLevel) {
-      return targetUser.id === currentUser?.uid; // Can only delete self
+      // cannot delete users with higher or equal role (except self, handled above)
+      return false;
     }
 
-    // Team admin can delete lower-level users in their team
     if (role === 'team_admin') {
       return targetUser.teamId === userTeamId;
     }
 
-    // Route leaders and volunteers can only delete themselves
+    // route_leader / volunteer → only self (already handled)
     return false;
   };
+
+  /* ---------- Data loading ---------- */
 
   useEffect(() => {
     loadTeams();
@@ -132,7 +115,6 @@ export default function UserManagementTab() {
       if (isSuperAdmin) {
         usersList = await getAllUsers();
       } else {
-        // team_admin - only show users in their team
         usersList = await getUsersByTeam(userTeamId);
       }
 
@@ -145,6 +127,8 @@ export default function UserManagementTab() {
     }
   }
 
+  /* ---------- Delete ---------- */
+
   async function handleDeleteUser() {
     if (!deleteConfirm) return;
 
@@ -152,7 +136,7 @@ export default function UserManagementTab() {
       setDeleting(true);
       setError('');
       await deleteUserProfile(deleteConfirm.id);
-      setUsers(users.filter((user) => user.id !== deleteConfirm.id));
+      setUsers((prev) => prev.filter((u) => u.id !== deleteConfirm.id));
       setSuccess(`User ${deleteConfirm.email} has been deleted.`);
       setDeleteConfirm(null);
       setTimeout(() => setSuccess(''), 3000);
@@ -164,6 +148,8 @@ export default function UserManagementTab() {
     }
   }
 
+  /* ---------- Edit ---------- */
+
   async function openEditModal(user) {
     setEditingUser(user);
     setEditDisplayName(user.displayName || '');
@@ -171,7 +157,6 @@ export default function UserManagementTab() {
     setEditTeamId(user.teamId || '');
     setEditRouteId(user.routeId || '');
 
-    // Load routes for the user's team
     if (user.teamId) {
       try {
         const teamRoutes = await getRoutesByTeam(user.teamId);
@@ -187,9 +172,8 @@ export default function UserManagementTab() {
 
   async function handleEditTeamChange(newTeamId) {
     setEditTeamId(newTeamId);
-    setEditRouteId(''); // Reset route when team changes
+    setEditRouteId('');
 
-    // Load routes for new team
     if (newTeamId) {
       try {
         const teamRoutes = await getRoutesByTeam(newTeamId);
@@ -205,7 +189,6 @@ export default function UserManagementTab() {
 
   async function handleUpdateUser(e) {
     e.preventDefault();
-
     if (!editingUser) return;
 
     try {
@@ -219,21 +202,17 @@ export default function UserManagementTab() {
         routeId: editRouteId || null,
       };
 
-      // Update user profile
       await updateUserProfile(editingUser.id, updates);
 
-      // If route changed, also update the route's routeLeaderId (bidirectional sync)
       if (editRouteId && editRouteId !== editingUser.routeId) {
         await assignRouteLeader(editRouteId, editingUser.id);
       } else if (!editRouteId && editingUser.routeId) {
-        // If route was removed, unassign this user from their old route
         await assignRouteLeader(editingUser.routeId, null);
       }
 
       setSuccess(`User ${editingUser.email} updated successfully!`);
       setEditingUser(null);
-      await loadUsers(); // Reload users to show updated data
-
+      await loadUsers();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Error updating user:', err);
@@ -242,6 +221,8 @@ export default function UserManagementTab() {
       setUpdating(false);
     }
   }
+
+  /* ---------- Helpers ---------- */
 
   function getTeamName(teamId) {
     if (!teamId) return 'Unassigned';
@@ -255,27 +236,29 @@ export default function UserManagementTab() {
     return users.filter((user) => {
       const name = (user.displayName || '').toLowerCase();
       const email = (user.email || '').toLowerCase();
-      const role = (user.role || '').toLowerCase();
+      const r = (user.role || '').toLowerCase();
       const team = getTeamName(user.teamId).toLowerCase();
       return (
         name.includes(q) ||
         email.includes(q) ||
-        role.includes(q) ||
+        r.includes(q) ||
         team.includes(q)
       );
     });
   }, [users, searchTerm, teams]);
 
+  /* ---------- Render ---------- */
+
   if (loading) {
     return (
-      <div className="admin-page">
+      <div className="admin-tab-content">
         <div className="loading">Loading users...</div>
       </div>
     );
   }
 
   return (
-    <div className="admin-page">
+    <div className="admin-tab-content">
       <div>
         <h2>Users</h2>
       </div>
@@ -298,13 +281,11 @@ export default function UserManagementTab() {
       {/* Users Table */}
       {visibleUsers.length === 0 ? (
         <div className="empty-state">
-          <p>
-            {searchTerm ? 'No users match your search.' : 'No users found.'}
-          </p>
+          <p>{searchTerm ? 'No users match your search.' : 'No users found.'}</p>
         </div>
       ) : (
         <div className="users-table">
-          <table>
+          <table className="data-table">
             <thead>
               <tr>
                 <th>Email</th>
@@ -313,7 +294,7 @@ export default function UserManagementTab() {
                 <th>Team</th>
                 <th>Route ID</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th className="actions-header">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -322,14 +303,13 @@ export default function UserManagementTab() {
                   <td>{user.email}</td>
                   <td>{user.displayName || '-'}</td>
                   <td>
-                    {/* <span className={`role-badge role-${user.role}`}> */}
-                    {user.role}
-                    {/* </span> */}
+                    <span className={`role-pill role-${user.role}`}>
+                      {user.role}
+                    </span>
                   </td>
                   <td>{getTeamName(user.teamId)}</td>
                   <td style={{ fontSize: '12px' }}>
-                    {user.routeId ? user.routeId : '-'}{' '}
-                    {/* .substring(0, 8) + '...' */}
+                    {user.routeId ? user.routeId : '-'}
                   </td>
                   <td>
                     <span
@@ -340,7 +320,7 @@ export default function UserManagementTab() {
                       {user.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td>
+                  <td className="actions-cell">
                     {canEditUser(user) && (
                       <button
                         className="btn-edit"
@@ -364,7 +344,6 @@ export default function UserManagementTab() {
           </table>
         </div>
       )}
-
       {/* Edit User Modal */}
       {editingUser && (
         <div
@@ -500,7 +479,7 @@ export default function UserManagementTab() {
               </button>
               <button
                 type="button"
-                className="btn-delete"
+                className="btn-danger-solid"
                 onClick={handleDeleteUser}
                 disabled={deleting}
               >

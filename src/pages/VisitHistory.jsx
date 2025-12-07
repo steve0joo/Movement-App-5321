@@ -851,7 +851,7 @@ const VisitHistory = () => {
             </div>
 
             {/* Search */}
-            <div className="filter-group">
+            <div className="filter-group search-filter-group">
               <label htmlFor="search-filter">Search</label>
               <input
                 id="search-filter"

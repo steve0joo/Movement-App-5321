@@ -213,29 +213,19 @@ export default function UnifiedAdminPage() {
           <span className="admin-badge">Admin</span>
         </div>
       </header>
-      <div className="admin-content">
-        <div
-          className="admin-actions"
-          style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
-        >
-          <div>
-            <h2 style={{ margin: 0}}>
-              Admin Panel
-            </h2>
-            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.95rem', color: '#6b7280' }}>
-              Manage users, teams, and buildings
-            </p>
-          </div>
-        </div>
-      </div>
+      <div className="admin-header-group">
+      <h2 className="admin-panel-title">Admin Panel</h2>
+      <p className="admin-panel-subtitle">Manage users, teams, and buildings</p>
 
-      {/* Tabs Navigation */}
       <AdminTabs
         tabs={tabs}
         currentTab={currentTab}
         onTabChange={setCurrentTab}
         userRole={role}
       />
+    </div>
+
+
 
       {/* Tab Content */}
       <div style={{

@@ -1,10 +1,11 @@
 .add-leader-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--color-bg);
+  font-family: var(--font-main);
 }
 
 .add-leader-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   padding: 1.5rem 2rem;
   display: flex;
@@ -107,7 +108,7 @@
 }
 
 .btn-submit {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   border: none;
   padding: 0.75rem 2rem;
@@ -120,7 +121,7 @@
 
 .btn-submit:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(74, 143, 140, 0.4);
 }
 
 .btn-submit:disabled {
@@ -129,9 +130,9 @@
 }
 
 .btn-cancel {
-  background: #6c757d;
-  color: white;
-  border: none;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
   padding: 0.75rem 2rem;
   border-radius: 6px;
   font-size: 1rem;
@@ -140,7 +141,7 @@
 }
 
 .btn-cancel:hover:not(:disabled) {
-  background: #5a6268;
+  background: #e5e7eb;
 }
 
 .btn-cancel:disabled {
