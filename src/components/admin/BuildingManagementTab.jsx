@@ -477,7 +477,7 @@ export default function BuildingManagementTab() {
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="btn-delete"
+                className="btn-danger-solid"
                 disabled={deleting}
               >
                 {deleting ? 'Deleting...' : 'Delete Building'}
