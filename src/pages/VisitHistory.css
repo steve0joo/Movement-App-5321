@@ -68,22 +68,23 @@
 }
 
 .filter-controls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;    
+  align-items: center;
   gap: 16px;
-  margin-bottom: 16px;
+  overflow-x: auto;   
+  padding-bottom: 8px;  
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  gap: 6px;              /* space between label and field */
+  min-width: 180px;  
 }
 
 /* Search filter: full width row, a bit of breathing room above */
 .filter-group.search-filter-group {
-  grid-column: 1 / -1;
+  grid-column: 2 / -2;
   margin-top: 4px;         /* subtle separation from filters row */
 }
 
@@ -124,9 +125,8 @@
 .view-options {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  flex-wrap: nowrap;
+  gap: 16px;
 }
 
 .view-options > label {
@@ -157,7 +157,7 @@
 .results-summary {
   padding: 12px 16px;
   background-color: #f9fafb;
-  border-left: 4px solid #E0F1E7;
+  border-left: 4px solid #4A8F8C;
   border-radius: 4px;
   margin-bottom: 20px;
 }
@@ -323,11 +323,11 @@
 }
 
 .group-header:hover {
-  background-color: #f3f4f6;
+  background-color: #4A8F8C;
 }
 
 .group-header.expanded {
-  background-color: #E0F1E7;  /* same light green as involvement */
+  background-color: #edeff0;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
@@ -497,25 +497,25 @@
   font-size: 14px;
 }
 
-/* Follow-up = warm yellow alert, Involvement = green tag (client style) */
+/* Follow-up */
 .person-followup {
   margin-top: 8px;
   padding: 8px 10px;
-  background-color: #FEF3C7;      /* soft yellow */
-  border-left: 3px solid #F59E0B; /* amber */
+  background-color: #f1ddcc;
+  border-left: 3px solid #AD7748;
   border-radius: 6px;
   font-size: 14px;
-  color: #92400E;
+  color: #AD7748;
 }
 
 .person-involvement {
   margin-top: 8px;
   padding: 8px 10px;
-  background-color: #E0F1E7;      /* light green/teal (same family as admin) */
-  border-left: 3px solid #4A8F8C; /* brand teal */
+  background-color: #E0F1E7;
+  border-left: 3px solid #4A8F8C; 
   border-radius: 6px;
   font-size: 14px;
-  color: #166534;                 /* green text for “involvement color is green” */
+  color: #166534;
 }
 
 
@@ -535,7 +535,7 @@
 
 .edit-person-btn {
   padding: 4px 10px;
-  background-color: #E0F1E7;
+  background-color: #4A8F8C;
   color: white;
   border: none;
   border-radius: 4px;
@@ -546,7 +546,7 @@
 }
 
 .edit-person-btn:hover {
-  background-color: #4A8F8C;
+  background-color: #52a4a0;
 }
 
 .person-edit-form {
@@ -626,7 +626,7 @@
 
 .cancel-btn {
   padding: 8px 16px;
-  background-color: #6b7280;
+  background-color: #4E4E57;
   color: white;
   border: none;
   border-radius: 4px;
@@ -637,11 +637,11 @@
 }
 
 .cancel-btn:hover:not(:disabled) {
-  background-color: #4b5563;
+  background-color: #4E4E57;
 }
 
 .cancel-btn:disabled {
-  background-color: #9ca3af;
+  background-color: #5d5d68;
   cursor: not-allowed;
 }
 
@@ -672,15 +672,15 @@
 
 /* Delete = subtle red pill */
 .delete-person-btn {
-  background-color: #FEF2F2;
-  border-color: #FCA5A5;
-  color: #B91C1C;
+  background-color: #F28668;
+  border-color: #F28668;
+  color: #f1d9d2;
 }
 
 .delete-person-btn:hover:not(:disabled) {
-  background-color: #FCA5A5;
-  border-color: #DC2626;
-  color: #7F1D1D;
+  background-color: #f1d9d2;
+  border-color: #F28668;
+  color: #F28668;
 }
 
 .delete-person-btn:disabled,
@@ -693,7 +693,7 @@
 /* Delete Entire Visit Button */
 .delete-visit-btn {
   padding: 4px 10px;
-  background-color: #dc2626;
+  background-color: #F28668;
   color: white;
   border: none;
   border-radius: 4px;
@@ -707,11 +707,11 @@
 }
 
 .delete-visit-btn:hover:not(:disabled) {
-  background-color: #b91c1c;
+  background-color: #ed947c;
 }
 
 .delete-visit-btn:disabled {
-  background-color: #9ca3af;
+  background-color: #f28668;
   cursor: not-allowed;
   opacity: 0.6;
 }
