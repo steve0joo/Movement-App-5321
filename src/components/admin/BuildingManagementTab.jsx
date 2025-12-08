@@ -441,8 +441,8 @@ export default function BuildingManagementTab() {
             <div style={{ marginBottom: '20px' }}>
               <p>Are you sure you want to delete this building?</p>
               <div style={{
-                backgroundColor: '#fff3cd',
-                border: '1px solid #ffc107',
+                backgroundColor: '#E0F1E7',
+                border: '1px solid #4A8F8C',
                 borderRadius: '4px',
                 padding: '12px',
                 marginTop: '15px'
@@ -462,7 +462,7 @@ export default function BuildingManagementTab() {
                   Total Visits: {deletingBuilding.visitCount || 0}
                 </div>
               </div>
-              <p style={{ marginTop: '15px', color: '#dc3545', fontSize: '14px', fontWeight: 'bold' }}>
+              <p style={{ marginTop: '15px', color: '#F28668', fontSize: '14px', fontWeight: 'bold' }}>
                 <strong>⚠️ WARNING:</strong> This will PERMANENTLY delete the building and ALL {deletingBuilding.visitCount || 0} associated visit(s) from Firestore. This action cannot be undone!
               </p>
             </div>
