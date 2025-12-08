@@ -43,10 +43,10 @@ import logoHome from '../assets/logo-home-button.png';
 
 // Inline icons
 const IconBack = (p) => (
-  <svg viewBox="0 0 24 24" {...p}>
+  <svg viewBox="0 0 24 24" width="20" height="20" {...p}>
     <path
       d="M15 18l-6-6 6-6"
-      stroke="currentColor"
+      stroke="#111827"
       strokeWidth="2"
       fill="none"
       strokeLinecap="round"
@@ -56,10 +56,10 @@ const IconBack = (p) => (
 );
 
 const IconPlus = (p) => (
-  <svg viewBox="0 0 24 24" {...p}>
+  <svg viewBox="0 0 24 24" width="18" height="18" {...p}>
     <path
       d="M12 5v14M5 12h14"
-      stroke="currentColor"
+      stroke="#111827"
       strokeWidth="2"
       fill="none"
       strokeLinecap="round"
@@ -68,10 +68,10 @@ const IconPlus = (p) => (
 );
 
 const IconTrash = (p) => (
-  <svg viewBox="0 0 24 24" {...p}>
+  <svg viewBox="0 0 24 24" width="18" height="18" {...p}>
     <path
       d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"
-      stroke="currentColor"
+      stroke="#F28668"       // force visible orange stroke
       strokeWidth="2"
       fill="none"
       strokeLinecap="round"
@@ -81,10 +81,10 @@ const IconTrash = (p) => (
 );
 
 const IconClipboard = (p) => (
-  <svg viewBox="0 0 24 24" {...p}>
+  <svg viewBox="0 0 24 24" width="18" height="18" {...p}>
     <path
       d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-      stroke="currentColor"
+      stroke="#ffffff" 
       strokeWidth="2"
       fill="none"
       strokeLinecap="round"
@@ -92,6 +92,7 @@ const IconClipboard = (p) => (
     />
   </svg>
 );
+
 
 export default function VisitForm({ onClose, onSaved }) {
   const {
@@ -1093,7 +1094,7 @@ export default function VisitForm({ onClose, onSaved }) {
                   onClick={() => setShowRecordsList(true)}
                   title="View past member records for this unit"
                 >
-                  <IconClipboard style={{ width: 16, height: 16 }} />
+                  <IconClipboard size={18} className="person-btn-icon" />
                   View Past Records
                 </button>
               )}
@@ -1178,12 +1179,12 @@ export default function VisitForm({ onClose, onSaved }) {
                     ))}
                   </select>
 
-                  <div className="visit-col-actions">
-                    {/* Edit button: shown when the row is locked so user can unlock for editing */}
+                  <div className="person-actions-cell">
+                    {/* Edit button (only when locked) */}
                     {person.locked && (
                       <button
                         type="button"
-                        className="visit-delete-btn"
+                        className="visit-edit-btn"
                         onClick={() => togglePersonEdit(index)}
                         aria-label="Edit person"
                         title="Edit"
@@ -1196,22 +1197,24 @@ export default function VisitForm({ onClose, onSaved }) {
                     {person.name && selectedBuilding && unitNumber && (
                       <button
                         type="button"
-                        className="visit-view-record-btn"
+                        className="person-icon-btn person-icon-btn--clipboard"
                         onClick={() => setSelectedPersonForRecord(person)}
                         title="View member record"
+                        aria-label="View member record"
                       >
-                        <IconClipboard style={{ width: 20, height: 20 }} />
+                        <IconClipboard />
                       </button>
                     )}
 
+                    {/* Delete button – trash icon only */}
                     <button
                       type="button"
-                      className="visit-delete-btn"
+                      className="person-icon-btn person-icon-btn--trash"
                       onClick={() => handleRemovePerson(index)}
                       disabled={people.length <= 1 || !!person.locked}
                       aria-label="Delete person"
                     >
-                      <IconTrash style={{ width: 20, height: 20 }} />
+                      <IconTrash />
                     </button>
                   </div>
                 </div>

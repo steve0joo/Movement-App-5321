@@ -239,7 +239,7 @@
 /* Table header */
 .visit-people-header {
   display: grid;
-  grid-template-columns: 1fr 0.6fr 1fr 1.2fr 1fr 80px;
+  grid-template-columns: 1fr 0.6fr 1fr 1.2fr 1fr 120px;
   gap: 8px;
   padding: 12px;
   background-color: #f9fafb;
@@ -254,7 +254,7 @@
 /* Table row */
 .visit-people-row {
   display: grid;
-  grid-template-columns: 1fr 0.6fr 1fr 1.2fr 1fr 80px;
+  grid-template-columns: 1fr 0.6fr 1fr 1.2fr 1fr 120px;
   gap: 8px;
   padding: 12px;
   border-bottom: 1px solid #f3f4f6;
@@ -385,6 +385,86 @@
   opacity: 0.6;
 }
 
+/* === People row action buttons (clipboard + trash) === */
+
+/* The cell that holds the action buttons */
+.person-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+/* Make sure the last column wrapper aligns left, not center */
+.visit-col-actions {
+  grid-column: 6;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* Shared icon button base */
+.person-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #ffffff;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.08s ease,
+    border-color 0.12s ease;
+}
+
+/* SVG sizing inside the buttons */
+.person-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Clipboard (view record) – teal box, white icon */
+.person-icon-btn--clipboard {
+  background: #4a8f8c;
+  border-color: #4a8f8c;
+  color: #ffffff; 
+}
+
+/* Trash – white box, orange border + icon */
+.person-icon-btn--trash {
+  background: #ffffff;
+  border-color: #f28668;
+  color: #f28668;  
+}
+
+/* Hover states */
+.person-icon-btn--clipboard:hover {
+  background: #2f7e73;
+  border-color: #2f7e73;
+  box-shadow: 0 6px 16px rgba(47, 126, 115, 0.25);
+  transform: translateY(-1px);
+}
+
+.person-icon-btn--trash:hover {
+  background: #fff7f5;
+  box-shadow: 0 6px 16px rgba(242, 134, 104, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Disabled look */
+.person-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .visit-form-card {
@@ -416,6 +496,17 @@
     background-color: #fafafa;
   }
 
+  .visit-col-actions {
+    grid-column: 1;
+    justify-content: flex-start;
+    margin-top: 4px;
+  }
+
+  .person-actions-cell {
+    justify-content: flex-start;
+    padding-right: 1rem; /* prevents clipping at right edge */
+  }
+
   .visit-people-row .visit-input {
     width: 100%;
   }
@@ -427,15 +518,6 @@
   .visit-col-involvement,
   .visit-col-actions {
     grid-column: 1;
-  }
-
-  .visit-delete-btn {
-    width: 100%;
-    justify-content: flex-start;
-    padding: 8px 12px;
-    color: #ef4444;
-    background-color: #fff;
-    border: 1px solid #fecaca;
   }
 
   .visit-add-person-btn {

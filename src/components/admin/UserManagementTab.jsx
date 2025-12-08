@@ -305,7 +305,8 @@ export default function UserManagementTab() {
             style={{
               padding: '12px 16px',
               backgroundColor: '#ffffff',
-              borderRadius: '8px',
+              borderColor: '#F28668',
+              borderRadius: '18px',
               marginBottom: '12px',
               display: 'flex',
               alignItems: 'center',
@@ -314,7 +315,7 @@ export default function UserManagementTab() {
           >
             <span style={{ fontSize: '20px' }}>⚠️</span>
             <div>
-              <strong style={{ color: '#F28668' }}>Unassigned Users</strong>
+              <strong style={{ color: '#0F0F0F' }}>Unassigned Users</strong>
               <p
                 style={{
                   margin: '4px 0 0 0',
@@ -327,7 +328,7 @@ export default function UserManagementTab() {
             </div>
           </div>
 
-          <div className="users-table">
+          <div className="users-table users-table--unassigned">
             <table className="data-table">
               <thead>
                 <tr>
@@ -340,7 +341,7 @@ export default function UserManagementTab() {
               </thead>
               <tbody>
                 {visibleUnassignedUsers.map((user) => (
-                  <tr key={user.id} style={{ backgroundColor: '#fccabc' }}>
+                  <tr key={user.id} style={{ backgroundColor: '#ffffff' }}>
                     <td>{user.email}</td>
                     <td>{user.displayName || '-'}</td>
                     <td>
@@ -374,6 +375,7 @@ export default function UserManagementTab() {
           </div>
         </div>
       )}
+
 
       {/* Assigned Users Table */}
       <div>
