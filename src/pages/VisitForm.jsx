@@ -97,7 +97,7 @@ export default function VisitForm({ onClose, onSaved }) {
     currentUser,
     role,
     teamId: userTeamId,
-    routeId: userRouteId,
+    // routeId: userRouteId,
   } = useAuth();
   const { isOnline } = useSync();
   const navigate = useNavigate();
@@ -816,7 +816,7 @@ export default function VisitForm({ onClose, onSaved }) {
 
   // Field locking
   const isTeamLocked = role !== 'super_admin';
-  const isRouteLocked = role === 'route_leader' || role === 'volunteer';
+  // const isRouteLocked = role === 'route_leader' || role === 'volunteer';
 
   // Adaptive debounce: faster when offline (cache is instant)
   const debounceDelay = isOnline ? 100 : 50;
@@ -960,8 +960,6 @@ export default function VisitForm({ onClose, onSaved }) {
                 // Reset all downstream
                 setSelectedCommunity(null);
                 setCommunityName('');
-                setSelectedRoute(null);
-                setRouteName('');
                 setSelectedBuilding(null);
                 setBuildingName('');
                 setUnitNumber('');
@@ -1202,7 +1200,7 @@ export default function VisitForm({ onClose, onSaved }) {
                       disabled={people.length <= 1 || !!person.locked}
                       aria-label="Delete person"
                     >
-                      <IconTrash style={{ width: 20, height: 20 }} />
+                      Delete
                     </button>
                   </div>
                 </div>
