@@ -171,11 +171,11 @@ service cloud.firestore {
       // Super admins can read all profiles
       allow read: if isSuperAdmin();
 
-      // Team admins can read users in their team
-      allow read: if isTeamAdmin() && belongsToTeam(resource.data.teamId);
+      // Team admins can read users in their team OR unassigned users (teamId == null)
+      allow read: if isTeamAdmin() && (belongsToTeam(resource.data.teamId) || resource.data.teamId == null);
 
-      // Route leaders can read users in their team
-      allow read: if isRouteLeader() && belongsToTeam(resource.data.teamId);
+      // Route leaders can read users in their team OR unassigned users (teamId == null)
+      allow read: if isRouteLeader() && (belongsToTeam(resource.data.teamId) || resource.data.teamId == null);
 
       // ===== CREATE RULES =====
 
@@ -207,9 +207,9 @@ service cloud.firestore {
       // Super admins can update any user
       allow update: if isSuperAdmin();
 
-      // Team admins can update users in their team (but not super_admins)
+      // Team admins can update users in their team OR unassigned users (but not super_admins)
       allow update: if isTeamAdmin() &&
-                      belongsToTeam(resource.data.teamId) &&
+                      (belongsToTeam(resource.data.teamId) || resource.data.teamId == null) &&
                       resource.data.role != 'super_admin' &&
                       request.resource.data.role != 'super_admin';
 
@@ -218,9 +218,9 @@ service cloud.firestore {
       // Super admins can delete any user
       allow delete: if isSuperAdmin();
 
-      // Team admins can delete users in their team (but not super_admins)
+      // Team admins can delete users in their team OR unassigned users (but not super_admins)
       allow delete: if isTeamAdmin() &&
-                      belongsToTeam(resource.data.teamId) &&
+                      (belongsToTeam(resource.data.teamId) || resource.data.teamId == null) &&
                       resource.data.role != 'super_admin';
 
       // Route leaders can delete access code users they created

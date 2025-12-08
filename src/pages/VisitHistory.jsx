@@ -14,6 +14,7 @@ import './VisitHistory.css';
 import menuIcon from '../assets/menu-button.png';
 import logoHome from '../assets/logo-home-button.png';
 import Modal from '../components/Modal';
+import PendingAssignment from './PendingAssignment';
 
 const VisitHistory = () => {
   const navigate = useNavigate();
@@ -23,6 +24,14 @@ const VisitHistory = () => {
     teamId: userTeamId,
     routeId: userRouteId,
   } = useAuth();
+
+  // Check if user has team assignment (except for super_admin)
+  const hasTeamAssignment = userTeamId || role === 'super_admin';
+
+  // If user doesn't have a team assignment, show pending page
+  if (!hasTeamAssignment) {
+    return <PendingAssignment />;
+  }
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -73,12 +82,9 @@ const VisitHistory = () => {
       return visit.teamId === userTeamId;
     }
 
-    // Route leader must have route assignment and visit must be in their route
+    // Route leader can edit visits in their team
     if (role === 'route_leader') {
-      if (!userRouteId) {
-        return false; // Not assigned to any route
-      }
-      return visit.routeId === userRouteId && visit.teamId === userTeamId;
+      return visit.teamId === userTeamId;
     }
 
     // Volunteers cannot edit
@@ -102,12 +108,9 @@ const VisitHistory = () => {
       return visit.teamId === userTeamId;
     }
 
-    // Route leader must have route assignment and visit must be in their route
+    // Route leader can delete visits in their team
     if (role === 'route_leader') {
-      if (!userRouteId) {
-        return false; // Not assigned to any route
-      }
-      return visit.routeId === userRouteId && visit.teamId === userTeamId;
+      return visit.teamId === userTeamId;
     }
 
     // Volunteers cannot delete

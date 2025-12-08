@@ -18,6 +18,7 @@ import menuIcon from '../assets/menu-button.png';
 import Autocomplete from '../components/Autocomplete';
 import MemberRecord from './MemberRecord';
 import MemberRecordsList from './MemberRecordsList';
+import PendingAssignment from './PendingAssignment';
 import {
   createVisit,
   getPastPeopleAtUnit,
@@ -101,6 +102,14 @@ export default function VisitForm({ onClose, onSaved }) {
   } = useAuth();
   const { isOnline } = useSync();
   const navigate = useNavigate();
+
+  // Check if user has team assignment (except super_admin)
+  const hasTeamAssignment = userTeamId || role === 'super_admin';
+
+  // If user doesn't have a team assignment, show pending page
+  if (!hasTeamAssignment) {
+    return <PendingAssignment />;
+  }
 
   // Form state
   const [teamId, setTeamId] = useState(userTeamId || '');

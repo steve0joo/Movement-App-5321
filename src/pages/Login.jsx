@@ -5,7 +5,6 @@ import { useSync } from '../context/SyncContext';
 import { enableOfflineMode, setOfflineUser, getOfflineUser } from '../utils/offlineStorage';
 import { auth } from '../services/firebase';
 import { createUserProfile, getUserProfile } from '../services/userService';
-import { getAllTeams } from '../services/teamService';
 import './Login.css';
 
 export default function Login() {
@@ -19,8 +18,6 @@ export default function Login() {
   const [displayName, setDisplayName] = useState('');
 
   const [role, setRole] = useState('volunteer');
-  const [selectedTeamId, setSelectedTeamId] = useState('');
-  const [teams, setTeams] = useState([]);
 
   const { login, signup, signInWithGoogleReturningNew } = useAuth();
   const { isOnline } = useSync();
@@ -39,21 +36,6 @@ export default function Login() {
 
   const offlineMode = !isOnline;
   useEffect(() => setError(''), [view]);
-
-  // Load teams when signup view is shown
-  useEffect(() => {
-    async function loadTeams() {
-      if (view === 'signup' && isOnline) {
-        try {
-          const allTeams = await getAllTeams();
-          setTeams(allTeams);
-        } catch (err) {
-          console.error('Error loading teams:', err);
-        }
-      }
-    }
-    loadTeams();
-  }, [view, isOnline]);
 
   /* ---------------- Email login ---------------- */
   const handleEmailLogin = async (e) => {
@@ -88,8 +70,9 @@ export default function Login() {
 
     try {
       setLoading(true);
-      // Pass teamId to signup (can be empty string for "Unassigned")
-      await signup(email, password, role, displayName, selectedTeamId || null);
+      // Create user without team assignment (teamId: null)
+      // Admin will assign team later
+      await signup(email, password, role, displayName, null);
       navigate('/');
     } catch (err) {
       console.error('Signup error:', err);
@@ -496,25 +479,15 @@ export default function Login() {
               </small>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="team">Team</label>
-              <select
-                id="team"
-                value={selectedTeamId}
-                onChange={(e) => setSelectedTeamId(e.target.value)}
-                className="role-select input"
-              >
-                <option value="">Unassigned - Admin will assign later</option>
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-              <small className="form-hint">
-                Choose your team now (if you're volunteer), or an administrator
-                can assign you later.
-              </small>
+            <div className="info-notice" style={{
+              padding: '12px',
+              backgroundColor: '#FEF3C7',
+              borderRadius: '8px',
+              marginBottom: '16px',
+              fontSize: '14px',
+              color: '#92400E'
+            }}>
+              Your account will be created without a team assignment. An administrator will assign you to a team to activate your access.
             </div>
 
             <button
