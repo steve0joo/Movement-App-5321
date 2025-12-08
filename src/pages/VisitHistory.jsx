@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
 import { collectionGroup, getDocs, query, orderBy } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { updateVisit, deleteVisit } from '../services/buildingService';
+import { updateVisit, deleteVisit, getBuildingsByCommunity } from '../services/buildingService';
 import { getAllTeams } from '../services/teamService';
 import { getCommunitiesByTeam } from '../services/communityService';
 import { getAllRouteLeaders } from '../services/userService';
-import { getBuildingsByCommunity } from '../services/buildingService';
 import { getFollowUpsByTeam } from '../services/communityInvolvementService';
 import './header.css';
 import './VisitHistory.css';
@@ -25,10 +24,7 @@ const VisitHistory = () => {
     routeId: userRouteId,
   } = useAuth();
 
-  // Check if user has team assignment (except for super_admin)
   const hasTeamAssignment = userTeamId || role === 'super_admin';
-
-  // If user doesn't have a team assignment, show pending page
   if (!hasTeamAssignment) {
     return <PendingAssignment />;
   }
@@ -36,11 +32,24 @@ const VisitHistory = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
+  // responsive flags
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     if (!menuOpen) return;
     function onDocClick(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target))
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
         setMenuOpen(false);
+      }
     }
     function onKey(e) {
       if (e.key === 'Escape') setMenuOpen(false);
@@ -65,55 +74,19 @@ const VisitHistory = () => {
     if (item === 'Admin Page') navigate('/admin');
   }
 
-  // Check if user can edit a visit based on their assignments
   const canEditVisit = (visit) => {
-    // Super admin can edit everything
-    if (role === 'super_admin') {
-      return true;
-    }
-
-    // Check if user has team assignment
-    if (!userTeamId) {
-      return false; // Not assigned to any team
-    }
-
-    // Team admin can edit visits in their team
-    if (role === 'team_admin') {
-      return visit.teamId === userTeamId;
-    }
-
-    // Route leader can edit visits in their team
-    if (role === 'route_leader') {
-      return visit.teamId === userTeamId;
-    }
-
-    // Volunteers cannot edit
+    if (role === 'super_admin') return true;
+    if (!userTeamId) return false;
+    if (role === 'team_admin') return visit.teamId === userTeamId;
+    if (role === 'route_leader') return visit.teamId === userTeamId;
     return false;
   };
 
-  // Check if user can delete a visit (same as edit permissions)
   const canDeleteVisit = (visit) => {
-    // Super admin can delete everything
-    if (role === 'super_admin') {
-      return true;
-    }
-
-    // Check if user has team assignment
-    if (!userTeamId) {
-      return false; // Not assigned to any team
-    }
-
-    // Team admin can delete visits in their team
-    if (role === 'team_admin') {
-      return visit.teamId === userTeamId;
-    }
-
-    // Route leader can delete visits in their team
-    if (role === 'route_leader') {
-      return visit.teamId === userTeamId;
-    }
-
-    // Volunteers cannot delete
+    if (role === 'super_admin') return true;
+    if (!userTeamId) return false;
+    if (role === 'team_admin') return visit.teamId === userTeamId;
+    if (role === 'route_leader') return visit.teamId === userTeamId;
     return false;
   };
 
@@ -122,37 +95,33 @@ const VisitHistory = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Entity data for dropdowns
+  // Entity data
   const [teams, setTeams] = useState([]);
   const [communities, setCommunities] = useState([]);
   const [routeLeaders, setRouteLeaders] = useState([]);
   const [buildings, setBuildings] = useState([]);
   const [followUps, setFollowUps] = useState([]);
 
-  // Name lookups (only needed for filter dropdowns, not for display)
   const [communityNames, setCommunityNames] = useState({});
   const [teamNames, setTeamNames] = useState({});
 
-  // Filter state
+  // Filters
   const [selectedTeamId, setSelectedTeamId] = useState(userTeamId || '');
   const [selectedCommunityId, setSelectedCommunityId] = useState('');
   const [selectedRouteLeaderId, setSelectedRouteLeaderId] = useState('');
   const [selectedBuildingId, setSelectedBuildingId] = useState('');
   const [selectedFollowUpId, setSelectedFollowUpId] = useState('');
-
-  // Search state
   const [searchText, setSearchText] = useState('');
-  const [expandedGroups, setExpandedGroups] = useState({}); // For building/unit groups
 
-  // Edit mode state
-  const [editingVisit, setEditingVisit] = useState(null); // { visitId, buildingId, personIndex }
-  const [editFormData, setEditFormData] = useState({}); // Temporary edit data
+  // grouping + editing
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [editingVisit, setEditingVisit] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // Modal state
   const [modalState, setModalState] = useState({
     isOpen: false,
-    type: 'info', // 'info' or 'danger'
+    type: 'info',
     title: '',
     message: '',
     onConfirm: null,
@@ -160,7 +129,21 @@ const VisitHistory = () => {
     cancelText: 'Cancel',
   });
 
-  // Fetch all visits on mount
+  // helper to clear all filters (used in desktop Clear + mobile Clear)
+  const resetFilters = () => {
+    if (role !== 'super_admin') {
+      setSelectedTeamId(userTeamId || '');
+    } else {
+      setSelectedTeamId('');
+    }
+    setSelectedCommunityId('');
+    setSelectedRouteLeaderId('');
+    setSelectedBuildingId('');
+    setSelectedFollowUpId('');
+    setSearchText('');
+  };
+
+  // Fetch visits
   useEffect(() => {
     let isCancelled = false;
 
@@ -171,48 +154,31 @@ const VisitHistory = () => {
       }
 
       try {
-        console.log('Fetching all visits...');
-        console.log('Current user role:', role);
-        console.log('Current user teamId:', userTeamId);
-        console.log('Current user routeId:', userRouteId);
-
         const visitsQuery = query(
           collectionGroup(db, 'visits'),
           orderBy('visitDate', 'desc')
         );
         const querySnapshot = await getDocs(visitsQuery);
-        const fetchedVisits = [];
+        const fetched = [];
 
         querySnapshot.forEach((doc) => {
           const data = doc.data();
           const buildingId = doc.ref.parent.parent?.id;
-
           if (data && buildingId) {
-            fetchedVisits.push({
+            fetched.push({
               id: doc.id,
               buildingId,
               ...data,
-              // Visit documents include denormalized names (buildingName, routeName, communityName, teamName)
-              // No need to fetch parent entities - everything is already in the visit document
             });
           }
         });
 
-        // ✅ PERFORMANCE FIX: No more N+1 queries for names
-        // All entity names are denormalized in visit documents
-        console.log(
-          '✅ Loaded',
-          fetchedVisits.length,
-          'visits with denormalized names (no additional database queries needed!)'
-        );
-
         if (!isCancelled) {
-          setVisits(fetchedVisits);
+          setVisits(fetched);
           setLoading(false);
         }
       } catch (err) {
         if (!isCancelled) {
-          console.error('Error fetching visits:', err);
           setError(`Failed to load visits: ${err.message}`);
           setLoading(false);
         }
@@ -220,145 +186,117 @@ const VisitHistory = () => {
     };
 
     fetchVisits();
-
     return () => {
       isCancelled = true;
     };
-  }, [currentUser]);
+  }, [currentUser, role, userTeamId, userRouteId]);
 
-  // Note: Entity names are now denormalized in visit documents
-  // We don't need fetchEntityNames() anymore - all names come from the visit data!
-
-  // Load teams for super_admin
+  // teams
   useEffect(() => {
     if (role === 'super_admin') {
       getAllTeams()
         .then((teams) => {
           setTeams(teams);
-          const nameMap = Object.fromEntries(teams.map((t) => [t.id, t.name]));
-          setTeamNames(nameMap);
+          const map = Object.fromEntries(teams.map((t) => [t.id, t.name]));
+          setTeamNames(map);
         })
-        .catch((err) => {
-          console.error('Error fetching teams:', err);
-        });
+        .catch((err) => console.error('Error fetching teams:', err));
     }
   }, [role]);
 
-  // Load communities when team is selected
+  // communities
   useEffect(() => {
     if (selectedTeamId) {
       getCommunitiesByTeam(selectedTeamId)
         .then((communities) => {
           setCommunities(communities);
-          const nameMap = Object.fromEntries(
-            communities.map((c) => [c.id, c.name])
-          );
-          setCommunityNames(nameMap);
+          const map = Object.fromEntries(communities.map((c) => [c.id, c.name]));
+          setCommunityNames(map);
         })
-        .catch((err) => {
-          console.error('Error fetching communities:', err);
-        });
+        .catch((err) => console.error('Error fetching communities:', err));
     } else {
       setCommunities([]);
       setSelectedCommunityId('');
     }
   }, [selectedTeamId]);
 
-  // Load route leaders when team is selected
+  // route leaders
   useEffect(() => {
     if (selectedTeamId) {
       getAllRouteLeaders()
         .then((allLeaders) => {
-          // Filter to only route leaders in the selected team
-          const teamLeaders = allLeaders.filter(leader => leader.teamId === selectedTeamId);
+          const teamLeaders = allLeaders.filter(
+            (leader) => leader.teamId === selectedTeamId
+          );
           setRouteLeaders(teamLeaders);
         })
-        .catch((err) => {
-          console.error('Error fetching route leaders:', err);
-        });
+        .catch((err) => console.error('Error fetching route leaders:', err));
     } else {
       setRouteLeaders([]);
       setSelectedRouteLeaderId('');
     }
   }, [selectedTeamId]);
 
-  // Load follow-ups when team is selected
+  // follow-ups
   useEffect(() => {
     if (selectedTeamId) {
       getFollowUpsByTeam(selectedTeamId)
-        .then((teamFollowUps) => {
-          setFollowUps(teamFollowUps);
-        })
-        .catch((err) => {
-          console.error('Error fetching follow-ups:', err);
-        });
+        .then((res) => setFollowUps(res))
+        .catch((err) => console.error('Error fetching follow-ups:', err));
     } else {
       setFollowUps([]);
       setSelectedFollowUpId('');
     }
   }, [selectedTeamId]);
 
-  // Load buildings when community is selected
+  // buildings
   useEffect(() => {
     if (selectedCommunityId) {
-      // Get all buildings in the community
       getBuildingsByCommunity(selectedCommunityId)
-        .then((buildings) => {
-          setBuildings(buildings);
-        })
-        .catch((err) => {
-          console.error('Error fetching buildings:', err);
-        });
+        .then((res) => setBuildings(res))
+        .catch((err) => console.error('Error fetching buildings:', err));
     } else {
       setBuildings([]);
       setSelectedBuildingId('');
     }
   }, [selectedCommunityId]);
 
-  // Filter visits based on selected filters
+  // filtered visits
   const filteredVisits = useMemo(() => {
     let filtered = visits;
 
-    // Apply team filter
     if (selectedTeamId) {
       filtered = filtered.filter((v) => v.teamId === selectedTeamId);
     }
-
-    // Apply community filter
     if (selectedCommunityId) {
       filtered = filtered.filter((v) => v.communityId === selectedCommunityId);
     }
-
-    // Apply route leader filter
     if (selectedRouteLeaderId) {
-      filtered = filtered.filter((v) => v.routeLeaderId === selectedRouteLeaderId);
+      filtered = filtered.filter(
+        (v) => v.routeLeaderId === selectedRouteLeaderId
+      );
     }
-
-    // Apply building filter
     if (selectedBuildingId) {
       filtered = filtered.filter((v) => v.buildingId === selectedBuildingId);
     }
-
-    // Apply follow-up filter
     if (selectedFollowUpId) {
-      // Find the follow-up name from the ID
-      const followUp = followUps.find(f => f.id === selectedFollowUpId);
+      const followUp = followUps.find((f) => f.id === selectedFollowUpId);
       if (followUp) {
-        filtered = filtered.filter((v) =>
-          v.people && v.people.some(person => person.followUp === followUp.name)
+        filtered = filtered.filter(
+          (v) =>
+            v.people &&
+            v.people.some((person) => person.followUp === followUp.name)
         );
       }
     }
-
-    // Apply search filter
     if (searchText.trim()) {
-      const search = searchText.toLowerCase();
+      const s = searchText.toLowerCase();
       filtered = filtered.filter(
         (v) =>
-          (v.buildingName && v.buildingName.toLowerCase().includes(search)) ||
+          (v.buildingName && v.buildingName.toLowerCase().includes(s)) ||
           (v.unitNumber &&
-            String(v.unitNumber).toLowerCase().includes(search)) ||
-          (v.notes && v.notes.toLowerCase().includes(search))
+            String(v.unitNumber).toLowerCase().includes(s)) ||
+          (v.notes && v.notes.toLowerCase().includes(s))
       );
     }
 
@@ -374,9 +312,7 @@ const VisitHistory = () => {
     searchText,
   ]);
 
-  // Group visits based on groupBy option
   const groupedVisits = useMemo(() => {
-    // Group by building & unit combination
     const grouped = filteredVisits.reduce((acc, visit) => {
       const buildingKey = visit.buildingId || 'Unknown';
       const buildingLabel = visit.buildingName || `Building ${buildingKey}`;
@@ -385,27 +321,22 @@ const VisitHistory = () => {
 
       if (!acc[unitKey]) {
         acc[unitKey] = {
-          label: label,
+          label,
           buildingName: buildingLabel,
           unitNumber: visit.unitNumber,
           visits: [],
         };
       }
-
       acc[unitKey].visits.push(visit);
       return acc;
     }, {});
 
-    // For each group, keep only the most recent visit
     Object.keys(grouped).forEach((key) => {
-      // Sort visits by date (most recent first)
       grouped[key].visits.sort((a, b) => {
         const dateA = a.visitDate?.toDate ? a.visitDate.toDate() : new Date(0);
         const dateB = b.visitDate?.toDate ? b.visitDate.toDate() : new Date(0);
-        return dateB - dateA; // Descending order (newest first)
+        return dateB - dateA;
       });
-      
-      // Keep only the first (most recent) visit
       grouped[key].visits = [grouped[key].visits[0]];
     });
 
@@ -419,12 +350,12 @@ const VisitHistory = () => {
     }));
   };
 
-  // Edit handlers
+  // edit handlers
   const startEditingPerson = (visit, personIndex) => {
     setEditingVisit({
       visitId: visit.id,
       buildingId: visit.buildingId,
-      personIndex: personIndex,
+      personIndex,
     });
     setEditFormData({
       name: visit.people[personIndex].name || '',
@@ -442,33 +373,28 @@ const VisitHistory = () => {
 
   const saveEdit = async (visit) => {
     if (!editingVisit) return;
-
     setSaving(true);
     try {
-      // Create updated people array
       const updatedPeople = [...visit.people];
       updatedPeople[editingVisit.personIndex] = {
         ...updatedPeople[editingVisit.personIndex],
         ...editFormData,
       };
 
-      // Update visit in Firestore
       await updateVisit(editingVisit.buildingId, editingVisit.visitId, {
         people: updatedPeople,
       });
 
-      // Update local state
-      setVisits((prevVisits) =>
-        prevVisits.map((v) =>
+      setVisits((prev) =>
+        prev.map((v) =>
           v.id === editingVisit.visitId ? { ...v, people: updatedPeople } : v
         )
       );
 
-      // Clear edit state
       setEditingVisit(null);
       setEditFormData({});
-    } catch (error) {
-      console.error('Error updating person:', error);
+    } catch (err) {
+      console.error('Error updating person:', err);
       setModalState({
         isOpen: true,
         type: 'danger',
@@ -485,7 +411,6 @@ const VisitHistory = () => {
   const handleDeletePerson = async (visit, personIndex) => {
     const person = visit.people[personIndex];
 
-    // Show confirmation modal
     const confirmMessage = `Are you sure you want to delete this person?\n\nName: ${
       person.name || 'Unknown'
     }\nAge: ${person.age || 'N/A'}\nPhone: ${
@@ -503,40 +428,31 @@ const VisitHistory = () => {
         setModalState((prev) => ({ ...prev, isOpen: false }));
         setSaving(true);
         try {
-          // Create updated people array without the deleted person
           const updatedPeople = visit.people.filter(
             (_, idx) => idx !== personIndex
           );
 
-          // If this was the last person, delete the entire visit
           if (updatedPeople.length === 0) {
             await deleteVisit(visit.buildingId, visit.id);
-            // Remove visit from local state
-            setVisits((prevVisits) => prevVisits.filter((v) => v.id !== visit.id));
-
-            // Show success message
+            setVisits((prev) => prev.filter((v) => v.id !== visit.id));
             setModalState({
               isOpen: true,
               type: 'info',
               title: 'Success',
-              message: 'Person deleted. Visit removed as it had no remaining people.',
+              message:
+                'Person deleted. Visit removed as it had no remaining people.',
               confirmText: 'OK',
               onConfirm: null,
             });
           } else {
-            // Update visit with remaining people
             await updateVisit(visit.buildingId, visit.id, {
               people: updatedPeople,
             });
-
-            // Update local state
-            setVisits((prevVisits) =>
-              prevVisits.map((v) =>
+            setVisits((prev) =>
+              prev.map((v) =>
                 v.id === visit.id ? { ...v, people: updatedPeople } : v
               )
             );
-
-            // Show success message
             setModalState({
               isOpen: true,
               type: 'info',
@@ -546,13 +462,13 @@ const VisitHistory = () => {
               onConfirm: null,
             });
           }
-        } catch (error) {
-          console.error('Error deleting person:', error);
+        } catch (err) {
+          console.error('Error deleting person:', err);
           setModalState({
             isOpen: true,
             type: 'danger',
             title: 'Error',
-            message: `Failed to delete person: ${error.message}`,
+            message: `Failed to delete person: ${err.message}`,
             confirmText: 'OK',
             onConfirm: null,
           });
@@ -564,7 +480,6 @@ const VisitHistory = () => {
   };
 
   const handleDeleteVisit = async (visit) => {
-    // Show confirmation modal
     const confirmMessage = `Are you sure you want to delete this ENTIRE visit?\n\nBuilding: ${
       visit.buildingName || 'Unknown'
     }\nUnit: ${visit.unitNumber || 'N/A'}\nDate: ${
@@ -586,13 +501,8 @@ const VisitHistory = () => {
         setModalState((prev) => ({ ...prev, isOpen: false }));
         setSaving(true);
         try {
-          // Delete visit from Firestore
           await deleteVisit(visit.buildingId, visit.id);
-
-          // Remove visit from local state
-          setVisits((prevVisits) => prevVisits.filter((v) => v.id !== visit.id));
-
-          // Show success message
+          setVisits((prev) => prev.filter((v) => v.id !== visit.id));
           setModalState({
             isOpen: true,
             type: 'info',
@@ -601,13 +511,13 @@ const VisitHistory = () => {
             confirmText: 'OK',
             onConfirm: null,
           });
-        } catch (error) {
-          console.error('Error deleting visit:', error);
+        } catch (err) {
+          console.error('Error deleting visit:', err);
           setModalState({
             isOpen: true,
             type: 'danger',
             title: 'Error',
-            message: `Failed to delete visit: ${error.message}`,
+            message: `Failed to delete visit: ${err.message}`,
             confirmText: 'OK',
             onConfirm: null,
           });
@@ -619,11 +529,7 @@ const VisitHistory = () => {
   };
 
   if (!currentUser) {
-    return (
-      <div className="visit-history-page">
-        Please log in to view this content.
-      </div>
-    );
+    return <div className="visit-history-page">Please log in to view this content.</div>;
   }
 
   if (loading) {
@@ -715,154 +621,178 @@ const VisitHistory = () => {
         </button>
       </header>
 
-      {/* Filters Section */}
       <div className="visit-history-page">
+        {/* Filters */}
         <div className="filters-section">
           <div className="filters-header">
             <h2>Filters</h2>
-            <button
-              className="clear-filters-btn"
-              onClick={() => {
-                if (role !== 'super_admin') {
-                  setSelectedTeamId(userTeamId || '');
-                } else {
-                  setSelectedTeamId('');
-                }
-                setSelectedCommunityId('');
-                setSelectedRouteLeaderId('');
-                setSelectedBuildingId('');
-                setSelectedFollowUpId('');
-                setSearchText('');
-              }}
-            >
-              Clear Filters
-            </button>
+            {!isMobile && (
+              <button
+                className="clear-filters-btn"
+                type="button"
+                onClick={resetFilters}
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
 
-          <div className="filter-controls">
-            {/* Team Filter - only for super_admin */}
-            {role === 'super_admin' && (
+          {/* Mobile: Team picker separate, above Filter + Sort */}
+          {isMobile && role === 'super_admin' && (
+            <div className="mobile-team-filter">
+              <label
+                className="mobile-team-label"
+                htmlFor="team-filter-mobile-top"
+              >
+                Team
+              </label>
+              <select
+                id="team-filter-mobile-top"
+                value={selectedTeamId}
+                onChange={(e) => setSelectedTeamId(e.target.value)}
+                className="mobile-team-select"
+              >
+                <option value="">All Teams</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Mobile: Filter + Sort pill */}
+          {isMobile && (
+            <button
+              type="button"
+              className="edit-filters-btn"
+              onClick={() => setShowFilterPanel(true)}
+            >
+              Filter + Sort
+            </button>
+          )}
+
+          {/* Desktop inline filters */}
+          {!isMobile && (
+            <div className="filter-controls desktop-filters">
+              {role === 'super_admin' && (
+                <div className="filter-group">
+                  <label htmlFor="team-filter">Team</label>
+                  <select
+                    id="team-filter"
+                    value={selectedTeamId}
+                    onChange={(e) => setSelectedTeamId(e.target.value)}
+                    className="filter-select"
+                  >
+                    <option value="">All Teams</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="filter-group">
-                <label htmlFor="team-filter">Team</label>
+                <label htmlFor="community-filter">Community</label>
                 <select
-                  id="team-filter"
-                  value={selectedTeamId}
-                  onChange={(e) => setSelectedTeamId(e.target.value)}
+                  id="community-filter"
+                  value={selectedCommunityId}
+                  onChange={(e) => setSelectedCommunityId(e.target.value)}
                   className="filter-select"
+                  disabled={!selectedTeamId && role === 'super_admin'}
                 >
-                  <option value="">All Teams</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.name}
+                  <option value="">All Communities</option>
+                  {communities.map((community) => (
+                    <option key={community.id} value={community.id}>
+                      {community.name}
                     </option>
                   ))}
                 </select>
               </div>
-            )}
 
-            {/* Community Filter */}
-            <div className="filter-group">
-              <label htmlFor="community-filter">Community</label>
-              <select
-                id="community-filter"
-                value={selectedCommunityId}
-                onChange={(e) => setSelectedCommunityId(e.target.value)}
-                className="filter-select"
-                disabled={!selectedTeamId && role === 'super_admin'}
-              >
-                <option value="">All Communities</option>
-                {communities.map((community) => (
-                  <option key={community.id} value={community.id}>
-                    {community.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="filter-group">
+                <label htmlFor="route-leader-filter">Route Leader</label>
+                <select
+                  id="route-leader-filter"
+                  value={selectedRouteLeaderId}
+                  onChange={(e) => setSelectedRouteLeaderId(e.target.value)}
+                  className="filter-select"
+                  disabled={!selectedTeamId || routeLeaders.length === 0}
+                >
+                  <option value="">All Route Leaders</option>
+                  {routeLeaders.map((leader) => (
+                    <option key={leader.id} value={leader.id}>
+                      {leader.displayName || leader.email || 'Unknown'}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Route Leader Filter */}
-            <div className="filter-group">
-              <label htmlFor="route-leader-filter">Route Leader</label>
-              <select
-                id="route-leader-filter"
-                value={selectedRouteLeaderId}
-                onChange={(e) => setSelectedRouteLeaderId(e.target.value)}
-                className="filter-select"
-                disabled={!selectedTeamId || routeLeaders.length === 0}
-              >
-                <option value="">All Route Leaders</option>
-                {routeLeaders.map((leader) => (
-                  <option key={leader.id} value={leader.id}>
-                    {leader.displayName || leader.email || 'Unknown'}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="filter-group">
+                <label htmlFor="building-filter">Building</label>
+                <select
+                  id="building-filter"
+                  value={selectedBuildingId}
+                  onChange={(e) => setSelectedBuildingId(e.target.value)}
+                  className="filter-select"
+                  disabled={!selectedCommunityId}
+                >
+                  <option value="">All Buildings</option>
+                  {buildings.map((building) => (
+                    <option key={building.id} value={building.id}>
+                      {building.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Building Filter */}
-            <div className="filter-group">
-              <label htmlFor="building-filter">Building</label>
-              <select
-                id="building-filter"
-                value={selectedBuildingId}
-                onChange={(e) => setSelectedBuildingId(e.target.value)}
-                className="filter-select"
-                disabled={!selectedCommunityId}
-              >
-                <option value="">All Buildings</option>
-                {buildings.map((building) => (
-                  <option key={building.id} value={building.id}>
-                    {building.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="filter-group">
+                <label htmlFor="followup-filter">Follow-ups/Urgency</label>
+                <select
+                  id="followup-filter"
+                  value={selectedFollowUpId}
+                  onChange={(e) => setSelectedFollowUpId(e.target.value)}
+                  className="filter-select"
+                  disabled={!selectedTeamId || followUps.length === 0}
+                >
+                  <option value="">All Follow-ups</option>
+                  {followUps.map((followUp) => (
+                    <option key={followUp.id} value={followUp.id}>
+                      {followUp.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Follow-ups/Urgency Filter */}
-            <div className="filter-group">
-              <label htmlFor="followup-filter">Follow-ups/Urgency</label>
-              <select
-                id="followup-filter"
-                value={selectedFollowUpId}
-                onChange={(e) => setSelectedFollowUpId(e.target.value)}
-                className="filter-select"
-                disabled={!selectedTeamId || followUps.length === 0}
-              >
-                <option value="">All Follow-ups</option>
-                {followUps.map((followUp) => (
-                  <option key={followUp.id} value={followUp.id}>
-                    {followUp.name}
-                  </option>
-                ))}
-              </select>
+              <div className="filter-group search-filter-group">
+                <label htmlFor="search-filter">Search</label>
+                <input
+                  id="search-filter"
+                  type="text"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  placeholder="Search building, unit, notes..."
+                  className="filter-input"
+                />
+              </div>
             </div>
-
-            {/* Search */}
-            <div className="filter-group search-filter-group">
-              <label htmlFor="search-filter">Search</label>
-              <input
-                id="search-filter"
-                type="text"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                placeholder="Search building, unit, notes..."
-                className="filter-input"
-              />
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Results Summary */}
+        {/* Results summary */}
         <div className="results-summary">
           <p>
             Showing <strong>{filteredVisits.length}</strong> visit
-            {filteredVisits.length !== 1 ? 's' : ''}
-            {` in ${Object.keys(groupedVisits).length} unit${
-              Object.keys(groupedVisits).length !== 1 ? 's' : ''
-            }`}
+            {filteredVisits.length !== 1 ? 's' : ''} in{' '}
+            {Object.keys(groupedVisits).length} unit
+            {Object.keys(groupedVisits).length !== 1 ? 's' : ''}
           </p>
         </div>
 
-        {/* Visits Display */}
+        {/* Visits */}
         {filteredVisits.length === 0 ? (
           <div className="empty-state">
             <p>No visits found matching your filters.</p>
@@ -875,14 +805,15 @@ const VisitHistory = () => {
             </button>
           </div>
         ) : (
-          // Grouped view by building/unit - directly show details
           <div className="visits-grouped">
             {Object.entries(groupedVisits).map(([groupKey, group]) => {
-              const visit = group.visits[0]; // Get the most recent visit
+              const visit = group.visits[0];
               return (
                 <div key={groupKey} className="visit-group">
                   <div
-                    className={`group-header ${expandedGroups[groupKey] ? 'expanded' : ''}`}
+                    className={`group-header ${
+                      expandedGroups[groupKey] ? 'expanded' : ''
+                    }`}
                     onClick={() => toggleGroup(groupKey)}
                   >
                     <h3>{group.label}</h3>
@@ -895,6 +826,7 @@ const VisitHistory = () => {
                       {expandedGroups[groupKey] ? '−' : '+'}
                     </span>
                   </div>
+
                   {expandedGroups[groupKey] && (
                     <div className="visit-details">
                       <div className="detail-item">
@@ -909,9 +841,13 @@ const VisitHistory = () => {
                         <label>Route Leader:</label>
                         <span>
                           {visit.routeLeaderId
-                            ? (routeLeaders.find(l => l.id === visit.routeLeaderId)?.displayName ||
-                               routeLeaders.find(l => l.id === visit.routeLeaderId)?.email ||
-                               'Unknown')
+                            ? routeLeaders.find(
+                                (l) => l.id === visit.routeLeaderId
+                              )?.displayName ||
+                              routeLeaders.find(
+                                (l) => l.id === visit.routeLeaderId
+                              )?.email ||
+                              'Unknown'
                             : 'None'}
                         </span>
                       </div>
@@ -923,6 +859,7 @@ const VisitHistory = () => {
                             : 'N/A'}
                         </span>
                       </div>
+
                       {visit.people && visit.people.length > 0 && (
                         <div className="detail-item full-width">
                           <label>People Visited:</label>
@@ -935,7 +872,6 @@ const VisitHistory = () => {
                               return (
                                 <div key={idx} className="person-item">
                                   {isEditing ? (
-                                    // Edit mode
                                     <div className="person-edit-form">
                                       <div className="edit-form-row">
                                         <label>Name:</label>
@@ -1025,7 +961,6 @@ const VisitHistory = () => {
                                       </div>
                                     </div>
                                   ) : (
-                                    // View mode
                                     <>
                                       <div className="person-header">
                                         <div>
@@ -1085,16 +1020,19 @@ const VisitHistory = () => {
                           </div>
                         </div>
                       )}
+
                       <div className="detail-item full-width">
                         <label>Notes:</label>
                         <p>{visit.notes || 'No notes'}</p>
                       </div>
+
                       {visit.photoUrls && visit.photoUrls.length > 0 && (
                         <div className="detail-item">
                           <label>Photos:</label>
                           <span>{visit.photoUrls.length} photo(s)</span>
                         </div>
                       )}
+
                       {canDeleteVisit(visit) && (
                         <div
                           className="detail-item full-width"
@@ -1109,7 +1047,9 @@ const VisitHistory = () => {
                             disabled={saving}
                             className="delete-visit-btn"
                           >
-                            {saving ? 'Deleting...' : '🗑️ Delete Entire Visit'}
+                            {saving
+                              ? 'Deleting...'
+                              : '🗑️ Delete Entire Visit'}
                           </button>
                         </div>
                       )}
@@ -1120,9 +1060,143 @@ const VisitHistory = () => {
             })}
           </div>
         )}
+
+        {/* Mobile filter sheet */}
+        {isMobile && showFilterPanel && (
+          <div
+            className="filter-panel-overlay"
+            onClick={() => setShowFilterPanel(false)}
+          >
+            <div
+              className="filter-panel"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="filter-panel-header">
+                <h3>Filter &amp; Sort</h3>
+                <button
+                  type="button"
+                  className="filter-panel-close"
+                  onClick={() => setShowFilterPanel(false)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="filter-panel-body">
+                <div className="filter-group">
+                  <label htmlFor="community-filter-mobile">Community</label>
+                  <select
+                    id="community-filter-mobile"
+                    value={selectedCommunityId}
+                    onChange={(e) => setSelectedCommunityId(e.target.value)}
+                    className="filter-select"
+                    disabled={!selectedTeamId && role === 'super_admin'}
+                  >
+                    <option value="">All Communities</option>
+                    {communities.map((community) => (
+                      <option key={community.id} value={community.id}>
+                        {community.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label htmlFor="route-leader-filter-mobile">
+                    Route Leader
+                  </label>
+                  <select
+                    id="route-leader-filter-mobile"
+                    value={selectedRouteLeaderId}
+                    onChange={(e) =>
+                      setSelectedRouteLeaderId(e.target.value)
+                    }
+                    className="filter-select"
+                    disabled={!selectedTeamId || routeLeaders.length === 0}
+                  >
+                    <option value="">All Route Leaders</option>
+                    {routeLeaders.map((leader) => (
+                      <option key={leader.id} value={leader.id}>
+                        {leader.displayName || leader.email || 'Unknown'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label htmlFor="building-filter-mobile">Building</label>
+                  <select
+                    id="building-filter-mobile"
+                    value={selectedBuildingId}
+                    onChange={(e) => setSelectedBuildingId(e.target.value)}
+                    className="filter-select"
+                    disabled={!selectedCommunityId}
+                  >
+                    <option value="">All Buildings</option>
+                    {buildings.map((building) => (
+                      <option key={building.id} value={building.id}>
+                        {building.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label htmlFor="followup-filter-mobile">
+                    Follow-ups/Urgency
+                  </label>
+                  <select
+                    id="followup-filter-mobile"
+                    value={selectedFollowUpId}
+                    onChange={(e) =>
+                      setSelectedFollowUpId(e.target.value)
+                    }
+                    className="filter-select"
+                    disabled={!selectedTeamId || followUps.length === 0}
+                  >
+                    <option value="">All Follow-ups</option>
+                    {followUps.map((followUp) => (
+                      <option key={followUp.id} value={followUp.id}>
+                        {followUp.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group search-filter-group">
+                  <label htmlFor="search-filter-mobile">Search</label>
+                  <input
+                    id="search-filter-mobile"
+                    type="text"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    placeholder="Search building, unit, notes..."
+                    className="filter-input"
+                  />
+                </div>
+              </div>
+
+              <div className="filter-panel-footer">
+                <button
+                  type="button"
+                  className="filter-panel-clear"
+                  onClick={resetFilters}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  className="filter-panel-apply"
+                  onClick={() => setShowFilterPanel(false)}
+                >
+                  See Results
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Modal for confirmations and alerts */}
       <Modal
         isOpen={modalState.isOpen}
         onClose={() => setModalState((prev) => ({ ...prev, isOpen: false }))}

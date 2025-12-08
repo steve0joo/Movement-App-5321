@@ -6,6 +6,8 @@
   color: #1f2937;
 }
 
+/* ---------- Page Header ---------- */
+
 .page-header {
   display: flex;
   align-items: center;
@@ -33,7 +35,8 @@
   color: #1f2937;
 }
 
-/* Filters Section */
+/* ---------- Filters Section ---------- */
+
 .filters-section {
   background-color: #f9fafb;
   border: 1px solid #e5e7eb;
@@ -44,7 +47,7 @@
 
 .filters-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: space-between; /* puts Clear Filters on the right of Filters */
   align-items: center;
   margin-bottom: 16px;
 }
@@ -69,22 +72,29 @@
   background-color: #F28668;
 }
 
+/* Inline filter controls (desktop) */
 .filter-controls {
   display: flex;
-  flex-wrap: nowrap;    
+  flex-wrap: nowrap;
   align-items: center;
   gap: 16px;
-  overflow-x: auto;   
-  padding-bottom: 8px;  
+  overflow-x: auto;
+  padding-bottom: 8px;
 }
 
+/* Only used to hide on mobile */
+.desktop-filters {
+  display: flex;
+}
+
+/* Individual filter group */
 .filter-group {
   display: flex;
   flex-direction: column;
   min-width: 180px;
 }
 
-/* Search filter: same size as other filters */
+/* Search filter keeps same width as others */
 .filter-group.search-filter-group {
   min-width: 180px;
 }
@@ -119,7 +129,114 @@
   font-style: italic;
 }
 
-/* View Options */
+/* ---------- Mobile "Show Filter" pill ---------- */
+
+.edit-filters-btn {
+  display: none;                /* only shown on mobile via media query */
+  width: 100%;
+  padding: 12px 16px;
+  margin-top: 8px;
+  border-radius: 9999px;        /* pill shape */
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* ---------- Mobile Filter Panel (overlay + sheet) ---------- */
+
+.filter-panel-overlay {
+  position: fixed;
+  inset: 0; /* top, right, bottom, left: 0 */
+  background-color: rgba(0, 0, 0, 0.35);
+  z-index: 2000;
+  display: flex;
+  justify-content: flex-end; /* sheet from right */
+}
+
+.filter-panel {
+  width: 80%;
+  max-width: 420px;
+  height: 100%;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 12px rgba(15, 23, 42, 0.15);
+}
+
+.filter-panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filter-panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.filter-panel-close {
+  border: none;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+/* Scrollable body */
+.filter-panel-body {
+  padding: 16px 20px 24px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Footer buttons */
+.filter-panel-footer {
+  padding: 12px 20px 20px 20px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 12px;
+}
+
+.filter-panel-clear,
+.filter-panel-apply {
+  flex: 1;
+  padding: 12px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+/* Clear button */
+.filter-panel-clear {
+  background-color: #f3f4f6;
+  color: #374151;
+  cursor: pointer;
+}
+
+.filter-panel-clear:hover {
+  border-color: #F28668;
+}
+
+/* See Results button */
+.filter-panel-apply {
+  background-color: #4A8F8C;
+  color: #ffffff;
+}
+
+/* ---------- View Options (if used later) ---------- */
+
 .view-options {
   display: flex;
   align-items: center;
@@ -151,7 +268,8 @@
   cursor: pointer;
 }
 
-/* Results Summary */
+/* ---------- Results Summary ---------- */
+
 .results-summary {
   padding: 12px 16px;
   background-color: #f9fafb;
@@ -166,7 +284,8 @@
   color: #4A8F8C;
 }
 
-/* Empty State */
+/* ---------- Empty State ---------- */
+
 .empty-state {
   text-align: center;
   padding: 60px 20px;
@@ -196,7 +315,8 @@
   background-color: #3b7a77;
 }
 
-/* Loading and Error States */
+/* ---------- Loading & Error ---------- */
+
 .loading,
 .error {
   text-align: center;
@@ -213,7 +333,8 @@
   border-radius: 8px;
 }
 
-/* Flat List View */
+/* ---------- Flat List View ---------- */
+
 .visits-list {
   display: flex;
   flex-direction: column;
@@ -297,7 +418,8 @@
   line-height: 1.5;
 }
 
-/* Grouped View */
+/* ---------- Grouped View ---------- */
+
 .visits-grouped {
   display: flex;
   flex-direction: column;
@@ -330,7 +452,6 @@
   background-color: #edeff0;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
-
 
 .group-header h3 {
   margin: 0;
@@ -423,57 +544,8 @@
   font-size: 14px;
 }
 
-@media (max-width: 768px) {
-  .visit-history-page {
-    padding: 12px;
-  }
+/* ---------- People List ---------- */
 
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .page-header h1 {
-    font-size: 24px;
-  }
-
-  .filters-section {
-    padding: 16px;
-  }
-
-  /* keep filters header as a row even on mobile */
-  .filters-header {
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .filter-controls {
-    grid-template-columns: 1fr;
-  }
-
-  .view-options {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .visit-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .visit-date {
-    margin-right: 0;
-  }
-}
-
-/* People List Styling */
 .people-list {
   display: flex;
   flex-direction: column;
@@ -498,7 +570,7 @@
   font-size: 14px;
 }
 
-/* Follow-up */
+/* Follow-up + involvement chips in details view */
 .person-followup {
   margin-top: 8px;
   padding: 8px 10px;
@@ -513,14 +585,14 @@
   margin-top: 8px;
   padding: 8px 10px;
   background-color: #E0F1E7;
-  border-left: 3px solid #4A8F8C; 
+  border-left: 3px solid #4A8F8C;
   border-radius: 6px;
   font-size: 14px;
   color: #166534;
 }
 
+/* ---------- Edit Person ---------- */
 
-/* Edit Person Functionality */
 .person-header {
   display: flex;
   justify-content: space-between;
@@ -534,20 +606,48 @@
   align-items: center;
 }
 
-.edit-person-btn {
-  padding: 4px 10px;
-  background-color: #4A8F8C;
-  color: white;
-  border: none;
-  border-radius: 4px;
+/* Small pill buttons to match admin UI */
+.edit-person-btn,
+.delete-person-btn {
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
   cursor: pointer;
-  font-size: 13px;
-  white-space: nowrap;
-  transition: background-color 0.2s;
+  line-height: 1.2;
+}
+
+/* Edit = soft green pill */
+.edit-person-btn {
+  background-color: #E0F1E7;
+  border-color: #C6E4D5;
+  color: #166534;
 }
 
 .edit-person-btn:hover {
-  background-color: #52a4a0;
+  background-color: #4A8F8C;
+  border-color: #4A8F8C;
+  color: #ffffff;
+}
+
+/* Delete = subtle red pill */
+.delete-person-btn {
+  background-color: #F28668;
+  border-color: #F28668;
+  color: #f1d9d2;
+}
+
+.delete-person-btn:hover:not(:disabled) {
+  background-color: #f1d9d2;
+  border-color: #F28668;
+  color: #F28668;
+}
+
+.delete-person-btn:disabled,
+.edit-person-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .person-edit-form {
@@ -651,56 +751,11 @@
   cursor: not-allowed;
 }
 
-/* Small chip-style buttons for each person (matches admin UI) */
-.edit-person-btn,
-.delete-person-btn {
-  border-radius: 9999px;
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border: 1px solid transparent;
-  cursor: pointer;
-  line-height: 1.2;
-}
+/* ---------- Delete Entire Visit Button ---------- */
 
-/* Edit = soft green pill */
-.edit-person-btn {
-  background-color: #E0F1E7;
-  border-color: #C6E4D5;
-  color: #166534;
-}
-
-.edit-person-btn:hover {
-  background-color: #4A8F8C;
-  border-color: #4A8F8C;
-  color: #ffffff;
-}
-
-/* Delete = subtle red pill */
-.delete-person-btn {
-  background-color: #F28668;
-  border-color: #F28668;
-  color: #f1d9d2;
-}
-
-.delete-person-btn:hover:not(:disabled) {
-  background-color: #f1d9d2;
-  border-color: #F28668;
-  color: #F28668;
-}
-
-.delete-person-btn:disabled,
-.edit-person-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-
-/* Delete Entire Visit Button */
 .delete-visit-btn {
   padding: 4px 10px;
-  background-color: #b91c1c;
+  background-color: #F28668;
   color: white;
   border: none;
   border-radius: 4px;
@@ -722,3 +777,123 @@
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* Mobile-only Team picker above Filter + Sort */
+.mobile-team-filter {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.mobile-team-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.mobile-team-select {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #ffffff;
+  font-size: 15px;
+  color: #111827;
+  box-sizing: border-box;
+}
+
+/* Hover state */
+.mobile-team-select:hover { 
+  border-color: #3d7a77;
+}
+
+/* Only show this block on mobile */
+@media (max-width: 768px) {
+  .mobile-team-filter {
+    display: block;
+  }
+}
+
+/* On desktop, hide the mobile-specific team UI (team is already in desktop filters) */
+@media (min-width: 769px) {
+  .mobile-team-filter {
+    display: none;
+  }
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 768px) {
+  .visit-history-page {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .page-header h1 {
+    font-size: 24px;
+  }
+
+  .filters-section {
+    padding: 16px;
+  }
+
+
+  /* Filter + Sort pill button */
+  .edit-filters-btn {
+    display: block;
+    width: 100%;
+    padding: 14px 0;
+    background: #ffffff;
+    color: #1f2937;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  /* Hover state */
+  .edit-filters-btn:hover { 
+    border-color: #3d7a77;
+  }
+
+  /* Active/pressed state */
+  .edit-filters-btn:active {
+    transform: scale(0.98);
+  }
+
+  .desktop-filters {
+    display: none;
+  }
+
+  .view-options {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visit-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .visit-date {
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
