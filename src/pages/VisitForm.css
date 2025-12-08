@@ -26,8 +26,7 @@
 }
 
 .visit-view-record-btn {
-  background: none;
-  border: none;
+  background: #4A8F8C;
   padding: 6px;
   border-radius: 4px;
   cursor: pointer;
@@ -40,7 +39,8 @@
 }
 
 .visit-view-record-btn:hover {
-  background: #f3f4f6;
+  background-color: #2f7e73;
+  border-color: #4A8F8C;
 }
 
 .visit-view-record-btn:active {
@@ -307,6 +307,7 @@
   cursor: pointer;
   padding: 6px;
   display: flex;
+  padding: 6px;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
@@ -315,7 +316,8 @@
 }
 
 .visit-delete-btn:hover:not(:disabled) {
-  background-color: rgb(255, 236, 236);
+  background-color: #fccabc;
+  border-color: #f28668;
 }
 
 .visit-delete-btn:disabled {
@@ -349,7 +351,7 @@
 .visit-error {
   padding: 12px 16px;
   background-color: #fee2e2;
-  border: 1px solid #fecaca;
+  border: 1px solid #f28668;
   border-radius: 6px;
   color: #f28668;
   font-size: 14px;
@@ -433,7 +435,7 @@
     width: 100%;
     justify-content: flex-start;
     padding: 8px 12px;
-    color: #ef4444;
+    color: #F28668;
     background-color: #fff;
     border: 1px solid #fecaca;
   }
