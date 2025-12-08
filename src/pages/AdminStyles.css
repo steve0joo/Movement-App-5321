@@ -117,6 +117,23 @@
 input,
 select,
 textarea {
+  color: #111827 !important; 
+  background: #ffffff !important; 
+}
+
+input::placeholder {
+  color: #6b7280 !important;
+}
+
+select option {
+  color: #111827 !important; 
+  background: #ffffff;
+}
+
+/* input */
+input,
+select,
+textarea {
   color: #111827 !important;
   background: #ffffff !important; 
 }
