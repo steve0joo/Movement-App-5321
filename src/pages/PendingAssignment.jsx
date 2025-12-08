@@ -35,9 +35,9 @@ export default function PendingAssignment() {
           maxWidth: '600px',
           margin: '0 auto',
           padding: '32px',
-          backgroundColor: '#FEF3C7',
+          backgroundColor: '#fef2f2',
           borderRadius: '12px',
-          border: '2px solid #F59E0B'
+          border: '2px solid #F28668'
         }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <span style={{ fontSize: '48px' }}>⏳</span>
@@ -72,20 +72,20 @@ export default function PendingAssignment() {
 
           <div style={{
             padding: '16px',
-            backgroundColor: '#FFFBEB',
+            backgroundColor: '#ffffff',
             borderRadius: '8px',
             marginBottom: '16px'
           }}>
-            <p style={{ margin: 0, fontSize: '14px', color: '#78350F' }}>
+            <p style={{ margin: 0, fontSize: '14px', color: '#4A8F8C' }}>
               <strong>Account Details:</strong>
             </p>
-            <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#78350F' }}>
+            <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#4A8F8C' }}>
               Email: {currentUser?.email || 'Not available'}
             </p>
           </div>
 
           <p style={{
-            color: '#6B7280',
+            color: '#4E4E57',
             fontSize: '14px',
             textAlign: 'center',
             marginTop: '24px'
