@@ -187,9 +187,6 @@ export default function CommunityManagementTab() {
   return (
     <div className="admin-page">
         <h2>Communities</h2>
-        <button className="btns-primary" onClick={() => setShowCreateModal(true)}>
-        Create New Community
-        </button>
 
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
@@ -210,10 +207,16 @@ export default function CommunityManagementTab() {
                 </option>
               ))}
             </select>
-          
+
           </div>
         // </div>
       )}
+
+      <div className="button-container-right">
+        <button className="btns-primary" onClick={() => setShowCreateModal(true)}>
+          Create New Community
+        </button>
+      </div>
 
       {loading ? (
         <div className="loading">Loading communities...</div>

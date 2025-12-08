@@ -4,7 +4,7 @@
 }
 
 .dashboard-header {
-  background: #4A8F8C;
+  background: #4a8f8c;
   color: white;
   padding: 1.5rem;
   display: flex;
@@ -40,8 +40,8 @@
 }
 
 .btn-logout:hover {
-  background: #E0F1E7;
-  color: #4A8F8C;;
+  background: #e0f1e7;
+  color: #4a8f8c;
 }
 
 .dashboard-content {
@@ -101,7 +101,7 @@
 }
 
 .action-card.admins-card {
-  border: 2px solid tomato;
+  border: 2px solid 333;
 }
 
 .action-card.disabled {
@@ -158,9 +158,8 @@
 
   .user-info {
     flex-direction: column;
-    align-items: flex-end; 
+    align-items: flex-end;
     text-align: right;
     gap: 0.25rem;
   }
 }
-

@@ -248,6 +248,22 @@ export default function CommunityInvolvementTab() {
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
+      {/* Section tabs */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', marginTop: '16px' }}>
+        <button
+          className={activeSection === 'followUps' ? 'btn-cancel' : 'btn-secondary'}
+          onClick={() => setActiveSection('followUps')}
+        >
+          Follow-Up Options
+        </button>
+        <button
+          className={activeSection === 'involvements' ? 'btn-cancel' : 'btn-secondary'}
+          onClick={() => setActiveSection('involvements')}
+        >
+          Current Involvement Options
+        </button>
+      </div>
+
       {/* Team selector */}
       {isSuperAdmin && (
         <div className="form-group">
@@ -266,22 +282,6 @@ export default function CommunityInvolvementTab() {
         </div>
       )}
 
-      {/* Section tabs */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', marginTop: '16px' }}>
-        <button
-          className={activeSection === 'followUps' ? 'btn-cancel' : 'btn-secondary'}
-          onClick={() => setActiveSection('followUps')}
-        >
-          Follow-Up Options
-        </button>
-        <button
-          className={activeSection === 'involvements' ? 'btn-cancel' : 'btn-secondary'}
-          onClick={() => setActiveSection('involvements')}
-        >
-          Current Involvement Options
-        </button>
-      </div>
-
       {loading ? (
         <div className="loading">Loading options...</div>
       ) : (
@@ -289,13 +289,14 @@ export default function CommunityInvolvementTab() {
           {/* Follow-Ups Section */}
           {activeSection === 'followUps' && (
             <>
-              <button
-                className="btns-primary"
-                onClick={() => setShowCreateFollowUpModal(true)}
-                style={{ marginBottom: '16px' }}
-              >
-                Create Follow-Up Option
-              </button>
+              <div className="button-container-right">
+                <button
+                  className="btns-primary"
+                  onClick={() => setShowCreateFollowUpModal(true)}
+                >
+                  Create Follow-Up Option
+                </button>
+              </div>
 
               {followUps.length === 0 ? (
                 <div className="empty-state">
@@ -354,13 +355,14 @@ export default function CommunityInvolvementTab() {
           {/* Involvements Section */}
           {activeSection === 'involvements' && (
             <>
-              <button
-                className="btns-primary"
-                onClick={() => setShowCreateInvolvementModal(true)}
-                style={{ marginBottom: '16px' }}
-              >
-                Create Involvement Option
-              </button>
+              <div className="button-container-right">
+                <button
+                  className="btns-primary"
+                  onClick={() => setShowCreateInvolvementModal(true)}
+                >
+                  Create Involvement Option
+                </button>
+              </div>
 
               {involvements.length === 0 ? (
                 <div className="empty-state">

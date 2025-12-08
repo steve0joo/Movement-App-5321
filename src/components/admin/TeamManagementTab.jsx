@@ -210,7 +210,7 @@ export default function TeamManagementTab() {
         </div>
       )}
 
-      <div style={{ marginBottom: '20px' }}>
+      <div className="button-container-right">
         <button
           onClick={() => setShowCreateModal(true)}
           className="btns-primary"

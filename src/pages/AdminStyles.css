@@ -67,6 +67,13 @@
   gap: 16px;
 }
 
+/* Button container aligned to the right */
+.button-container-right {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
 /* Role pill */
 .role-pill {
   display: inline-flex;
@@ -178,12 +185,13 @@ button {
   background: #f3f4f6;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
-  padding: 8px 14px;
-  font-size: 14px;
+  padding: 10px 20px;
+  font-size: 16px;
   font-weight: 500;
   color: var(--text-main);
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+  white-space: nowrap;
 }
 
 .btn-secondary:hover {
@@ -197,12 +205,13 @@ button {
   background: #ffffff;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
-  padding: 8px 16px;
-  font-size: 14px;
+  padding: 10px 20px;
+  font-size: 16px;
   font-weight: 500;
   color: var(--text-main);
   cursor: pointer;
   transition: all 0.12s ease;
+  white-space: nowrap;
 }
 
 .btn-cancel:hover {
