@@ -101,7 +101,11 @@
 }
 
 .action-card.admins-card {
+<<<<<<< Updated upstream
   border: 2px solid 333;
+=======
+  border: 2px solid #F28668;
+>>>>>>> Stashed changes
 }
 
 .action-card.disabled {
