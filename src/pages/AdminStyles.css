@@ -113,9 +113,24 @@
   border-width: 2px;
 }
 
+/* input */
+input,
+select,
+textarea {
+  color: #111827 !important;
+  background: #ffffff !important; 
+}
+
+input::placeholder {
+  color: #6b7280 !important;
+}
+
+select option {
+  color: #111827 !important;
+  background: #ffffff;
+}
 
 /* Alerts / Messages */
-
 .error-message,
 .success-message {
   padding: 12px 14px;
@@ -678,29 +693,86 @@ input[type='search']:focus {
   margin: 4px 0 20px;
 }
 
-/* Tabs bar – make it wrap/scroll on smaller widths */
-.admin-tabs {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  max-width: 100%;
-}
+/* ================================
+   Admin Tabs – pill design
+   ================================ */
 
-/* If your tab buttons are direct children, keep their labels on one line */
-.admin-tabs button {
-  white-space: nowrap;
-}
-
-/* Extra safety on very narrow screens */
-@media (max-width: 600px) {
-  .admin-tabs {
-    overflow-x: auto;
-    padding-bottom: 4px;
+   .admin-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 1.25rem 0 1rem;
+    border-bottom: 1px solid #e5e7eb;
   }
-}
-
-
+  
+  /* base tab */
+  .admin-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.7rem 1.7rem;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #4b5563; /* gray text */
+    cursor: pointer;
+    transition:
+      background 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease,
+      transform 0.08s ease;
+  }
+  
+  /* emoji / icon */
+  .admin-tab-icon {
+    font-size: 1.15rem;
+  }
+  
+  /* active tab – mint pill */
+  .admin-tab.is-active {
+    background: #e0f1e7;          /* soft mint */
+    color: #111827;               /* dark text */
+    box-shadow: 0 18px 40px rgba(15, 118, 110, 0.18);
+    transform: translateY(-1px);
+  }
+  
+  /* underline accent inside the pill */
+  .admin-tab.is-active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    width: 46%;
+    height: 3px;
+    border-radius: 999px;
+    background: #2f7e73;
+    transform: translateX(-50%);
+  }
+  
+  /* hover (inactive) */
+  .admin-tab:not(.is-active):hover {
+    background: rgba(224, 241, 231, 0.65);
+    color: #111827;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+  }
+  
+  /* mobile tweaks */
+  @media (max-width: 900px) {
+    .admin-tabs {
+      gap: 10px;
+      padding-top: 1rem;
+      padding-bottom: 0.75rem;
+    }
+  
+    .admin-tab {
+      padding: 0.55rem 1.3rem;
+      font-size: 0.95rem;
+    }
+  }
+  
 
 /* Responsive adjustments*/
 
