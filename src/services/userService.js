@@ -171,9 +171,20 @@ export async function getAllRouteLeaders() {
 export async function getUsersByTeam(teamId) {
   try {
     const usersRef = collection(db, USERS_COLLECTION);
-    const q = query(usersRef, where('teamId', '==', teamId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    // Get the users in the specified team OR unassigned users (teamId === null)
+    // This allows admins to see and assign unassigned users
+    const q1 = query(usersRef, where('teamId', '==', teamId));
+    const q2 = query(usersRef, where('teamId', '==', null));
+
+    const [querySnapshot1, querySnapshot2] = await Promise.all([
+      getDocs(q1),
+      getDocs(q2)
+    ]);
+
+    const teamUsers = querySnapshot1.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const unassignedUsers = querySnapshot2.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    return [...teamUsers, ...unassignedUsers];
   } catch (error) {
     console.error('Error getting users by team:', error);
     throw error;

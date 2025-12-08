@@ -46,9 +46,9 @@ export default function UserManagementTab() {
   /* ---------- Permissions helpers ---------- */
 
   const canEditUser = (targetUser) => {
-    if (isSuperAdmin) return true;                       // super_admin → can edit anyone
+    if (isSuperAdmin) return true; // super_admin → can edit anyone
     if (targetUser.id === currentUser?.uid) return false; // cannot edit self
-    if (targetUser.role === 'super_admin') return false;  // cannot edit super_admins
+    if (targetUser.role === 'super_admin') return false; // cannot edit super_admins
 
     if (role === 'team_admin') {
       return targetUser.teamId === userTeamId;
@@ -230,10 +230,18 @@ export default function UserManagementTab() {
     return team?.name || teamId.substring(0, 8) + '...';
   }
 
-  const visibleUsers = useMemo(() => {
+  // Separate unassigned and assigned users
+  const { unassignedUsers, assignedUsers } = useMemo(() => {
+    const unassigned = users.filter((u) => !u.teamId);
+    const assigned = users.filter((u) => u.teamId);
+    return { unassignedUsers: unassigned, assignedUsers: assigned };
+  }, [users]);
+
+  // Apply search filter to assigned users
+  const visibleAssignedUsers = useMemo(() => {
     const q = (searchTerm || '').trim().toLowerCase();
-    if (!q) return users;
-    return users.filter((user) => {
+    if (!q) return assignedUsers;
+    return assignedUsers.filter((user) => {
       const name = (user.displayName || '').toLowerCase();
       const email = (user.email || '').toLowerCase();
       const r = (user.role || '').toLowerCase();
@@ -245,7 +253,19 @@ export default function UserManagementTab() {
         team.includes(q)
       );
     });
-  }, [users, searchTerm, teams]);
+  }, [assignedUsers, searchTerm, teams]);
+
+  // Apply search filter to unassigned users
+  const visibleUnassignedUsers = useMemo(() => {
+    const q = (searchTerm || '').trim().toLowerCase();
+    if (!q) return unassignedUsers;
+    return unassignedUsers.filter((user) => {
+      const name = (user.displayName || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const r = (user.role || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || r.includes(q);
+    });
+  }, [unassignedUsers, searchTerm]);
 
   /* ---------- Render ---------- */
 
@@ -278,72 +298,161 @@ export default function UserManagementTab() {
         />
       </div>
 
-      {/* Users Table */}
-      {visibleUsers.length === 0 ? (
-        <div className="empty-state">
-          <p>{searchTerm ? 'No users match your search.' : 'No users found.'}</p>
-        </div>
-      ) : (
-        <div className="users-table">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Display Name</th>
-                <th>Role</th>
-                <th>Team</th>
-                <th>Route ID</th>
-                <th>Status</th>
-                <th className="actions-header">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleUsers.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.email}</td>
-                  <td>{user.displayName || '-'}</td>
-                  <td>
-                    <span className={`role-pill role-${user.role}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td>{getTeamName(user.teamId)}</td>
-                  <td style={{ fontSize: '12px' }}>
-                    {user.routeId ? user.routeId : '-'}
-                  </td>
-                  <td>
-                    <span
-                      className={`status-badge ${
-                        user.isActive ? 'active' : 'inactive'
-                      }`}
-                    >
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="actions-cell">
-                    {canEditUser(user) && (
+      {/* Unassigned Users Section */}
+      {visibleUnassignedUsers.length > 0 && (
+        <div style={{ marginBottom: '32px' }}>
+          <div
+            style={{
+              padding: '12px 16px',
+              backgroundColor: '#FEF3C7',
+              borderRadius: '8px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            <div>
+              <strong style={{ color: '#92400E' }}>Unassigned Users</strong>
+              <p
+                style={{
+                  margin: '4px 0 0 0',
+                  fontSize: '14px',
+                  color: '#92400E',
+                }}
+              >
+                These users need a team assignment to access the application.
+              </p>
+            </div>
+          </div>
+
+          <div className="users-table">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Display Name</th>
+                  <th>Role</th>
+                  <th>Created</th>
+                  <th className="actions-header">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleUnassignedUsers.map((user) => (
+                  <tr key={user.id} style={{ backgroundColor: '#FFFBEB' }}>
+                    <td>{user.email}</td>
+                    <td>{user.displayName || '-'}</td>
+                    <td>
+                      <span className={`role-pill role-${user.role}`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '12px' }}>
+                      {user.createdAt?.toDate?.()?.toLocaleDateString() || '-'}
+                    </td>
+                    <td className="actions-cell">
                       <button
                         className="btn-edit"
                         onClick={() => openEditModal(user)}
                       >
-                        <img src={editIcon} alt="Edit" />
+                        <img src={editIcon} alt="Assign Teamit" />
                       </button>
-                    )}
-                    {canDeleteUser(user) && (
-                      <button
-                        className="btn-delete"
-                        onClick={() => setDeleteConfirm(user)}
-                      >
-                        <img src={trashIcon} alt="Delete" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      {canDeleteUser(user) && (
+                        <button
+                          className="btn-delete"
+                          onClick={() => setDeleteConfirm(user)}
+                        >
+                          <img src={trashIcon} alt="Delete" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
+
+      {/* Assigned Users Table */}
+      <div>
+        <h3 style={{ marginBottom: '16px', color: '#374151' }}>
+          Assigned Users{' '}
+          {visibleAssignedUsers.length > 0 &&
+            `(${visibleAssignedUsers.length})`}
+        </h3>
+
+        {visibleAssignedUsers.length === 0 ? (
+          <div className="empty-state">
+            <p>
+              {searchTerm
+                ? 'No users match your search.'
+                : 'No assigned users found.'}
+            </p>
+          </div>
+        ) : (
+          <div className="users-table">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Display Name</th>
+                  <th>Role</th>
+                  <th>Team</th>
+                  <th>Route ID</th>
+                  <th>Status</th>
+                  <th className="actions-header">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleAssignedUsers.map((user) => (
+                  <tr key={user.id}>
+                    <td>{user.email}</td>
+                    <td>{user.displayName || '-'}</td>
+                    <td>
+                      <span className={`role-pill role-${user.role}`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td>{getTeamName(user.teamId)}</td>
+                    <td style={{ fontSize: '12px' }}>
+                      {user.routeId ? user.routeId : '-'}
+                    </td>
+                    <td>
+                      <span
+                        className={`status-badge ${
+                          user.isActive ? 'active' : 'inactive'
+                        }`}
+                      >
+                        {user.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="actions-cell">
+                      {canEditUser(user) && (
+                        <button
+                          className="btn-edit"
+                          onClick={() => openEditModal(user)}
+                        >
+                          <img src={editIcon} alt="Edit" />
+                        </button>
+                      )}
+                      {canDeleteUser(user) && (
+                        <button
+                          className="btn-delete"
+                          onClick={() => setDeleteConfirm(user)}
+                        >
+                          <img src={trashIcon} alt="Delete" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
       {/* Edit User Modal */}
       {editingUser && (
         <div
