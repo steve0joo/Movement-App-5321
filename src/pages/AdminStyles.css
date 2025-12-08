@@ -507,8 +507,8 @@ input[type='search']:focus {
 }
 
 .status-badge.inactive {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: #e6bcb0;
+  color: #F28668;
 }
 
 .role-badge {
