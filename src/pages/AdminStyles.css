@@ -678,13 +678,60 @@ input[type='search']:focus {
   margin: 4px 0 20px;
 }
 
+/* Tabs bar – make it wrap/scroll on smaller widths */
+.admin-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+/* If your tab buttons are direct children, keep their labels on one line */
+.admin-tabs button {
+  white-space: nowrap;
+}
+
+/* Extra safety on very narrow screens */
+@media (max-width: 600px) {
+  .admin-tabs {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+}
+
 
 
 /* Responsive adjustments*/
 
 @media (max-width: 900px) {
+  /* overall admin page padding + prevent horizontal scroll */
   .admin-page {
-    padding: 20px 16px 32px;
+    padding: 16px 12px 24px;
+    box-sizing: border-box;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* top “Admin Panel / subtitle / tabs” group */
+  .admin-header-group {
+    max-width: 100%;
+    padding: 0 4px 12px;
+  }
+
+  .admin-panel-title {
+    font-size: 22px;
+  }
+
+  .admin-panel-subtitle {
+    font-size: 13px;
+  }
+
+  /* tab content wrapper */
+  .admin-tab-body,
+  .admin-tab-content {
+    max-width: 100%;
+    padding: 0 4px 18px;
   }
 
   .admin-section-header {
@@ -692,9 +739,17 @@ input[type='search']:focus {
     align-items: flex-start;
   }
 
+  /* cards / tables */
   .users-table,
   .data-table-container {
     border-radius: 14px;
+    width: 100%;
+    overflow-x: auto; /* allow horizontal scroll if columns are too many */
+  }
+
+  .users-table table,
+  .data-table {
+    min-width: 640px; /* prevents the table from squishing into unreadable text */
   }
 
   .user-item {

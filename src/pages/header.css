@@ -81,3 +81,27 @@
 }
 .menu-dropdown .menu-item:hover { background: #f3f4f6; }
 .menu-dropdown .menu-item:focus { outline: none; background: #eef6f5; box-shadow: inset 0 0 0 2px rgba(74,143,140,0.08); }
+
+@media (max-width: 900px) {
+  .all-header,
+  .admin-header {
+    padding: 16px 12px 8px;
+    gap: 8px;
+  }
+
+  /* keep menu, logo, and Admin pill from overlapping */
+  .all-header .logo-home {
+    position: static;
+    transform: none;
+    margin: 0 auto;
+  }
+
+  .menu-container {
+    margin-right: 0;
+  }
+
+  .admin-info {
+    margin-left: 0;
+  }
+}
+

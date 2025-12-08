@@ -1,20 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import SyncIndicator from '../components/SyncIndicator';
-import PendingAssignment from './PendingAssignment';
 import './Dashboard.css';
 
 export default function Dashboard() {
   const { logout, currentUser, role, teamId, routeId } = useAuth();
   const navigate = useNavigate();
-
-  // Check if user has team assignment (except super_admin who can access without team)
-  const hasTeamAssignment = teamId || role === 'super_admin';
-
-  // If user doesn't have a team assignment, show pending page
-  if (!hasTeamAssignment) {
-    return <PendingAssignment />;
-  }
 
   // Check if user can access admin panel based on their assignments
   const canAccessAdminPanel = () => {
@@ -84,15 +75,19 @@ export default function Dashboard() {
               <p>View and filter visit records</p>
             </button>
 
-            {/* Unified Admin Panel - Only for super_admin and team_admin */}
-            {(role === 'super_admin' || role === 'team_admin') && (
+            {/* Unified Admin Panel - Single entry point for all admin features */}
+            {(role === 'super_admin' || role === 'team_admin' || role === 'route_leader') && (
               <button
                 className={`action-card admins-card ${!adminPanelEnabled ? 'disabled' : ''}`}
                 onClick={() => adminPanelEnabled && navigate('/admin')}
                 disabled={!adminPanelEnabled}
                 title={
                   !adminPanelEnabled
-                    ? 'Please wait for a supervisor to assign you to a team'
+                    ? role === 'team_admin'
+                      ? 'Please wait for a supervisor to assign you to a team'
+                      : role === 'route_leader'
+                      ? 'Please wait for a supervisor to assign you to a team and route'
+                      : ''
                     : 'Access admin panel'
                 }
               >

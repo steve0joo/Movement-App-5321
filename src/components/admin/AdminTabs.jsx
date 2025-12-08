@@ -16,18 +16,19 @@ export default function AdminTabs({ tabs, currentTab, onTabChange, userRole }) {
 
   return (
     <div className="admin-tabs">
-      <div className="admin-tabs-container">
-        {visibleTabs.map(tab => (
+      {tabs
+        .filter(tab => tab.roles.includes(userRole))
+        .map(tab => (
           <button
             key={tab.id}
-            className={`admin-tab ${currentTab === tab.id ? 'active' : ''}`}
-            onClick={() => handleTabClick(tab.id)}
+            type="button"
+            onClick={() => onTabChange(tab.id)}
+            className={tab.id === currentTab ? 'tab-button active' : 'tab-button'}
           >
-            <span className="admin-tab-icon">{tab.icon}</span>
-            <span className="admin-tab-label">{tab.label}</span>
+            <span className="tab-icon">{tab.icon}</span>
+            {tab.label}
           </button>
         ))}
-      </div>
     </div>
   );
 }
