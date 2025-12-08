@@ -81,19 +81,12 @@
 .filter-group {
   display: flex;
   flex-direction: column;
-  min-width: 180px;  
+  min-width: 180px;
 }
 
-/* Search filter: full width row, a bit of breathing room above */
+/* Search filter: same size as other filters */
 .filter-group.search-filter-group {
-  grid-column: 2 / -2;
-  margin-top: 4px;         /* subtle separation from filters row */
-}
-
-/* Make sure the input fills that full row nicely */
-#search-filter {
-  width: 100%;
-  box-sizing: border-box;
+  min-width: 180px;
 }
 
 .filter-group label {
@@ -110,6 +103,8 @@
   font-size: 14px;
   background-color: white;
   color: #1f2937;
+  height: 42px;
+  box-sizing: border-box;
 }
 
 .filter-select:disabled,
@@ -611,6 +606,7 @@
   display: flex;
   gap: 8px;
   margin-top: 4px;
+  justify-content: flex-end;
 }
 
 .save-btn {
