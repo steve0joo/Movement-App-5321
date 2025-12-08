@@ -587,7 +587,7 @@ export default function CommunityInvolvementTab() {
               </button>
               <button
                 type="button"
-                className="btn-delete"
+                className="btn-danger-solid"
                 onClick={handleDeleteFollowUp}
                 disabled={deleting}
               >
@@ -621,7 +621,7 @@ export default function CommunityInvolvementTab() {
               </button>
               <button
                 type="button"
-                className="btn-delete"
+                className="btn-danger-solid"
                 onClick={handleDeleteInvolvement}
                 disabled={deleting}
               >

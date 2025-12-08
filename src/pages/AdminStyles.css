@@ -1,7 +1,4 @@
-/* ================================
-   Admin Panel – Global Styling
-   ================================ */
-
+/* Admin Panel – Global Styling*/
 :root {
   --bg-page: #f5f7fb;
   --bg-card: #ffffff;
@@ -14,15 +11,15 @@
   --text-muted: #6b7280;
   --text-subtle: #9ca3af;
 
-  --accent: #2f7e73;
+  --accent: #4A8F8C;
   --accent-soft: #e0f2f1;
-  --accent-strong: #155e54;
+  --accent-strong: #2f7e73;
 
-  --danger: #f97373;
+  --danger: #F28668;
   --danger-soft: #fef2f2;
   --danger-strong: #b91c1c;
 
-  --warning: #fbbf24;
+  --warning: #E0F1E7;
   --warning-soft: #fffbeb;
 
   --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.06);
@@ -79,35 +76,38 @@
   font-size: 0.8rem;
   font-weight: 500;
   background: #eef2ff;
-  color: #2563eb;
 }
 
 /* Slight variations per role if you want */
 .role-super_admin {
-  background: #eef2ff;
-  color: #1d4ed8;
+  background: #fccabc;
+  color: #F28668;
+  border-color: #F28668;
+  border-width: 2px;
 }
 
 .role-team_admin {
-  background: #ecfeff;
-  color: #0e7490;
+  background: #4A8F8C;
+  color: #E0F1E7;
+  border-color: #4A8F8C;
 }
 
 .role-route_leader {
-  background: #fef3c7;
-  color: #b45309;
+  background: #ffe5ce;
+  color: #AD7748;
+  border-color: #AD7748;
+  border-width: 2px;
 }
 
 .role-volunteer {
-  background: #ecfdf5;
+  background: #E0F1E7;
   color: #047857;
+  border-color: #E0F1E7;
+  border-width: 2px;
 }
 
 
-
-/* ================================
-   Alerts / Messages
-   ================================ */
+/* Alerts / Messages */
 
 .error-message,
 .success-message {
@@ -134,9 +134,7 @@
   color: #166534;
 }
 
-/* ================================
-   Buttons
-   ================================ */
+/* Buttons*/
 
 button {
   font-family: inherit;
@@ -236,7 +234,7 @@ button {
   background: #fee2e2;
   color: var(--danger-strong);
   border-radius: var(--radius-sm);
-  border: 1px solid #fecaca;
+  border: 1px solid #F28668;
   padding: 8px 14px;
   font-size: 14px;
   font-weight: 600;
@@ -254,7 +252,7 @@ button {
   background: #fee2e2;
   color: var(--danger-strong);
   border-radius: var(--radius-sm);
-  border: 1px solid #fecaca;
+  border: 1px solid var(--danger-strong);
   padding: 8px 18px;
   font-size: 14px;
   font-weight: 600;
@@ -263,7 +261,7 @@ button {
 }
 
 .btn-danger-solid:hover {
-  background: #fecaca;
+  background: var(--danger);
 }
 
 /* small buttons in tables */
@@ -299,13 +297,11 @@ button {
 }
 
 .btn-delete:hover {
-  border-color: #fecaca;
+  border-color: #F28668;
   background: var(--danger-soft);
 }
 
-/* ================================
-   Cards / Lists
-   ================================ */
+/* Cards / Lists*/
 
 .user-list {
   display: flex;
@@ -342,9 +338,7 @@ button {
   margin-top: 2px;
 }
 
-/* ================================
-   Tables
-   ================================ */
+/* Tables */
 
 .users-table,
 .data-table-container {
@@ -415,10 +409,7 @@ button {
   overflow-x: auto;
 }
 
-/* ================================
-   Search / Filters / Form controls
-   ================================ */
-
+/* Search / Filters / Form controls*/
 .search-row {
   margin: 16px 0 10px;
 }
@@ -464,9 +455,7 @@ input[type='search']:focus {
   gap: 6px;
 }
 
-/* ================================
-   Status / Role badges
-   ================================ */
+/* Status / Role badges*/
 
 .status-badge {
   display: inline-flex;
@@ -495,11 +484,9 @@ input[type='search']:focus {
   font-size: 12px;
   font-weight: 500;
   background: #eff6ff;
-  color: #1d4ed8;
+  color: #4A8F8C;
 }
-/* ================================
-   Empty / Loading states
-   ================================ */
+/* Empty / Loading states*/
 
 .loading {
   padding: 40px 0;
@@ -553,9 +540,7 @@ input[type='search']:focus {
   margin: 16px 0 18px;
 }
 
-/* ================================
-   Modals
-   ================================ */
+/* Modals */
 
 .modal-overlay {
   position: fixed;
@@ -686,9 +671,7 @@ input[type='search']:focus {
 
 
 
-/* ================================
-   Responsive adjustments
-   ================================ */
+/* Responsive adjustments*/
 
 @media (max-width: 900px) {
   .admin-page {
