@@ -304,7 +304,7 @@ export default function UserManagementTab() {
           <div
             style={{
               padding: '12px 16px',
-              backgroundColor: '#FEF3C7',
+              backgroundColor: '#ffffff',
               borderRadius: '8px',
               marginBottom: '12px',
               display: 'flex',
@@ -314,12 +314,12 @@ export default function UserManagementTab() {
           >
             <span style={{ fontSize: '20px' }}>⚠️</span>
             <div>
-              <strong style={{ color: '#92400E' }}>Unassigned Users</strong>
+              <strong style={{ color: '#F28668' }}>Unassigned Users</strong>
               <p
                 style={{
                   margin: '4px 0 0 0',
                   fontSize: '14px',
-                  color: '#92400E',
+                  color: '#F28668',
                 }}
               >
                 These users need a team assignment to access the application.
@@ -340,7 +340,7 @@ export default function UserManagementTab() {
               </thead>
               <tbody>
                 {visibleUnassignedUsers.map((user) => (
-                  <tr key={user.id} style={{ backgroundColor: '#FFFBEB' }}>
+                  <tr key={user.id} style={{ backgroundColor: '#fccabc' }}>
                     <td>{user.email}</td>
                     <td>{user.displayName || '-'}</td>
                     <td>
