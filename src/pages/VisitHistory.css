@@ -2,6 +2,8 @@
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  background-color: #ffffff;
+  color: #1f2937;
 }
 
 .page-header {
@@ -107,6 +109,7 @@
   border-radius: 6px;
   font-size: 14px;
   background-color: white;
+  color: #1f2937;
 }
 
 .filter-select:disabled,
@@ -205,6 +208,7 @@
   padding: 40px 20px;
   font-size: 16px;
   color: #6b7280;
+  background-color: #ffffff;
 }
 
 .error {
@@ -264,6 +268,7 @@
 .visit-details {
   padding: 16px;
   border-top: 1px solid #e5e7eb;
+  background-color: #ffffff;
 }
 
 .detail-item {
@@ -347,6 +352,7 @@
 
 .group-visits {
   border-top: 1px solid #e5e7eb;
+  background-color: #ffffff;
 }
 
 .visit-item {
@@ -574,6 +580,8 @@
   border-radius: 4px;
   font-size: 14px;
   font-family: inherit;
+  background-color: #ffffff;
+  color: #1f2937;
 }
 
 .edit-input:focus {
@@ -589,6 +597,8 @@
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
+  background-color: #ffffff;
+  color: #1f2937;
 }
 
 .edit-textarea:focus {
@@ -687,6 +697,7 @@
 .edit-person-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 

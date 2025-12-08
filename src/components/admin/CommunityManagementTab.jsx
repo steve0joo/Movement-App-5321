@@ -362,7 +362,7 @@ export default function CommunityManagementTab() {
               </button>
               <button
                 type="button"
-                className="btn-delete"
+                className="btn-danger-solid"
                 onClick={handleDeleteCommunity}
                 disabled={deleting}
               >
