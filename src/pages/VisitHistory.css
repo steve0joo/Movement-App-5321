@@ -755,7 +755,7 @@
 
 .delete-visit-btn {
   padding: 4px 10px;
-  background-color: #F28668;
+  background-color: #b91c1c;
   color: white;
   border: none;
   border-radius: 4px;
@@ -803,7 +803,7 @@
 
 /* Hover state */
 .mobile-team-select:hover { 
-  border-color: #3d7a77;
+  border-color: #4A8F8C;
 }
 
 /* Only show this block on mobile */
