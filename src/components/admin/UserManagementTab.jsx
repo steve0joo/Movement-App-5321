@@ -298,85 +298,83 @@ export default function UserManagementTab() {
         />
       </div>
 
-      {/* Unassigned Users Section */}
-      {visibleUnassignedUsers.length > 0 && (
-        <div style={{ marginBottom: '32px' }}>
-          <div
-            style={{
-              padding: '12px 16px',
-              backgroundColor: '#ffffff',
-              borderColor: '#F28668',
-              borderRadius: '18px',
-              marginBottom: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <span style={{ fontSize: '20px' }}>⚠️</span>
-            <div>
-              <strong style={{ color: '#0F0F0F' }}>Unassigned Users</strong>
-              <p
-                style={{
-                  margin: '4px 0 0 0',
-                  fontSize: '14px',
-                  color: '#F28668',
-                }}
-              >
-                These users need a team assignment to access the application.
-              </p>
-            </div>
-          </div>
+  {/* Unassigned Users Section */}
+        {visibleUnassignedUsers.length > 0 && (
+          <div style={{ marginBottom: '32px' }}>
+            <div
+              style={{
+                padding: '12px 16px',
+                backgroundColor: '#ffffff',
+                borderColor: '#F28668',
+                borderRadius: '18px',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>⚠️</span>
+              <div>
+                <strong style={{ color: '#0F0F0F' }}>Unassigned Users</strong>
+                <p
+                  style={{
+                    margin: '4px 0 0 0',
+                    fontSize: '14px',
+                    color: '#F28668',
+                  }}
+                >
+                  These users need a team assignment to access the application.
+                </p>
+              </div>
+            </div>
 
-          <div className="users-table users-table--unassigned">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Display Name</th>
-                  <th>Role</th>
-                  <th>Created</th>
-                  <th className="actions-header">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleUnassignedUsers.map((user) => (
-                  <tr key={user.id} style={{ backgroundColor: '#ffffff' }}>
-                    <td>{user.email}</td>
-                    <td>{user.displayName || '-'}</td>
-                    <td>
-                      <span className={`role-pill role-${user.role}`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '12px' }}>
-                      {user.createdAt?.toDate?.()?.toLocaleDateString() || '-'}
-                    </td>
-                    <td className="actions-cell">
-                      <button
-                        className="btn-edit"
-                        onClick={() => openEditModal(user)}
-                      >
-                        <img src={editIcon} alt="Assign Teamit" />
-                      </button>
-                      {canDeleteUser(user) && (
-                        <button
-                          className="btn-delete"
-                          onClick={() => setDeleteConfirm(user)}
-                        >
-                          <img src={trashIcon} alt="Delete" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-
+            <div className="users-table users-table--unassigned">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Display Name</th>
+                    <th>Role</th>
+                    <th>Created</th>
+                    <th className="actions-header">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleUnassignedUsers.map((user) => (
+                    <tr key={user.id} style={{ backgroundColor: '#ffffff' }}>
+                      <td>{user.email}</td>
+                      <td>{user.displayName || '-'}</td>
+                      <td>
+                        <span className={`role-pill role-${user.role}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '12px' }}>
+                        {user.createdAt?.toDate?.()?.toLocaleDateString() || '-'}
+                      </td>
+                      <td className="actions-cell">
+                        <button
+                          className="btn-edit"
+                          onClick={() => openEditModal(user)}
+                        >
+                          <img src={editIcon} alt="Assign Teamit" />
+                        </button>
+                        {canDeleteUser(user) && (
+                          <button
+                            className="btn-delete"
+                            onClick={() => setDeleteConfirm(user)}
+                          >
+                            <img src={trashIcon} alt="Delete" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       {/* Assigned Users Table */}
       <div>
         <h3 style={{ marginBottom: '16px', color: '#374151' }}>
